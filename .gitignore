@@ -1,0 +1,74 @@
+# LarcSecretaire — Credentials (ne jamais committer)
+config.ini
+secrets.env
+larcsecretaire.db
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python cache
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+*.pyd
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Tests / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# IDE
+.idea/
+.vscode/
+.spyderproject
+.ropeproject
+.claude/
+.obsidian/
+
+# mypy / pytype / pyre
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# Divers
+*.log
+pip-log.txt
+*.spec
+*.manifest
+.ruff_cache/
+.aider*
+
+# Fichiers binaires / archives / DB
+*.db
+*.zip
+*.xlsx
+*.docx
+*.pdf
