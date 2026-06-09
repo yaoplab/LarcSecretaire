@@ -32,26 +32,23 @@ def network_mode_color(mode: NetworkMode) -> str:
     }.get(mode, '#7f8c8d')
 
 
-def detect_network() -> tuple[bool, bool]:
-    """Retourne (intranet_ok, internet_ok)."""
+def detect_network() -> NetworkMode:
+    """Retourne le mode réseau actuel (INTRANET > INTERNET > OFFLINE)."""
     cfg = configparser.ConfigParser()
     cfg.read(_find_cfg())
     host = cfg.get('IntranetDatabase', 'Host', fallback='192.168.2.90')
     port = cfg.getint('IntranetDatabase', 'Port', fallback=5432)
 
-    intranet_ok = False
-    internet_ok = False
-
     try:
         with socket.create_connection((host, port), timeout=1.5):
-            intranet_ok = True
+            return NetworkMode.INTRANET
     except OSError:
         pass
 
     try:
         urllib.request.urlopen('https://www.google.com', timeout=3)
-        internet_ok = True
+        return NetworkMode.INTERNET
     except Exception:
         pass
 
-    return (intranet_ok, internet_ok)
+    return NetworkMode.OFFLINE

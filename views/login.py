@@ -37,13 +37,14 @@ class LoginWindow(QMainWindow):
 
     def _style(self) -> str:
         p = theme_manager.palette
+        d = theme_manager.design
         return f"""
             QMainWindow  {{ background: {p.background}; }}
             QWidget#root {{ background: {p.background}; }}
             QTabWidget::pane {{
-                border: 1px solid {p.border}; background: {p.surface}; border-radius: 4px;
+                border: 1px solid {p.border}; background: {p.surface}; border-radius: {d.radius}px;
             }}
-            QTabBar::tab          {{ padding: 8px 20px; font-size: 11px; }}
+            QTabBar::tab          {{ padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: 11px; }}
             QTabBar::tab:selected {{
                 background: {p.surface}; border-bottom: 2px solid {p.primary};
                 color: {p.text_strong}; font-weight: bold;
@@ -51,11 +52,11 @@ class LoginWindow(QMainWindow):
             QTabBar::tab:!selected {{ background: {p.border_light}; color: {p.text_soft}; }}
             QLineEdit {{
                 padding: 7px 10px; border: 1px solid {p.border};
-                border-radius: 4px; font-size: 12px; background: {p.surface};
+                border-radius: {d.radius}px; font-size: 12px; background: {p.surface};
             }}
             QLineEdit:focus {{ border-color: {p.primary}; }}
             QPushButton {{
-                padding: 9px 20px; border: none; border-radius: 4px;
+                padding: 9px 20px; border: none; border-radius: {d.radius}px;
                 font-size: 12px; font-weight: bold; color: white;
             }}
             QPushButton#btnIntra  {{ background: {p.button_primary}; }}
@@ -210,6 +211,7 @@ class LoginWindow(QMainWindow):
 
     # ---- PIN ----
     def _tab_pin(self) -> QWidget:
+        d = theme_manager.design
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setAlignment(Qt.AlignCenter)
@@ -241,7 +243,7 @@ class LoginWindow(QMainWindow):
         chg.setMinimumHeight(40)
         chg.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {theme_manager.palette.primary}; "
-            f"border: 1px solid {theme_manager.palette.primary}; border-radius: 4px; "
+            f"border: 1px solid {theme_manager.palette.primary}; border-radius: {d.radius}px; "
             f"font-size: 11px; }}"
             f"QPushButton:hover {{ background: {theme_manager.palette.primary}; color: white; }}")
         chg.clicked.connect(lambda: ChangePinDialog(self).exec())
@@ -405,7 +407,7 @@ class LoginWindow(QMainWindow):
 
         from LarcSecretaire.views.main_window import MainWindow
         self._main_window = MainWindow()
-        self._main_window.show()
+        self._main_window.showMaximized()
         self.close()
 
     # ---- UI helpers ----

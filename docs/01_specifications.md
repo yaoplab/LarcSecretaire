@@ -1,6 +1,6 @@
 # LarcSecretaire — Spécifications fonctionnelles et techniques
 
-> Module desktop pour les secrétaires : inscription des élèves (Phase 1) + gestion financière (Phase 2).
+> Module desktop pour les secrétaires : supervision présence/événements + gestion des parents (Phase 1) + inscriptions élèves (Phase 1 suite) + gestion financière (Phase 2).
 
 ---
 
@@ -40,15 +40,16 @@ Le rôle SECR correspond à `type_secretary = TRUE` dans `larcauth_aecuser` (col
 
 | Fonction | Phase |
 |---|---|
-| Inscription des élèves (remplir un slot vide) | 1 |
-| Mise à jour des coordonnées élève | 1 |
-| Affectation / changement de classe | 1 |
-| Gestion des parents/tuteurs | 1 |
-| Activation / désactivation d'un élève | 1 |
+| Supervision présence / événements (importé de LarcSuperviseur) | 1 |
+| Gestion des parents/tuteurs (lien N-N élèves ↔ parents) | 1 |
+| Inscription des élèves (remplir un slot vide) | 1 (suite) |
+| Mise à jour des coordonnées élève | 1 (suite) |
+| Affectation / changement de classe | 1 (suite) |
+| Activation / désactivation d'un élève | 1 (suite) |
 | Paiements de scolarité (échéancier, encaissements, reçus) | 2 |
 | Reporting financier | 2 |
 
-**Principe :** `UPDATE` uniquement, jamais `INSERT` ni `DELETE`. Confirmé par le schéma d'IDs : les 40 slots par classe existent en base.
+**Principe :** `UPDATE` uniquement, jamais `INSERT` ni `DELETE` pour les entités stables (élèves, classes, places). Les événements (`student_event`) sont en INSERT libre — une timeline d'événements est imprévisible par nature.
 
 ---
 
@@ -76,18 +77,21 @@ LarcSecretaire/
 ├── views/
 │   ├── __init__.py
 │   ├── login.py             # LoginWindow — 4 onglets auth
-│   ├── main_window.py       # MainWindow — sidebar + dashboard KPIs
+│   ├── main_window.py       # MainWindow — sidebar + dashboard KPIs + bascule supervision/parents + lanceur LarcSuperviseur
 │   ├── password.py          # ChangePinDialog + ChangePasswordDialog
-│   ├── student_form.py      # (à faire) fiche élève
+│   ├── supervisor_panel.py  # Grille de cartes élèves, clic → EditDialog modal, présence/événements
+│   ├── parent_manager.py    # Liste parents, lien N-N élèves ↔ parents
+│   ├── student_form.py      # Recherche + vignette + StudentEditDialog/StudentCreateDialog à 6 onglets
 │   ├── class_view.py        # (à faire) grille classe
-│   ├── search.py            # (à faire) recherche
-│   └── parent_manager.py    # (à faire) gestion parents
+│   └── search.py            # (à faire) recherche
 │
-└── docs/
-    ├── 01_specifications.md  # Ce document
-    ├── 02_authentification.md
-    ├── 03_sync.md
-    └── historiques_construction.md
+├── docs/
+│   ├── 01_specifications.md  # Ce document
+│   ├── 02_authentification.md
+│   ├── 03_sync.md
+│   ├── historique_construction.md
+│   ├── student_event.sql     # DDL déployé Intranet + Supabase le 07/06/2026
+│   └── student_parent.sql    # DDL déployé Intranet + Supabase le 07/06/2026
 ```
 
 ---
@@ -97,25 +101,36 @@ LarcSecretaire/
 ```
 ┌──────────────────────┐
 │  Navigation          │
-│                      │
 │  [📊 Tableau de bord]│
 │                      │
 │  INSCRIPTIONS        │
 │  [🔍 Rechercher]     │
 │  [➕ Nouvelle fiche] │
+│  [👪 Gestion parents]│
 │                      │
-│  CLASSES             │
-│    PEI               │
-│      PEI-5A          │
-│      PEI-5B          │
-│    MYP               │
-│      MYP-1A          │
-│    DP                │
-│    DPEn              │
+│  ── Collège ──       │
+│  ┌──────┬──────┐     │
+│  │ PEI  │ MYP  │     │
+│  ├──────┼──────┤     │
+│  │ 6111 │ 7111 │     │
+│  │ 6112 │ 7121 │     │
+│  │ 6121 │      │     │
+│  └──────┴──────┘     │
+│                      │
+│  ── Lycée ──         │
+│  ┌──────┬──────┐     │
+│  │ DP   │ DPEn │     │
+│  ├──────┼──────┤     │
+│  │ 1011 │ 2001 │     │
+│  │ 1021 │ 2011 │     │
+│  └──────┴──────┘     │
 │                      │
 │  ● Intranet          │
 └──────────────────────┘
 ```
+
+Clic sur une classe → bascule en page Supervision (présence/événements pour cette classe).
+Clic sur "Gestion parents" → page de gestion des liens élèves↔parents.
 
 ---
 
@@ -131,36 +146,71 @@ LarcSecretaire/
 - **KPIs** : Total élèves actifs, Collège, Lycée, Places libres
 - **Tableau répartition** par programme (PEI/MYP/DP/DPEn) avec taux de remplissage
 - **Alertes** : élèves actifs sans parent/tuteur rattaché
-- **Sidebar** : Navigation avec liste des classes par programme
-- **3 thèmes MD3** : Material Light, Dark, Contrast (cycle via bouton 🎨)
+- **Sidebar** : Navigation + Inscriptions + classes par programme (style LarcSuperviseur)
+- **3 thèmes MD3** : Material Light, Dark, Contrast (cycle via bouton 🎨) — rafraîchit tous les styles inline
 - **Barre d'état** : indicateur réseau Intranet/Cloud/Hors ligne
+
+### 5.3 Supervision présence/événements (views/supervisor_panel.py)
+- Importé et adapté depuis LarcSuperviseur
+- Grille de cartes élèves avec présence du jour (✓/✕/—)
+- Clic sur une vignette élève → ouvre `StudentEditDialog` en popup modal (grille reste visible)
+- Historique des événements par élève dans le popup (onglet Événements, lecture seule)
+- Bouton d'ajout d'événement (arrival, departure, exit, return, absence, justified, late)
+- Bascule depuis un clic sur une classe dans la sidebar
+
+### 5.4 Gestion des parents (views/parent_manager.py)
+- Liste des parents/tuteurs (`type_parentutor = TRUE`)
+- Filtre par texte (nom, email)
+- Sélection d'un parent → affiche ses élèves liés
+- Combo pour lier un nouvel élève (avec nature : père, mère, tuteur, etc.)
+- Bouton Délier
+- Table `student_parent` créée (DDL dans `docs/student_parent.sql`)
 
 ---
 
-## 6. Phase 1 — À faire
+## 6. Phase 1 — Réalisé (suite)
 
 ### 6.1 Fiche élève (student_form.py)
-Champs à éditer :
-- `larcauth_aecuser` : `first_name`, `last_name`, `firstname_2`, `email`, `emailperso`, `tel_maison`, `tel_smartphone_1`, `tel_smartphone_2`, `fk_gender_id`, `date_entree`
-- `larcauth_student` : `s_classroom_id`, `enabled`
-- Adresse : à vérifier (table `larcauth_address` ou colonnes à ajouter)
+Popup modale `StudentEditDialog` avec **6 onglets** + photo toujours visible :
+1. **Identité** — nom, prénom, date d'entrée
+2. **Contact** — email, email perso, tél. portable, tél. fixe
+3. **Adresse** — ligne1, complément, CP, ville, pays
+4. **Notes** — éditeur QTextEdit riche avec barre d'outils (gras, italique, listes, tableau 3×3), stockage HTML
+5. **Fichiers & Parents** — explorateur `data/students/{id}/` + tableau parents/tuteurs liés
+6. **Événements** — tableau lecture seule des événements de l'élève
 
-### 6.2 Vue classe (class_view.py)
+Popup `StudentCreateDialog` avec la même structure à 6 onglets :
+- Sélecteur de classe + champs identiques à l'édition
+- Notes actives (sauvegardées en HTML dès la création)
+- Onglets Fichiers & Parents et Événements en placeholder
+- Détection auto slot libre, réinitialisation pour saisie batch
+
+### 6.2 Superviseur → Fiche élève
+- Clic sur vignette élève dans la grille Supervision → `StudentEditDialog` modal
+- Photo dans le panneau détail (page 3) cliquable → `StudentEditDialog`
+
+### 6.3 Lancement LarcSuperviseur
+Bouton dans le dashboard (sous les alertes) : `subprocess.Popen(['python', 'LarcSuperviseur/main.py'])`.
+
+## 7. Phase 1 — À faire
+
+### 7.1 Vue classe (class_view.py)
 Grille des élèves d'une classe avec :
 - Statut toggle Actif/Inactif
 - Double-clic → fiche élève
 - Lignes inactives grisées
 - Slots vides affichés
 
-### 6.3 Recherche (search.py)
-Barre de recherche globale avec résultats en temps réel.
+### 7.2 Recherche globale (search.py)
+Barre de recherche multi-entités (élèves, parents, classes).
 
-### 6.4 Gestion des parents (parent_manager.py)
-Lier un parent (`type_parentutor = TRUE`) à un élève via `fk_parent_id`.
+### 7.3 Sync
+- Connecter `sync.py` aux nouvelles tables (`student_event`, `student_parent`)
+- Bouton Synchroniser dans le dashboard
 
 ---
 
-## 7. Phase 2 — Gestion financière (esquisse)
+## 9. Phase 2 — Gestion financière (esquisse)
 
 Tables à créer côté serveur : `tuition_fee_structure`, `student_invoice`, `payment_transaction`, `payment_plan`, `receipt`.
 
@@ -168,29 +218,34 @@ Workflow : `Grille tarifaire → Facture → Échéancier → Encaissement → R
 
 ---
 
-## 8. Points forts
+## 10. Points forts
 
 1. **Architecture éprouvée** — Auth, sync, thèmes, logger déjà rodés
-2. **Philosophie gabarit** — Pas d'INSERT, sync simplifiée, pas de conflit d'ID
+2. **Philosophie gabarit** — Pas d'INSERT (sauf événements), sync simplifiée, pas de conflit d'ID
 3. **Slots pré-alloués** confirmés (IDs 121101–121140 par classe)
 4. **Mêmes connexions** — config.ini déjà en place
 5. **Sync déjà opérationnelle** — triggers sync_version existent
 6. **Module financier isolé en Phase 2**
 
-## 9. Points faibles / Risques
+## 11. Points faibles / Risques
 
 1. **Adresse élève** — colonnes manquantes dans `larcauth_aecuser` (rue, CP, ville)
 2. **Photos** — import à implémenter (upload PNG + redimensionnement)
 3. **Conflits entre secrétaires** — deux modifications simultanées possibles
 4. **Sécurité financière** (Phase 2)
 5. **Pas de `gitignore`** — config.ini et *.db doivent être exclus
+6. **DDLs non déployés** — `student_event.sql` et `student_parent.sql` doivent être exécutés sur Intranet et Supabase
 
 ---
 
-## 10. Questions résolues
+## 12. Questions résolues
 
 - [x] **Slots pré-alloués** confirmés : IDs 121101..121140 par classe
 - [x] **type_secretary** : colonne ajoutée sur Intranet et Cloud (05/06/2026)
 - [x] **Compte secrétaire** : patrlabo@arc-en-ciel.org (id=1021, Patrice LABONNE)
+- [x] **Filtrage PP/PYP** exclu de toutes les vues (Collège/Lycée seulement)
+- [x] **SupervisorPanel** intégré depuis LarcSuperviseur
+- [x] **ParentManager** créé (vue + table student_parent)
 - [ ] Adresse : colonnes à vérifier/ajouter
 - [ ] Photo : import à définir
+- [ ] DDLs à déployer sur serveur

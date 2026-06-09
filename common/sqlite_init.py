@@ -94,6 +94,25 @@ CREATE TABLE IF NOT EXISTS sync_cursor (
     last_version INTEGER,
     updated_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS foyer (
+    id INTEGER PRIMARY KEY,
+    address_line1 TEXT,
+    address_line2 TEXT,
+    postal_code TEXT,
+    city TEXT,
+    country TEXT DEFAULT 'France',
+    phone TEXT,
+    email TEXT,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS student_parent (
+    student_id INTEGER NOT NULL,
+    parent_id INTEGER NOT NULL,
+    nature TEXT,
+    PRIMARY KEY (student_id, parent_id)
+);
 """
 
 
@@ -131,6 +150,7 @@ class SQLiteInit:
         expected = [
             "session_cache", "module_config", "sync_state",
             "student_profile", "student_profile_ref", "sync_cursor",
+            "foyer", "student_parent",
         ]
         cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
         existing = {r[0] for r in cur.fetchall()}

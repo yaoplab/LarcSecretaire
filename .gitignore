@@ -66,6 +66,9 @@ pip-log.txt
 .ruff_cache/
 .aider*
 
+# Données locales (fichiers joints élèves)
+data/students/
+
 # Fichiers binaires / archives / DB
 *.db
 *.zip

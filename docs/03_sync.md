@@ -9,6 +9,8 @@ Reprend le pattern shadow-table de eLarcProfPy. Chaque table métier du device a
 | Table de travail | Table de référence | Contenu |
 |---|---|---|
 | `student_profile` | `student_profile_ref` | Snapshots élèves actifs + coordonnées |
+| `student_event` | `student_event_ref` | Événements de présence (à connecter) |
+| `student_parent` | `student_parent_ref` | Liens élèves↔parents (à connecter) |
 
 ## Pattern shadow-table
 
@@ -79,8 +81,18 @@ CREATE TABLE student_profile (
 
 -- Référence shadow (même schéma)
 CREATE TABLE student_profile_ref ( ... );
+```
 
--- Curseur de sync incrémentale
+### Tables ajoutées en Phase 1
+
+| Table SQLite | Source serveur | Statut |
+|---|---|---|
+| `student_event` | `public.student_event` | DDL créé, sync à connecter |
+| `student_parent` | `public.student_parent` | DDL créé, sync à connecter |
+
+### Curseur de sync incrémentale
+
+```sql
 CREATE TABLE sync_cursor (
     id INTEGER PRIMARY KEY,
     table_name TEXT NOT NULL,
@@ -105,7 +117,8 @@ sync_manager.pull_push(rows, push_fn)   # pull puis push
 
 ## Notes
 
-- Même mécanisme que eLarcProfPy : pas d'INSERT/DELETE, que des UPDATE
+- Même mécanisme que eLarcProfPy : pas d'INSERT/DELETE, que des UPDATE (sauf événements)
+- Les événements (`student_event`) sont en INSERT libre — la sync devra gérer l'append
 - Pas de conflit entre profs (périmètre disjoint) ; possibles entre secrétaires
-- La colonne `sync_version` côté serveur est incrémentée par trigger PostgreSQL
+- La colonne `sync_revision` côté serveur est incrémentée par trigger PostgreSQL
 - Daemon `LarcCloudSync` pour la sync Intranet ↔ Cloud (projet séparé)
