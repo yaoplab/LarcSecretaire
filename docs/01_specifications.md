@@ -82,6 +82,7 @@ LarcSecretaire/
 │   ├── supervisor_panel.py  # Grille de cartes élèves, clic → EditDialog modal, présence/événements
 │   ├── parent_manager.py    # Liste parents, lien N-N élèves ↔ parents
 │   ├── student_form.py      # Recherche + vignette + StudentEditDialog/StudentCreateDialog à 6 onglets
+│   ├── notes_panel.py       # NotesPanel — 7 sections JSONB avec export PDF/Word
 │   ├── class_view.py        # (à faire) grille classe
 │   └── search.py            # (à faire) recherche
 │
@@ -170,26 +171,41 @@ Clic sur "Gestion parents" → page de gestion des liens élèves↔parents.
 
 ## 6. Phase 1 — Réalisé (suite)
 
-### 6.1 Fiche élève (student_form.py)
-Popup modale `StudentEditDialog` avec **6 onglets** + photo toujours visible :
-1. **Identité** — nom, prénom, date d'entrée
+### 6.1 Fiche élève (student_form.py + notes_panel.py)
+Popup modale `StudentEditDialog` avec **6 onglets** + photo toujours visible.
+**Boutons d'action en haut** (sous la photo) : Enregistrer, PDF, Word, Annuler.
+
+1. **Identité** — nom, prénom, date d'entrée, date de naissance, genre
 2. **Contact** — email, email perso, tél. portable, tél. fixe
-3. **Adresse** — ligne1, complément, CP, ville, pays
-4. **Notes** — éditeur QTextEdit riche avec barre d'outils (gras, italique, listes, tableau 3×3), stockage HTML
-5. **Fichiers & Parents** — explorateur `data/students/{id}/` + tableau parents/tuteurs liés
-6. **Événements** — tableau lecture seule des événements de l'élève
+3. **Adresse & Parents** — adresse (ligne1, complément, CP, ville, pays) + liste parents/tuteurs
+   - Bouton **+ Ajouter un parent** : recherche dialogue (filtre LIKE nom/email, exclut ceux déjà liés)
+   - Bouton **✎ Nature** : édition de la nature du lien
+   - Bouton **− Retirer** : suppression du lien avec confirmation
+   - Bouton **Copier l'adresse du parent sélectionné** : requête foyer → remplit les champs adresse
+4. **Notes** — `NotesPanel` (7 sections JSONB) : Confidentielle, Médicale, Pédagogique, Administrative, Communication, Orientation, Autre
+   - Chaque section : introduction contextuelle statique + tableau (N°, Date, Titre, Document/Note)
+   - Édition multi-lignes dans la colonne Document/Note (`_MultilineDelegate`)
+   - Export PDF/Word par section (boutons dans la ligne des boutons de chaque onglet)
+   - Export complet fiche élève (PDF/Word) depuis les boutons en haut du dialog
+5. **Fichiers** — explorateur `data/students/{id}/` (ajout, suppression, ouverture)
+6. **Événements** — tableau lecture seule (colonnes harmonisées : Date 150px, Type 110px, Note stretch, Par 140px, Validé autosize)
 
 Popup `StudentCreateDialog` avec la même structure à 6 onglets :
 - Sélecteur de classe + champs identiques à l'édition
-- Notes actives (sauvegardées en HTML dès la création)
-- Onglets Fichiers & Parents et Événements en placeholder
+- Notes actives (sauvegardées en JSON dès la création)
+- Onglets Fichiers et Événements en placeholder
 - Détection auto slot libre, réinitialisation pour saisie batch
 
-### 6.2 Superviseur → Fiche élève
+### 6.2 Export fiche élève
+- **PDF** : `QTextDocument.print_()` avec `QPrinter.PdfFormat`
+- **Word** : fichier HTML (ouvrable dans Word)
+- Génération via `_build_full_html()` : en-tête + contact + adresse + parents + notes structurées + événements
+
+### 6.3 Superviseur → Fiche élève
 - Clic sur vignette élève dans la grille Supervision → `StudentEditDialog` modal
 - Photo dans le panneau détail (page 3) cliquable → `StudentEditDialog`
 
-### 6.3 Lancement LarcSuperviseur
+### 6.4 Lancement LarcSuperviseur
 Bouton dans le dashboard (sous les alertes) : `subprocess.Popen(['python', 'LarcSuperviseur/main.py'])`.
 
 ## 7. Phase 1 — À faire
@@ -246,6 +262,6 @@ Workflow : `Grille tarifaire → Facture → Échéancier → Encaissement → R
 - [x] **Filtrage PP/PYP** exclu de toutes les vues (Collège/Lycée seulement)
 - [x] **SupervisorPanel** intégré depuis LarcSuperviseur
 - [x] **ParentManager** créé (vue + table student_parent)
-- [ ] Adresse : colonnes à vérifier/ajouter
+- [x] **Notes JSONB** : colonne `notes_json` ajoutée (Intranet + Cloud, 10/06/2026)
+- [x] **date_of_birth** : colonne ajoutée sur `larcauth_aecuser` (10/06/2026)
 - [ ] Photo : import à définir
-- [ ] DDLs à déployer sur serveur

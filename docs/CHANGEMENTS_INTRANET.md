@@ -1,7 +1,7 @@
 # Changements appliqués — Bases de données
 
 _8 juin 2026 — Mise à jour_  
-_Dernier ajout : 9 juin 2026 — 18h_
+_Dernier ajout : 10 juin 2026_
 
 ## État final (Intranet maison + Cloud Supabase)
 
@@ -72,3 +72,41 @@ DELETE FROM larcauth_gender WHERE id IN (3, 4);
 ALTER TABLE larcauth_student ADD COLUMN IF NOT EXISTS notes TEXT;
 ```
 Exécuté le 09/06/2026 sur Intranet. La colonne existait déjà (créée le 08/06), le `IF NOT EXISTS` est sans effet.
+
+---
+
+## 10 juin 2026 — Notes structurées JSON
+
+### Ajout colonne notes_json
+
+```sql
+ALTER TABLE larcauth_student ADD COLUMN IF NOT EXISTS notes_json JSONB DEFAULT '{}'::jsonb;
+```
+
+Remplace l'ancienne colonne `notes` (TEXT, HTML libre) par une structure JSONB avec 7 sections prédéfinies :
+- `confidentielle` — Réservé direction/secrétariat
+- `medicale` — Allergies, PAI, traitements
+- `pedagogique` — Suivi éducatif, PPRE
+- `administrative` — Bourses, assurances
+- `communication` — Historique contacts parents
+- `orientation` — Vœux, stages, PsyEN
+- `autre` — Divers
+
+Chaque section : `{ intro: "HTML", entries: [{ no, date, titre, doc }] }`
+
+### Migration données
+Les anciennes notes (colonne `notes` TEXT) sont importées automatiquement dans la section `autre` à la première ouverture de la fiche (fallback dans `_load_data()`). Aucune perte de données.
+
+### sync_version
+Automatique via le trigger `handle_updated_at_and_sync()` (BEFORE UPDATE sur `larcauth_student`). Toute mise à jour de `notes_json` incrémente `sync_version`.
+
+### Date de naissance (`date_of_birth`)
+```sql
+ALTER TABLE larcauth_aecuser ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+```
+Ajoutée le 10/06/2026 sur Intranet et Cloud via `sql/02_date_columns.sql`.
+COMMENT ON COLUMN ajoutés pour `date_of_birth`, `date_entree`, `date_joined`.
+
+### Statut déploiement
+- `docs/migrate_notes_json.sql` : exécuté Intranet + Cloud le 10/06/2026
+- `sql/02_date_columns.sql` : exécuté Intranet + Cloud le 10/06/2026

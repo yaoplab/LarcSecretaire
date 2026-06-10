@@ -1,6 +1,6 @@
 # LarcSecretaire — Contexte projet
 
-_Dernière mise à jour : 9 juin 2026 — 18h_
+_Dernière mise à jour : 10 juin 2026_
 
 ## Règle importante — Décisions avant actions
 Quand je demande "qu'est-ce que tu pens ?" à propos d'une approche ou d'une solution,
@@ -51,7 +51,8 @@ LarcSecretaire/
 │   ├── main_window.py      # MainWindow — sidebar + dashboard + stack pages
 │   ├── supervisor_panel.py # Grille élèves, présence, événements (page 1)
 │   ├── parent_manager.py   # Gestion parents, foyer, lien élèves↔parents (page 2)
-│   └── student_form.py     # Fiche élève — recherche + popup édition (page 3)
+│   ├── student_form.py     # Fiche élève — recherche + popup édition (page 3)
+│   └── notes_panel.py      # NotesPanel — 7 sections JSONB avec export PDF/Word
 ├── docs/
 │   ├── 01_specifications.md
 │   ├── 02_authentification.md
@@ -60,7 +61,9 @@ LarcSecretaire/
 │   ├── student_event.sql
 │   ├── student_parent.sql
 │   ├── foyer_parent.sql
-│   └── migrate_notes_column.sql
+│   └── migrate_notes_json.sql
+├── sql/
+│   └── 02_date_columns.sql
 ```
 
 Photos des élèves partagées avec LarcSuperviseur : `C:\Projets\LarcSuperviseur\photos\{id}.png`.
@@ -99,16 +102,15 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 - Sélection d'un résultat → vignette info à droite (photo cliquable, nom, classe)
 - Photo `{id}.png` depuis `C:\Projets\LarcSuperviseur\photos\` (fallback avatar initiales) — clic photo ou bouton "Ouvrir la fiche" → popup
 - Photos redimensionnées au QLabel (KeepAspectRatio, SmoothTransformation)
+- **Boutons d'action en haut** (sous la photo) : Enregistrer, PDF, Word, Annuler
 - **6 onglets avec photo toujours visible** :
-  - **Identité** — nom, prénom, date d'entrée
+  - **Identité** — nom, prénom, date de naissance, date d'entrée, genre
   - **Contact** — email, email perso, tél. portable, tél. fixe
-  - **Adresse** — ligne1, complément, CP, ville, pays
-  - **Notes** — éditeur QTextEdit riche avec barre d'outils (gras, italique, listes à puces/numérotées, tableau 3×3). Stockage HTML.
-  - **Fichiers & Parents** — explorateur fichiers joints `data/students/{id}/` (ajout, suppression, ouverture) + tableau parents/tuteurs liés
+  - **Adresse & Parents** — adresse (ligne1, complément, CP, ville, pays) + liste parents avec boutons de gestion parent (Ajouter, ✎ Nature, − Retirer, Copier l'adresse)
+  - **Notes** — **NotesPanel** 7 sections JSONB : Confidentielle, Médicale, Pédagogique, Administrative, Communication, Orientation, Autre. Chaque section : introduction contextuelle statique + tableau (N°, Date, Titre, Document/Note) avec édition multi-lignes. Export PDF/Word par section.
+  - **Fichiers** — explorateur fichiers joints `data/students/{id}/` (ajout, suppression, ouverture)
   - **Événements** (lecture seule) — tableau des événements de l'élève (date, type, note, auteur, validation)
-- Boutons Enregistrer / Imprimer / Annuler
-- Impression : format HTML via QPrinter
-- Mode toujours éditable (pas de toggle lecture/édition)
+- Export complet fiche élève : PDF (QPrinter) ou Word (HTML) depuis les boutons en haut ou par section depuis chaque onglet notes
 
 ### Recherche élèves
 - Requête inclut `aec.fk_gender_id` et `s.s_classroom_id` (ajoutés le 9 juin)
@@ -150,6 +152,51 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 | `larcauth_student.notes` | colonne TEXT — UPDATE classique (pas une exception) |
 
 `student_parent` n'est PAS une exception : associe deux entités existantes.
+
+## Changements récents (10 juin 2026)
+
+### 1. Notes structurées JSONB (remplace notes TEXT HTML)
+- Nouveau widget `views/notes_panel.py` : `NotesPanel` + `_SectionTab` + `_MultilineDelegate`
+- 7 sections prédéfinies : Confidentielle, Médicale, Pédagogique, Administrative, Communication, Orientation, Autre
+- Stockage : colonne `notes_json JSONB` dans `larcauth_student`
+- Chaque section : introduction contextuelle statique (QLabel) + tableau éditable (N°, Date, Titre, Document/Note)
+- Édition multi-lignes dans la colonne Document/Note via `_MultilineDelegate` (QPlainTextEdit)
+- Export PDF/Word par section (boutons dans la ligne des boutons de chaque onglet, exportent toutes les sections)
+- Export complet fiche élève depuis les boutons en haut du dialog (Enregistrer, PDF, Word, Annuler)
+- Fallback : anciennes notes TEXT importées dans section `autre` à la première ouverture
+
+### 2. Onglet 3 "Adresse & Parents" fusionné
+- Adresse (ligne1, complément, CP, ville, pays) + liste parents/tuteurs dans le même onglet
+- Boutons de gestion parent : **+ Ajouter un parent** (recherche dialogue), **✎ Nature** (édition), **− Retirer** (confirmation)
+- Bouton **Copier l'adresse** du parent sélectionné (requête foyer du parent et remplit les champs)
+- Méthode `_load_parents()` extraite pour rechargement après chaque modification
+- `_parent_ids` stocké pour le copy address
+
+### 3. Onglet 5 devient "Fichiers" uniquement
+- La partie parents déplacée dans l'onglet 3 Adresse & Parents
+- Onglet 5 contient seulement la liste des fichiers joints
+
+### 4. Boutons d'action déplacés en haut
+- Enregistrer, PDF, Word, Annuler déplacés à côté de la photo (plus en bas du dialog)
+- Visibles en permanence, pas besoin de scroller
+
+### 5. Export PDF/Word par section notes
+- Boutons PDF et Word dans la ligne de boutons de chaque onglet `_SectionTab`
+- Exportent toutes les sections (pas seulement l'onglet courant)
+- PDF : QPrinter (PdfFormat) avec QTextDocument
+- Word : HTML (ouvrable dans Word)
+
+### 6. Colonnes événements harmonisées
+- Date/Heure : 150px, Type : 110px, Note : Stretch, Par : 140px, Validé : autosize
+
+### 7. Nettoyage code mort
+- Anciennes méthodes toolbar notes (B/I/U, H1/H2/H3, couleurs, listes, tableaux, source toggle) supprimées
+- Imports inutilisés retirés : `QColorDialog`, `QInputDialog`, `QTextListFormat`, `QTextCharFormat`, `QTextBlockFormat`, `QPlainTextEdit`
+- `QTextEdit` retiré de notes_panel.py (remplacé par QLabel statique)
+
+### 8. DDL déployé
+- `docs/migrate_notes_json.sql` : `ALTER TABLE larcauth_student ADD COLUMN notes_json JSONB DEFAULT '{}'::jsonb`
+- `sql/02_date_columns.sql` : `ALTER TABLE larcauth_aecuser ADD COLUMN date_of_birth DATE` + COMMENT
 
 ### À faire
 1. Connecter `sync.py` aux nouvelles tables (`student_event`, `student_parent`, `foyer`)

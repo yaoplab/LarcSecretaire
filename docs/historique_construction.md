@@ -200,3 +200,72 @@ Les deux popups (édition et création) ont été unifiés et repensés :
 3. Vue classe complète (class_view.py) — slots vides, inactifs grisés
 4. Recherche globale (search.py)
 5. Phase 2 : gestion financière
+
+---
+
+## Itération 7 — 10 juin 2026 : Notes JSONB, adresse & parents fusionnés, export PDF/Word
+
+### Notes structurées JSONB
+- Remplacement de l'ancien système notes (TEXT HTML, éditeur QTextEdit avec barre d'outils) par une structure **JSONB** à 7 sections prédéfinies :
+  - **Confidentielle** — réservé direction/secrétariat
+  - **Médicale** — allergies, PAI, traitements
+  - **Pédagogique** — PPRE, suivi, bilans
+  - **Administrative** — bourses, assurances
+  - **Communication** — historique contacts parents
+  - **Orientation** — vœux, stages, PsyEN
+  - **Autre** — divers
+- Création de `views/notes_panel.py` :
+  - `NotesPanel` : widget principal avec QTabWidget (7 onglets)
+  - `_SectionTab` : chaque onglet = introduction contextuelle statique (QLabel coloré) + tableau entries (N°, Date, Titre, Document/Note)
+  - `_MultilineDelegate` : éditeur QPlainTextEdit pour la colonne Document/Note (redimensionnable, multi-lignes)
+  - Boutons d'export PDF/Word dans la ligne des boutons de section (exportent toutes les sections)
+- Fallback : anciennes notes TEXT importées automatiquement dans la section `autre` à la première ouverture de la fiche
+- `docs/migrate_notes_json.sql` : `ALTER TABLE larcauth_student ADD COLUMN notes_json JSONB DEFAULT '{}'::jsonb`
+
+### Refonte onglet 3 "Adresse & Parents"
+- Fusion des sections Adresse et Parents dans un seul onglet
+- **Gestion parent inline** :
+  - Bouton **+ Ajouter un parent** : ouvre une boîte de dialogue de recherche (filtre type_parentutor, LIKE nom/email, exclut ceux déjà liés) → INSERT INTO student_parent
+  - Bouton **✎ Nature** : QInputDialog pour modifier la nature du lien
+  - Bouton **− Retirer** : DELETE avec confirmation
+  - Bouton **Copier l'adresse du parent sélectionné** : requête foyer du parent → remplit les champs adresse
+  - `_load_parents()` extrait en méthode séparée pour rechargement après modification
+  - `_parent_ids` stocké pour les opérations
+
+### Refonte onglet 5 "Fichiers"
+- La partie parents déplacée dans l'onglet 3
+- Onglet 5 : uniquement la liste des fichiers joints (`data/students/{id}/`)
+
+### Boutons dialog en haut
+- Enregistrer, PDF, Word, Annuler déplacés à côté de la photo (sous le nom)
+- Plus de scroll nécessaire pour accéder aux boutons
+
+### Export complet fiche élève
+- `_build_full_html()` : génère HTML complet (en-tête + contact + adresse + parents + notes + événements)
+- Export PDF : `QPrinter` avec `QTextDocument.print_()`
+- Export Word : fichier HTML (ouvrable dans Word)
+
+### Colonnes événements harmonisées
+- Date/Heure : 150px, Type : 110px, Note : Stretch, Par : 140px, Validé : ResizeToContents
+
+### Nettoyage
+- Import inutiles retirés : `QColorDialog`, `QInputDialog`, `QTextListFormat`, `QTextCharFormat`, `QTextBlockFormat`, `QPlainTextEdit`, `QTextEdit`
+- Anciennes méthodes toolbar notes supprimées
+- `QTextDocument` ajouté aux imports (export PDF)
+
+### DDL exécutés
+- `docs/migrate_notes_json.sql` : ajout `notes_json JSONB` sur Intranet et Cloud
+- `sql/02_date_columns.sql` : ajout `date_of_birth DATE` + COMMENT sur `larcauth_aecuser`
+
+### État actuel
+- 7 sections de notes structurées en JSONB
+- Gestion parents inline dans la fiche élève (Ajouter, Nature, Retirer, Copier adresse)
+- Export PDF/Word complet et par section
+- Tab 3 = Adresse & Parents, Tab 4 = Notes, Tab 5 = Fichiers
+- Boutons d'action en haut du dialog
+
+### Prochaines étapes
+1. Connecter `sync.py` aux nouvelles tables (`student_event`, `student_parent`, `foyer`)
+2. Bouton Synchroniser dans le dashboard
+3. Vue classe complète (class_view.py)
+4. Phase 2 : gestion financière

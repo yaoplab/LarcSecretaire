@@ -97,32 +97,6 @@ class AuthManager:
             return False, AuthResult(), str(e)
 
     @classmethod
-    def auth_pin(cls, email: str, pin: str) -> Tuple[bool, AuthResult, str]:
-        local = db.local_conn
-        if local is None:
-            return False, AuthResult(), 'Base locale non disponible'
-
-        pin_hash = _sha256_hex(pin)
-        try:
-            row = local.execute(
-                "SELECT user_id, email, full_name, role, term_id, term_label "
-                "FROM session_cache WHERE LOWER(email) = ? AND pin_hash = ?",
-                (email.strip().lower(), pin_hash)
-            ).fetchone()
-            if row is None:
-                return False, AuthResult(), 'Email ou PIN incorrect'
-            return True, AuthResult(
-                user_id=int(row['user_id']),
-                email=row['email'],
-                full_name=row['full_name'],
-                role=UserRole(row['role']),
-                term_id=int(row['term_id'] or 0),
-                term_label=row['term_label'] or '',
-            ), ''
-        except Exception as e:
-            return False, AuthResult(), str(e)
-
-    @classmethod
     def check_teacher_exists(cls, email: str) -> Tuple[bool, dict]:
         """
         Vérifie si l'email correspond à un professeur actif dans teachadm.

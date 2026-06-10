@@ -15,8 +15,6 @@ class UserRole(Enum):
 class ConnMode(Enum):
     INTRANET     = 'Intranet'
     CLOUD        = 'Cloud'
-    OFFLINE      = 'Hors connexion'
-    NEW_INSTANCE = 'Nouvelle instance'
 
 
 @dataclass

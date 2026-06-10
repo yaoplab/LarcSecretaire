@@ -1,19 +1,20 @@
-import os
 from typing import Optional, Tuple
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QTabWidget, QLabel, QLineEdit, QPushButton, QStatusBar,
-    QMessageBox, QApplication,
+    QMainWindow, QWidget, QVBoxLayout, QFormLayout,
+    QTabWidget, QLabel, QLineEdit, QPushButton,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 
 from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
 from LarcSecretaire.common.network import NetworkMode, detect_network
 from LarcSecretaire.common.database import db
-from LarcSecretaire.common.auth import AuthManager, OAuth2Manager
+from LarcSecretaire.common.auth import AuthManager
 from LarcSecretaire.common.sqlite_init import sqlite_init
 from LarcSecretaire.common.theme import theme_manager
+from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.audit import audit
 
 
 class _Worker(QThread):
@@ -64,12 +65,6 @@ class LoginWindow(QMainWindow):
             QPushButton#btnGoogle {{ background: {p.button_danger}; }}
             QPushButton#btnGoogle:hover {{ background: {p.danger}; }}
             QPushButton#btnGoogle:disabled {{ background: {p.inactive}; }}
-            QPushButton#btnPIN    {{ background: {p.button_accent}; }}
-            QPushButton#btnPIN:hover    {{ background: {p.accent}; }}
-            QPushButton#btnPIN:disabled {{ background: {p.inactive}; }}
-            QPushButton#btnCreate {{ background: {p.button_success}; }}
-            QPushButton#btnCreate:hover {{ background: {p.success}; }}
-            QPushButton#btnCreate:disabled {{ background: {p.inactive}; }}
             QLabel#errLabel {{ color: {p.danger}; font-size: 11px; }}
             QLabel#hdrTitle {{ color: {p.text_strong}; font-size: 22px; font-weight: bold; }}
             QLabel#hdrSub   {{ color: {p.text_soft}; font-size: 11px; }}
@@ -132,7 +127,6 @@ class LoginWindow(QMainWindow):
         tabs = QTabWidget()
         tabs.addTab(self._tab_intranet(), "Intranet")
         tabs.addTab(self._tab_cloud(), "Cloud")
-        tabs.addTab(self._tab_pin(), "Hors connexion")
         outer.addWidget(tabs, 1)
 
         # Message d'erreur
@@ -207,53 +201,6 @@ class LoginWindow(QMainWindow):
         layout.addWidget(info2)
         return w
 
-    # ---- PIN ----
-    def _tab_pin(self) -> QWidget:
-        d = theme_manager.design
-        w = QWidget()
-        layout = QVBoxLayout(w)
-        layout.setAlignment(Qt.AlignCenter)
-        form = QFormLayout()
-        form.setSpacing(8)
-
-        email = QLineEdit()
-        email.setPlaceholderText("prenom.nom@votreedu.com")
-        self._edt_p_email = email
-        pin = QLineEdit()
-        pin.setEchoMode(QLineEdit.Password)
-        pin.setPlaceholderText("Code PIN (4-8 chiffres)")
-        pin.setMaxLength(8)
-        pin.returnPressed.connect(self._on_pin)
-        self._edt_p_pin = pin
-
-        form.addRow("Email :", email)
-        form.addRow("PIN :", pin)
-        layout.addLayout(form)
-
-        btn = QPushButton("Connexion par PIN")
-        btn.setObjectName("btnPIN")
-        btn.setMinimumHeight(44)
-        btn.clicked.connect(self._on_pin)
-        layout.addWidget(btn)
-
-        from LarcSecretaire.views.password import ChangePinDialog
-        chg = QPushButton("Changer le code PIN")
-        chg.setMinimumHeight(40)
-        chg.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {theme_manager.palette.primary}; "
-            f"border: 1px solid {theme_manager.palette.primary}; border-radius: {d.radius}px; "
-            f"font-size: 11px; }}"
-            f"QPushButton:hover {{ background: {theme_manager.palette.primary}; color: white; }}")
-        chg.clicked.connect(lambda: ChangePinDialog(self).exec())
-        layout.addWidget(chg)
-
-        layout.addSpacing(8)
-        info = QLabel("Authentification hors ligne via PIN.\nConfigurez votre PIN après la première connexion.")
-        info.setObjectName("infoLbl")
-        info.setAlignment(Qt.AlignCenter)
-        layout.addWidget(info)
-        return w
-
     def _on_intranet(self):
         email = self._edt_i_email.text().strip()
         pwd = self._edt_i_pwd.text()
@@ -271,18 +218,6 @@ class LoginWindow(QMainWindow):
         self._set_busy(True)
         self._worker = _Worker(AuthManager.auth_cloud, parent=self)
         self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.CLOUD))
-        self._worker.start()
-
-    def _on_pin(self):
-        email = self._edt_p_email.text().strip()
-        pin = self._edt_p_pin.text()
-        if not email or not pin:
-            self._show_error("Veuillez saisir votre email et votre PIN.")
-            return
-        self._hide_error()
-        self._set_busy(True)
-        self._worker = _Worker(AuthManager.auth_pin, email, pin, parent=self)
-        self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.OFFLINE))
         self._worker.start()
 
     def _check_secretary_exists(self, email: str) -> Tuple[bool, dict]:
@@ -308,8 +243,6 @@ class LoginWindow(QMainWindow):
                 'email': row[3],
             }
         except Exception as e:
-            from LarcSecretaire.common.logger import log
-from LarcSecretaire.common.audit import audit
             log(f"_check_secretary_exists: {e}")
             return False, {}
 
@@ -338,26 +271,6 @@ from LarcSecretaire.common.audit import audit
             sqlite_init.set_module_config('secretary_id', str(res.user_id))
 
             self._apply_session(res, mode)
-            return
-
-        if mode == ConnMode.OFFLINE and db.server_conn is not None:
-            exists, infos = self._check_secretary_exists(res.email)
-            if exists:
-                res.user_id = infos['user_id']
-                res.full_name = f"{infos['first_name']} {infos['last_name']}"
-
-            if not sqlite_init.init():
-                self._show_error("Impossible d'initialiser la base locale.")
-                return
-
-            sqlite_init.set_module_config('secretary_name', res.full_name)
-            sqlite_init.set_module_config('secretary_email', res.email)
-            sqlite_init.set_module_config('secretary_id', str(res.user_id))
-
-            self._apply_session(res, mode)
-            return
-
-        self._show_error("Authentification hors ligne impossible sans base locale.")
 
     def _apply_session(self, res: AuthResult, mode: ConnMode):
         session.user_id = res.user_id

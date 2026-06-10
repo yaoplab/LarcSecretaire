@@ -2,8 +2,9 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QGridLayout, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QStackedWidget, QTabWidget, QDialog,
+    QApplication,
 )
-from PySide6.QtCore import Qt, QTimer, QMargins
+from PySide6.QtCore import Qt, QTimer, QMargins, QEvent
 from PySide6.QtGui import QColor, QPainter, QFont, QBrush
 from PySide6.QtCharts import (
     QChart, QChartView,
@@ -16,6 +17,7 @@ from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.common.network import detect_network, NetworkMode
 from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.audit import audit
 from LarcSecretaire.views.supervisor_panel import SupervisorPanel
 from LarcSecretaire.views.parent_manager import ParentManager
 from LarcSecretaire.views.student_form import StudentForm
@@ -40,6 +42,13 @@ class MainWindow(QWidget):
         self._refresh_timer.timeout.connect(self._update_status_bar)
         self._refresh_timer.start()
 
+        # Timer inactivité (10 min → fermeture)
+        self._idle_timer = QTimer(self)
+        self._idle_timer.setInterval(600_000)
+        self._idle_timer.timeout.connect(self._on_idle_timeout)
+        self._idle_timer.start()
+        QApplication.instance().installEventFilter(self)
+
     def _style(self) -> str:
         p = theme_manager.palette
         d = theme_manager.design
@@ -52,6 +61,24 @@ class MainWindow(QWidget):
             QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; }}
             QTableWidget::item {{ color: {p.text_strong}; }}
         """
+
+    def eventFilter(self, obj, event):
+        if event.type() in (QEvent.MouseButtonPress, QEvent.KeyPress, QEvent.Wheel):
+            self._idle_timer.stop()
+            self._idle_timer.start()
+        return super().eventFilter(obj, event)
+
+    def _on_idle_timeout(self):
+        audit.logout(session.user_id, session.full_name)
+        QMessageBox.information(self, "Session expirée",
+            "Session inactive depuis 10 minutes.\nL'application va se fermer.")
+        db.disconnect_all()
+        QApplication.quit()
+
+    def closeEvent(self, event):
+        audit.logout(session.user_id, session.full_name)
+        db.disconnect_all()
+        super().closeEvent(event)
 
     def _setup_ui(self):
         d = theme_manager.design

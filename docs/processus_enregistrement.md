@@ -235,9 +235,9 @@ _open_edit_dialog()
        │       ├─ _load_genders(lang_id, include_gid=current_gid)
        │       │   # Filtre par langue de la classe + conserve genre existant
        │       ├─ _inp_addr1.setText(...)
-       │       ├─ _inp_notes.setHtml(...) # Notes HTML
-       │       ├─ _load_parents()         # Requête student_parent
-       │       └─ _load_events()          # Requête student_event
+│       ├─ _notes_panel.set_json(...)  # Notes JSONB (7 sections)
+│       ├─ _load_parents()             # Requête student_parent + gestion inline
+│       └─ _load_events()              # Requête student_event
        └─ dlg.exec()                      # Modal — bloque jusqu'à fermeture
 ```
 
@@ -281,14 +281,12 @@ _save()
 │        ON CONFLICT (id) DO UPDATE SET
 │        col1=EXCLUDED.col1, col2=EXCLUDED.col2, ..."
 │
-├── [5] Traitement notes HTML
-│     notes = _inp_notes.toHtml().strip()
-│     Si non vide :
-│       Remplacement regex des chemins absolus → relatifs
-│       "file:///base/notes_img/xxx" → "notes_img/xxx"
+├── [5] Collecte notes JSONB
+│     notes_json = self._notes_panel.get_json()  # dict 7 sections
+│     notes_json_str = json.dumps(notes_json, ensure_ascii=False)
 │
-├── [6] UPDATE larcauth_student SET notes
-│     SQL : "UPDATE larcauth_student SET notes = %s
+├── [6] UPDATE larcauth_student SET notes_json
+│     SQL : "UPDATE larcauth_student SET notes_json = %s::jsonb
 │            WHERE aecuser_ptr_id = %s"
 │     Vérification : if rowcount == 0 → ValueError
 │
@@ -378,7 +376,7 @@ _create_student()
 ├── [3] UPDATE larcauth_student
 │     SQL :
 │       "UPDATE larcauth_student SET
-│          enabled=TRUE, updated_s=%s, notes=%s
+│          enabled=TRUE, updated_s=%s, notes_json=%s::jsonb
 │        WHERE aecuser_ptr_id=%s"
 │
 ├── [4] UPSERT foyer

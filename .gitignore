@@ -75,3 +75,10 @@ data/students/
 *.xlsx
 *.docx
 *.pdf
+
+# Export HTML temporaire (mode d'emploi, fiches)
+* — *.html
+export_*.html
+tmp_*.html
+# Tous les fichiers HTML à la racine (exports générés)
+/*.html
