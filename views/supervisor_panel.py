@@ -403,7 +403,9 @@ class SupervisorPanel(QWidget):
             return
         from LarcSecretaire.views.student_form import StudentEditDialog
         dlg = StudentEditDialog(s, self)
-        dlg.exec()
+        if dlg.exec():
+            self._load_students()
+            self._load_presence()
 
     def _load_events(self, student_id: int):
         conn = db.server_conn

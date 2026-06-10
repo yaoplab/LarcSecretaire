@@ -342,59 +342,59 @@ class StudentForm(QWidget):
         student_id = int(self._results_table.item(rows[0].row(), 3).text())
         self._open_student_dialog(student_id)
 
-    def _open_student_dialog(self, student_id: int):
+    def _open_student_dialog(self, student_id: int, force_refresh: bool = False):
         """Ouvre la popup d'édition pour un élève."""
-        # Chercher les données dans les résultats déjà chargés
-        data = next((r for r in self._results if r['id'] == student_id), None)
-        if not data:
-            conn = db.server_conn
-            if not conn:
-                return
-            from psycopg2 import errors as pg_errors
+        data = None
+        if not force_refresh:
+            data = next((r for r in self._results if r['id'] == student_id), None)
+        conn = db.server_conn
+        if not conn:
+            return
+        from psycopg2 import errors as pg_errors
+        try:
+            cur = conn.cursor()
             try:
-                cur = conn.cursor()
-                try:
-                    cur.execute("""
-                        SELECT
-                            s.aecuser_ptr_id AS id,
-                            aec.last_name, aec.first_name, aec.email,
-                            aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
-                            c.label AS classroom, aec.date_entree,
-                            aec.fk_foyer_id, aec.fk_gender_id,
-                            s.s_classroom_id, s.notes,
-                            f.address_line1, f.address_line2, f.postal_code,
-                            f.city, f.country, f.phone AS foyer_phone, f.email AS foyer_email
-                        FROM larcauth_student s
-                        JOIN larcauth_aecuser aec ON aec.id = s.aecuser_ptr_id
-                        JOIN larcauth_classroom c ON c.id = s.s_classroom_id
-                        LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
-                        WHERE s.aecuser_ptr_id = %s
-                    """, (student_id,))
-                except pg_errors.UndefinedColumn:
-                    cur.execute("""
-                        SELECT
-                            s.aecuser_ptr_id AS id,
-                            aec.last_name, aec.first_name, aec.email,
-                            aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
-                            c.label AS classroom, aec.date_entree,
-                            aec.fk_foyer_id, aec.fk_gender_id,
-                            s.s_classroom_id, NULL AS notes,
-                            f.address_line1, f.address_line2, f.postal_code,
-                            f.city, f.country, f.phone AS foyer_phone, f.email AS foyer_email
-                        FROM larcauth_student s
-                        JOIN larcauth_aecuser aec ON aec.id = s.aecuser_ptr_id
-                        JOIN larcauth_classroom c ON c.id = s.s_classroom_id
-                        LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
-                        WHERE s.aecuser_ptr_id = %s
-                    """, (student_id,))
-                cols = [desc[0] for desc in cur.description]
-                row = cur.fetchone()
-                if not row:
-                    return
-                data = dict(zip(cols, row))
-            except Exception as e:
-                log(f"StudentForm._open_student_dialog: {e}")
+                cur.execute("""
+                    SELECT
+                        s.aecuser_ptr_id AS id,
+                        aec.last_name, aec.first_name, aec.email,
+                        aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
+                        c.label AS classroom, aec.date_entree,
+                        aec.fk_foyer_id, aec.fk_gender_id,
+                        s.s_classroom_id, s.notes,
+                        f.address_line1, f.address_line2, f.postal_code,
+                        f.city, f.country, f.phone AS foyer_phone, f.email AS foyer_email
+                    FROM larcauth_student s
+                    JOIN larcauth_aecuser aec ON aec.id = s.aecuser_ptr_id
+                    JOIN larcauth_classroom c ON c.id = s.s_classroom_id
+                    LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
+                    WHERE s.aecuser_ptr_id = %s
+                """, (student_id,))
+            except pg_errors.UndefinedColumn:
+                cur.execute("""
+                    SELECT
+                        s.aecuser_ptr_id AS id,
+                        aec.last_name, aec.first_name, aec.email,
+                        aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
+                        c.label AS classroom, aec.date_entree,
+                        aec.fk_foyer_id, aec.fk_gender_id,
+                        s.s_classroom_id, NULL AS notes,
+                        f.address_line1, f.address_line2, f.postal_code,
+                        f.city, f.country, f.phone AS foyer_phone, f.email AS foyer_email
+                    FROM larcauth_student s
+                    JOIN larcauth_aecuser aec ON aec.id = s.aecuser_ptr_id
+                    JOIN larcauth_classroom c ON c.id = s.s_classroom_id
+                    LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
+                    WHERE s.aecuser_ptr_id = %s
+                """, (student_id,))
+            cols = [desc[0] for desc in cur.description]
+            row = cur.fetchone()
+            if not row:
                 return
+            data = dict(zip(cols, row))
+        except Exception as e:
+            log(f"StudentForm._open_student_dialog: {e}")
+            return
 
         self._current_student = data
         self._update_info_card(data)
@@ -421,7 +421,7 @@ class StudentForm(QWidget):
         dlg = StudentEditDialog(self._current_student, self)
         if dlg.exec():
             self.search(self._search_input.text().strip())
-            self._open_student_dialog(self._current_student['id'])
+            self._open_student_dialog(self._current_student['id'], force_refresh=True)
 
     def _open_create_dialog(self):
         dlg = StudentCreateDialog(self)
@@ -744,7 +744,7 @@ class StudentEditDialog(QDialog):
             log(f"StudentEditDialog._get_class_language: {e}")
             return None
 
-    def _load_genders(self, lang_id: int | None = None):
+    def _load_genders(self, lang_id: int | None = None, include_gid: int | None = None):
         self._inp_genre.clear()
         self._inp_genre.addItem("— Non précisé —", 0)
         conn = db.server_conn
@@ -756,8 +756,16 @@ class StudentEditDialog(QDialog):
                 cur.execute("SELECT id, label FROM larcauth_gender WHERE fk_language_id = %s ORDER BY id", (lang_id,))
             else:
                 cur.execute("SELECT id, label FROM larcauth_gender ORDER BY id")
+            loaded = set()
             for gid, label in cur.fetchall():
                 self._inp_genre.addItem(label, gid)
+                loaded.add(gid)
+            # Si le genre existant de l'élève n'est pas dans la langue, l'ajouter
+            if include_gid is not None and include_gid not in loaded:
+                cur.execute("SELECT label FROM larcauth_gender WHERE id = %s", (include_gid,))
+                row = cur.fetchone()
+                if row:
+                    self._inp_genre.addItem(row[0], include_gid)
         except Exception as e:
             log(f"StudentEditDialog._load_genders: {e}")
 
@@ -788,10 +796,11 @@ class StudentEditDialog(QDialog):
         self._inp_date.setText(str(d.get('date_entree', '') or ''))
         # Recharger les genres selon la langue de la classe
         classroom_id = d.get('s_classroom_id')
+        current_gid = d.get('fk_gender_id')
         if classroom_id:
             lang_id = self._get_class_language(classroom_id)
-            self._load_genders(lang_id)
-        gid = d.get('fk_gender_id') or 0
+            self._load_genders(lang_id, include_gid=current_gid)
+        gid = current_gid or 0
         idx = self._inp_genre.findData(gid)
         if idx >= 0:
             self._inp_genre.setCurrentIndex(idx)
@@ -891,6 +900,8 @@ class StudentEditDialog(QDialog):
                 "UPDATE larcauth_aecuser SET " +
                 ", ".join(f"{k}=%s" for k in aec) + " WHERE id=%s",
                 list(aec.values()) + [self._sid])
+            if cur.rowcount == 0:
+                raise ValueError(f"Aucun enregistrement trouve pour l'ID {self._sid}")
 
             addr = {
                 'address_line1': self._inp_addr1.text().strip() or None,
@@ -918,6 +929,8 @@ class StudentEditDialog(QDialog):
                     r'\1\2\1', notes)
             cur.execute("UPDATE larcauth_student SET notes = %s WHERE aecuser_ptr_id = %s",
                         (notes or None, self._sid))
+            if cur.rowcount == 0:
+                raise ValueError(f"Aucun etudiant trouve pour l'ID {self._sid}")
 
             conn.commit()
             log(f"StudentEditDialog: saved #{self._sid}")
