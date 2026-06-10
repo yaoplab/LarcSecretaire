@@ -9,9 +9,10 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPixmap, QPainter
 
 from LarcSecretaire.common.database import db
-from LarcSecretaire.common.session import session, UserRole
+from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.audit import audit
 
 PHOTOS_DIR = os.path.normpath(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -460,6 +461,7 @@ class SupervisorPanel(QWidget):
                      data['note'], 'intranet', session.user_id)
                 )
                 conn.commit()
+                audit.add_event(data['student_id'], data['event_type'], data.get('note', ''))
                 self._load_events(sid)
                 self._load_presence()
             except Exception as e:

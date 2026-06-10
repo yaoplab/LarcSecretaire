@@ -1,5 +1,4 @@
 import os
-import shutil
 from typing import Optional, Tuple
 
 from PySide6.QtWidgets import (
@@ -11,7 +10,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer
 
 from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
 from LarcSecretaire.common.network import NetworkMode, detect_network
-from LarcSecretaire.common.database import db, DBMode
+from LarcSecretaire.common.database import db
 from LarcSecretaire.common.auth import AuthManager, OAuth2Manager
 from LarcSecretaire.common.sqlite_init import sqlite_init
 from LarcSecretaire.common.theme import theme_manager
@@ -134,7 +133,6 @@ class LoginWindow(QMainWindow):
         tabs.addTab(self._tab_intranet(), "Intranet")
         tabs.addTab(self._tab_cloud(), "Cloud")
         tabs.addTab(self._tab_pin(), "Hors connexion")
-        tabs.addTab(self._tab_create(), "Nouvelle instance")
         outer.addWidget(tabs, 1)
 
         # Message d'erreur
@@ -256,26 +254,6 @@ class LoginWindow(QMainWindow):
         layout.addWidget(info)
         return w
 
-    # ---- Nouvelle instance ----
-    def _tab_create(self) -> QWidget:
-        w = QWidget()
-        layout = QVBoxLayout(w)
-        layout.setAlignment(Qt.AlignCenter)
-
-        info = QLabel("Copier ce projet dans un nouveau dossier\npour créer une instance indépendante.")
-        info.setObjectName("infoLbl")
-        info.setAlignment(Qt.AlignCenter)
-        layout.addWidget(info)
-        layout.addSpacing(10)
-
-        btn = QPushButton("Créer une nouvelle instance")
-        btn.setObjectName("btnCreate")
-        btn.setMinimumHeight(44)
-        btn.clicked.connect(self._on_create_instance)
-        layout.addWidget(btn)
-        return w
-
-    # ---- Actions ----
     def _on_intranet(self):
         email = self._edt_i_email.text().strip()
         pwd = self._edt_i_pwd.text()
@@ -307,24 +285,6 @@ class LoginWindow(QMainWindow):
         self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.OFFLINE))
         self._worker.start()
 
-    def _on_create_instance(self):
-        src = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        dst = QFileDialog.getExistingDirectory(self, "Choisir le dossier de destination")
-        if not dst:
-            return
-        dst = os.path.join(dst, "LarcSecretaire")
-        try:
-            shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '.git'))
-            # Copier la base SQLite
-            db_path = os.path.join(src, "larcsecretaire.db")
-            if os.path.exists(db_path):
-                shutil.copy2(db_path, os.path.join(dst, "larcsecretaire.db"))
-            QMessageBox.information(self, "Instance créée",
-                f"Instance créée dans :\n{dst}\n\n"
-                "Lancez main.py depuis ce dossier.")
-        except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Échec de la création : {e}")
-
     def _check_secretary_exists(self, email: str) -> Tuple[bool, dict]:
         """Vérifie que l'utilisateur est une secrétaire active (type_secretary = TRUE)."""
         conn = db.server_conn
@@ -349,6 +309,7 @@ class LoginWindow(QMainWindow):
             }
         except Exception as e:
             from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.audit import audit
             log(f"_check_secretary_exists: {e}")
             return False, {}
 
@@ -404,6 +365,8 @@ class LoginWindow(QMainWindow):
         session.full_name = res.full_name
         session.role = UserRole.SECR
         session.conn_mode = mode
+
+        audit.login(session.user_id, session.full_name, mode.value)
 
         from LarcSecretaire.views.main_window import MainWindow
         self._main_window = MainWindow()

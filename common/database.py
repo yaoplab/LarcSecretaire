@@ -115,23 +115,6 @@ class Database:
             self._server_mode = DBMode.NONE
             return False
 
-    def connect_sqlite(self, db_path: str = '') -> bool:
-        if not db_path:
-            db_path = os.path.normpath(os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), '..', 'elarc.db'
-            ))
-        try:
-            if self._sqlite:
-                self._sqlite.close()
-            self._sqlite = sqlite3.connect(db_path, check_same_thread=False)
-            self._sqlite.row_factory = sqlite3.Row
-            self._sqlite.execute('PRAGMA journal_mode=WAL')
-            self._mode = DBMode.SQLITE
-            return True
-        except Exception:
-            self._mode = DBMode.NONE
-            return False
-
     def disconnect_all(self) -> None:
         for attr in ('_intranet', '_cloud'):
             conn = getattr(self, attr, None)
@@ -149,14 +132,6 @@ class Database:
             self._sqlite = None
         self._mode = DBMode.NONE
         self._server_mode = DBMode.NONE
-
-    def before_update(self, user_id: int) -> None:
-        conn = self.server_conn
-        if conn is None:
-            return
-        with conn.cursor() as cur:
-            cur.execute("SET LOCAL app.sync_source = 'intranet'")
-            cur.execute(f"SET LOCAL app.modified_by = {int(user_id)}")
 
     @property
     def server_conn(self):
@@ -181,13 +156,6 @@ class Database:
     @property
     def is_server_connected(self) -> bool:
         return self.server_conn is not None
-
-    def get_sqlalchemy_url(self, section: str = 'IntranetDatabase') -> str:
-        """Retourne une URL de connexion SQLAlchemy pour la section donnée."""
-        params = self._pg_params(section)
-        # Format : postgresql+psycopg2://user:password@host:port/dbname
-        return (f"postgresql+psycopg2://{params['user']}:{params['password']}"
-                f"@{params['host']}:{params['port']}/{params['dbname']}")
 
     def __del__(self) -> None:
         self.disconnect_all()

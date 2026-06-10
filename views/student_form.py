@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
     QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView,
     QComboBox, QDialog, QTextEdit, QPlainTextEdit,
     QListWidget, QSizePolicy, QCheckBox, QTabWidget,
-    QColorDialog, QFileDialog, QInputDialog,
+    QColorDialog, QFileDialog, QInputDialog, QDateEdit,
 )
-from PySide6.QtCore import Qt, QEvent
+from PySide6.QtCore import Qt, QEvent, QDate
 from PySide6.QtGui import (
     QPixmap, QPainter, QColor, QFont, QTextListFormat, QTextCursor,
     QTextCharFormat, QTextBlockFormat,
@@ -33,6 +33,7 @@ from LarcSecretaire.common.database import db
 from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.audit import audit
 
 LARCSUPERVISEUR_PHOTOS = os.path.normpath(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -500,8 +501,12 @@ class StudentEditDialog(QDialog):
         self._inp_emailperso = QLineEdit(); self._inp_emailperso.setStyleSheet(field_style)
         self._inp_tel = QLineEdit(); self._inp_tel.setStyleSheet(field_style)
         self._inp_tel2 = QLineEdit(); self._inp_tel2.setStyleSheet(field_style)
-        self._inp_date = QLineEdit(); self._inp_date.setStyleSheet(field_style)
-        self._inp_date.setPlaceholderText("AAAA-MM-JJ")
+        self._inp_date = QDateEdit()
+        self._inp_date.setDisplayFormat("yyyy-MM-dd")
+        self._inp_date.setCalendarPopup(True)
+        self._inp_date.setSpecialValueText(" ")
+        self._inp_date.setDate(QDate())
+        self._inp_date.setStyleSheet(field_style)
         self._inp_genre = QComboBox()
         self._inp_genre.setStyleSheet(field_style + f" min-width: 180px;")
         self._load_genders()
@@ -793,7 +798,11 @@ class StudentEditDialog(QDialog):
         self._inp_emailperso.setText(d.get('emailperso', '') or '')
         self._inp_tel.setText(d.get('tel_smartphone_1', '') or '')
         self._inp_tel2.setText(d.get('tel_maison', '') or '')
-        self._inp_date.setText(str(d.get('date_entree', '') or ''))
+        raw_date = d.get('date_entree', '')
+        if raw_date:
+            self._inp_date.setDate(QDate.fromString(str(raw_date), "yyyy-MM-dd"))
+        else:
+            self._inp_date.setDate(QDate())
         # Recharger les genres selon la langue de la classe
         classroom_id = d.get('s_classroom_id')
         current_gid = d.get('fk_gender_id')
@@ -879,6 +888,7 @@ class StudentEditDialog(QDialog):
     def _save(self):
         conn = db.server_conn
         if not conn:
+            QMessageBox.warning(self, "Erreur", "Non connecté au serveur.")
             return
         try:
             cur = conn.cursor()
@@ -892,14 +902,18 @@ class StudentEditDialog(QDialog):
                 'emailperso': self._inp_emailperso.text().strip() or None,
                 'tel_smartphone_1': self._inp_tel.text().strip() or None,
                 'tel_maison': self._inp_tel2.text().strip() or None,
-                'date_entree': self._inp_date.text().strip() or None,
+                'date_entree': self._inp_date.date().toString("yyyy-MM-dd") if self._inp_date.date().isValid() and not self._inp_date.date().isNull() else None,
                 'fk_gender_id': self._inp_genre.currentData() or None,
                 'updated': now,
             }
+            QMessageBox.information(self, "Debug 1/6",
+                f"ID={self._sid}\naec={aec}")
             cur.execute(
                 "UPDATE larcauth_aecuser SET " +
                 ", ".join(f"{k}=%s" for k in aec) + " WHERE id=%s",
                 list(aec.values()) + [self._sid])
+            QMessageBox.information(self, "Debug 2/6",
+                f"aecuser UPDATE rowcount={cur.rowcount}")
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun enregistrement trouve pour l'ID {self._sid}")
 
@@ -919,6 +933,8 @@ class StudentEditDialog(QDialog):
                 ") ON CONFLICT (id) DO UPDATE SET " +
                 ", ".join(f"{k}=EXCLUDED.{k}" for k in cols),
                 [fid] + vals)
+            QMessageBox.information(self, "Debug 3/6",
+                f"foyer {fid}: INSERT ON CONFLICT OK\naddr={addr}")
 
             notes = self._inp_notes.toHtml().strip()
             if notes:
@@ -929,11 +945,27 @@ class StudentEditDialog(QDialog):
                     r'\1\2\1', notes)
             cur.execute("UPDATE larcauth_student SET notes = %s WHERE aecuser_ptr_id = %s",
                         (notes or None, self._sid))
+            QMessageBox.information(self, "Debug 4/6",
+                f"student notes UPDATE rowcount={cur.rowcount}")
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun etudiant trouve pour l'ID {self._sid}")
 
             conn.commit()
             log(f"StudentEditDialog: saved #{self._sid}")
+
+            cur.execute("SET LOCAL app.sync_source = 'intranet'")
+            cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
+            changes = []
+            for k in aec:
+                old_v = str(self._data.get(k, ''))
+                new_v = str(aec[k] or '')
+                if old_v != new_v:
+                    changes.append(k)
+            if changes:
+                audit.update_student(self._sid, f"Modifiés : {', '.join(changes)}")
+            elif any(v is not None for v in addr.values()):
+                audit.update_student(self._sid, "Adresse modifiée")
+
             QMessageBox.information(self, "Succès", "Élève mis à jour.")
             self.accept()
         except Exception as e:
@@ -1269,8 +1301,12 @@ class StudentCreateDialog(QDialog):
         self._inp_tel.setPlaceholderText("+228 XX XX XX XX")
         self._inp_tel2 = QLineEdit(); self._inp_tel2.setStyleSheet(field_style)
         self._inp_tel2.setPlaceholderText("+228 XX XX XX XX")
-        self._inp_date = QLineEdit(); self._inp_date.setStyleSheet(field_style)
-        self._inp_date.setPlaceholderText("AAAA-MM-JJ (ex: 2026-09-01)")
+        self._inp_date = QDateEdit()
+        self._inp_date.setDisplayFormat("yyyy-MM-dd")
+        self._inp_date.setCalendarPopup(True)
+        self._inp_date.setSpecialValueText(" ")
+        self._inp_date.setDate(QDate())
+        self._inp_date.setStyleSheet(field_style)
         self._inp_genre = QComboBox(); self._inp_genre.setStyleSheet(field_style + " min-width: 180px;")
         self._load_genders()
         self._inp_addr1 = QLineEdit(); self._inp_addr1.setStyleSheet(field_style)
@@ -1882,7 +1918,7 @@ class StudentCreateDialog(QDialog):
         emailperso = self._inp_emailperso.text().strip() or None
         tel = self._inp_tel.text().strip() or None
         tel2 = self._inp_tel2.text().strip() or None
-        date_str = self._inp_date.text().strip() or None
+        date_str = self._inp_date.date().toString("yyyy-MM-dd") if self._inp_date.date().isValid() and not self._inp_date.date().isNull() else None
 
         conn = db.server_conn
         if not conn:
@@ -1939,6 +1975,10 @@ class StudentCreateDialog(QDialog):
             conn.commit()
             self._result_data = {'id': student_id, 'last_name': nom, 'first_name': prenom}
             log(f"StudentCreateDialog: activated #{student_id} (slot {slot:02d})")
+
+            cur.execute("SET LOCAL app.sync_source = 'intranet'")
+            cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
+            audit.create_student(student_id, f"Création {prenom} {nom}")
 
             QMessageBox.information(self, "Succès",
                 f"Élève créé : {prenom} {nom}\n"

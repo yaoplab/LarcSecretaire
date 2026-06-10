@@ -1,6 +1,5 @@
 import sqlite3
 import os
-import json
 from typing import Optional
 from .logger import log
 
@@ -29,89 +28,6 @@ CREATE TABLE IF NOT EXISTS session_cache (
 CREATE TABLE IF NOT EXISTS module_config (
     key TEXT PRIMARY KEY,
     value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS sync_state (
-    table_name TEXT PRIMARY KEY,
-    last_sync TEXT,
-    last_source TEXT
-);
-
-CREATE TABLE IF NOT EXISTS student_profile (
-    id INTEGER PRIMARY KEY,
-    last_name TEXT,
-    first_name TEXT,
-    firstname_2 TEXT,
-    email TEXT,
-    emailperso TEXT,
-    tel_maison TEXT,
-    tel_smartphone_1 TEXT,
-    tel_smartphone_2 TEXT,
-    fk_gender_id INTEGER,
-    date_entree TEXT,
-    s_classroom_id INTEGER,
-    classroom_label TEXT,
-    level_label TEXT,
-    program_sigle TEXT,
-    enabled INTEGER DEFAULT 0,
-    fk_parent_id INTEGER,
-    parent_last_name TEXT,
-    parent_first_name TEXT,
-    parent_tel TEXT,
-    parent_nature TEXT,
-    sync_version INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS student_profile_ref (
-    id INTEGER PRIMARY KEY,
-    last_name TEXT,
-    first_name TEXT,
-    firstname_2 TEXT,
-    email TEXT,
-    emailperso TEXT,
-    tel_maison TEXT,
-    tel_smartphone_1 TEXT,
-    tel_smartphone_2 TEXT,
-    fk_gender_id INTEGER,
-    date_entree TEXT,
-    s_classroom_id INTEGER,
-    classroom_label TEXT,
-    level_label TEXT,
-    program_sigle TEXT,
-    enabled INTEGER DEFAULT 0,
-    fk_parent_id INTEGER,
-    parent_last_name TEXT,
-    parent_first_name TEXT,
-    parent_tel TEXT,
-    parent_nature TEXT,
-    sync_version INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS sync_cursor (
-    id INTEGER PRIMARY KEY,
-    table_name TEXT NOT NULL,
-    last_id INTEGER,
-    last_version INTEGER,
-    updated_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS foyer (
-    id INTEGER PRIMARY KEY,
-    address_line1 TEXT,
-    address_line2 TEXT,
-    postal_code TEXT,
-    city TEXT,
-    country TEXT DEFAULT 'France',
-    phone TEXT,
-    email TEXT,
-    notes TEXT
-);
-
-CREATE TABLE IF NOT EXISTS student_parent (
-    student_id INTEGER NOT NULL,
-    parent_id INTEGER NOT NULL,
-    nature TEXT,
-    PRIMARY KEY (student_id, parent_id)
 );
 """
 
@@ -148,9 +64,7 @@ class SQLiteInit:
         conn = sqlite3.connect(path)
         cur = conn.cursor()
         expected = [
-            "session_cache", "module_config", "sync_state",
-            "student_profile", "student_profile_ref", "sync_cursor",
-            "foyer", "student_parent",
+            "session_cache", "module_config",
         ]
         cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
         existing = {r[0] for r in cur.fetchall()}

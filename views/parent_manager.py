@@ -24,6 +24,7 @@ from LarcSecretaire.common.database import db
 from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.audit import audit
 
 
 class ParentManager(QWidget):
@@ -734,6 +735,10 @@ class ParentEditDialog(QDialog):
                 self._create_new(cur, nom, prenom, nature)
 
             conn.commit()
+            audit.update_parent(
+                self._parent_id or cur.lastrowid,
+                f"{'Création' if not self._parent_id else 'Modification'} parent {nom} {prenom}"
+            )
             self.accept()
 
         except Exception as e:
