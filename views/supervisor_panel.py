@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QGridLayout, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QDialog, QDialogButtonBox, QRadioButton,
-    QButtonGroup, QTextEdit, QStackedWidget, QTabWidget,
+    QButtonGroup, QTextEdit, QStackedWidget, QTabWidget, QCheckBox,
 )
 import os
 from PySide6.QtCore import Qt, Signal
@@ -203,13 +203,26 @@ class SupervisorPanel(QWidget):
         layout.setSpacing(0)
         d = theme_manager.design
 
-        # Header avec titre + bouton +
+        # Header avec titre + boutons liste / +
         hdr_row = QHBoxLayout()
+        hdr_row.setContentsMargins(0, 4, 0, 4)
         self._header = QLabel("Sélectionnez une classe dans la sidebar")
         self._header.setStyleSheet(
             f"padding: 8px; font-size: {s(13)}px; font-weight: bold; color: {p.text_strong};")
         hdr_row.addWidget(self._header, 1)
 
+        hdr_row.addSpacing(8)
+        self._list_btn = QPushButton("📋 Liste")
+        self._list_btn.setFixedHeight(36)
+        self._list_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.button_primary}; color: white; border: none; "
+            f"border-radius: {d.radius}px; font-size: {s(11)}px; font-weight: bold; padding: 0 12px; }}"
+            f"QPushButton:hover {{ background: {p.primary}; }}")
+        self._list_btn.clicked.connect(self._on_class_list)
+        self._list_btn.hide()
+        hdr_row.addWidget(self._list_btn)
+
+        hdr_row.addSpacing(6)
         self._add_btn = QPushButton("+")
         self._add_btn.setFixedSize(36, 36)
         self._add_btn.setStyleSheet(
@@ -219,6 +232,7 @@ class SupervisorPanel(QWidget):
         self._add_btn.clicked.connect(self._on_add_student)
         self._add_btn.hide()
         hdr_row.addWidget(self._add_btn)
+        hdr_row.addSpacing(4)
         layout.addLayout(hdr_row)
 
         self._stack = QStackedWidget()
@@ -305,6 +319,7 @@ class SupervisorPanel(QWidget):
         self._current_class_id = class_id
         self._current_label = class_label
         self._header.setText(f"{class_label}")
+        self._list_btn.show()
         self._add_btn.show()
         self._stack.setCurrentIndex(0)
         self._load_students()
@@ -469,9 +484,94 @@ class SupervisorPanel(QWidget):
                 log(f"SupervisorPanel._on_add_event: {e}")
                 QMessageBox.critical(self, "Erreur", str(e))
 
+    def _on_class_list(self):
+        if not hasattr(self, '_current_class_id') or not self._current_class_id:
+            return
+        dlg = ClassListDialog(self._current_class_id, self._current_label, self)
+        dlg.exec()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if hasattr(self, '_cards') and self._cards:
             cols = max(1, self.width() // 175)
             for i, card in enumerate(self._cards):
                 self._cards_grid.addWidget(card, i // cols, i % cols)
+
+
+class ClassListDialog(QDialog):
+    def __init__(self, class_id: int, class_label: str, parent=None):
+        super().__init__(parent)
+        self._class_id = class_id
+        self.setWindowTitle(f"Liste — {class_label}")
+        self.setMinimumSize(500, 400)
+        self._init_ui()
+        self._load()
+
+    def _init_ui(self):
+        p = theme_manager.palette
+        d = theme_manager.design
+        s = theme_manager.font_size
+        layout = QVBoxLayout(self)
+        layout.setSpacing(d.spacing)
+
+        hdr = QLabel(f"Liste des élèves — {self.windowTitle().replace('Liste — ', '')}")
+        hdr.setStyleSheet(f"font-size: {s(13)}px; font-weight: bold; padding: 4px 0; color: {p.text_strong};")
+        layout.addWidget(hdr)
+
+        self._table = QTableWidget()
+        self._table.setColumnCount(4)
+        self._table.setHorizontalHeaderLabels(["", "N°", "Nom", "Prénom"])
+        self._table.horizontalHeader().setStretchLastSection(True)
+        self._table.setColumnWidth(0, 30)
+        self._table.setColumnWidth(1, 36)
+        self._table.setColumnWidth(2, 180)
+        self._table.verticalHeader().hide()
+        self._table.setSelectionMode(QTableWidget.NoSelection)
+        self._table.setStyleSheet(
+            f"QTableWidget {{ border: 1px solid {p.border}; gridline-color: {p.border_light}; "
+            f"font-size: {s(11)}px; }}"
+            f"QTableWidget::item {{ padding: 4px; }}"
+            f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
+            f"font-weight: bold; padding: 4px; border: none; }}")
+        layout.addWidget(self._table)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        close_btn = QPushButton("Fermer")
+        close_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.surface_variant}; color: {p.text_strong}; "
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"font-size: {s(11)}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; }}"
+            f"QPushButton:hover {{ background: {p.card_hover}; }}")
+        close_btn.clicked.connect(self.accept)
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
+
+    def _load(self):
+        conn = db.server_conn
+        if not conn:
+            return
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT s.id, a.last_name, a.first_name "
+                "FROM larcauth_student s "
+                "JOIN larcauth_aecuser a ON a.id = s.id "
+                "WHERE s.s_classroom_id = %s AND s.enabled = TRUE "
+                "ORDER BY a.last_name, a.first_name",
+                (self._class_id,))
+            rows = cur.fetchall()
+            self._table.setRowCount(len(rows))
+            for i, (sid, ln, fn) in enumerate(rows):
+                cb = QCheckBox()
+                cw = QWidget()
+                cl = QHBoxLayout(cw)
+                cl.setContentsMargins(4, 0, 0, 0)
+                cl.addWidget(cb)
+                self._table.setCellWidget(i, 0, cw)
+                _, slot = divmod(sid, 100)
+                self._table.setItem(i, 1, QTableWidgetItem(str(slot).zfill(2)))
+                self._table.setItem(i, 2, QTableWidgetItem(ln or ''))
+                self._table.setItem(i, 3, QTableWidgetItem(fn or ''))
+        except Exception as e:
+            log(f"ClassListDialog._load: {e}")

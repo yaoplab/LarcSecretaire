@@ -1,7 +1,7 @@
 # Changements appliqués — Bases de données
 
 _8 juin 2026 — Mise à jour_  
-_Dernier ajout : 10 juin 2026_
+_Dernier ajout : 11 juin 2026_
 
 ## État final (Intranet maison + Cloud Supabase)
 
@@ -36,7 +36,9 @@ Stocke les notes Markdown (santé, confidentiel, etc.). Les fichiers joints sont
 | `student_event` | Timeline d'événements imprévisible — INSERT libre |
 | Fichiers joints (`data/students/{id}/`) | Création de fichiers sur disque — pas de sync cloud |
 
-La liaison N-N dans `student_parent` n'est PAS une exception : elle associe deux entités existantes (élève + parent déjà en base).
+La liaison N-N dans `student_parent` n'est PAS une exception : elle associe deux entités existantes (élève + parent déjà en base, les deux en gabarit UPDATE).
+
+`larcauth_parent` n'est PAS une exception depuis le 10/06/2026 : les 800 gabarits (10001–10800) sont pré-remplis avec `enabled = FALSE` et la création se fait par UPDATE, comme pour `larcauth_student`.
 
 ### Note technique Supabase
 
@@ -110,3 +112,28 @@ COMMENT ON COLUMN ajoutés pour `date_of_birth`, `date_entree`, `date_joined`.
 ### Statut déploiement
 - `docs/migrate_notes_json.sql` : exécuté Intranet + Cloud le 10/06/2026
 - `sql/02_date_columns.sql` : exécuté Intranet + Cloud le 10/06/2026
+
+---
+
+## 10 juin 2026 — Gabarit parents (UPDATE uniquement)
+
+### Contexte
+La table `larcauth_parent` était vide et les créations de parents utilisaient INSERT + recherche MAX(id)+1 dans `larcauth_aecuser`, ce qui sautait les IDs non utilisés dans la plage réservée.
+
+### Action
+`docs/parent_gabarit.sql` exécuté sur Intranet et Supabase le 10/06/2026 :
+```sql
+INSERT INTO larcauth_aecuser (id, password, ..., type_parentutor, ...)
+SELECT s, '', ..., TRUE, ...
+FROM generate_series(10001, 10800) AS s
+WHERE NOT EXISTS (SELECT 1 FROM larcauth_aecuser WHERE id = s);
+
+INSERT INTO larcauth_parent (aecuser_ptr_id, enabled, nature)
+SELECT s, FALSE, NULL
+FROM generate_series(10001, 10800) AS s;
+```
+
+### Résultat
+- 800 gabarits parents (IDs 10001–10800) dans `larcauth_aecuser` + `larcauth_parent` avec `enabled = FALSE`
+- `_create_new` dans `parent_manager.py` : UPDATE des deux tables au lieu d'INSERT
+- La recherche du slot libre interroge désormais `larcauth_parent` (pas `larcauth_aecuser`)

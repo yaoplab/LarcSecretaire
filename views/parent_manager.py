@@ -768,42 +768,39 @@ class ParentEditDialog(QDialog):
         self._save_foyer(cur, pid)
 
     def _create_new(self, cur, nom: str, prenom: str, nature: str):
-        """Crée un nouveau parent (aecuser + larcauth_parent + foyer)."""
+        """Crée un nouveau parent (aecuser + larcauth_parent + foyer) via gabarit."""
         email = self._dlg_email.text().strip() or f"parent.{nom.lower()}.{prenom.lower()}@arc-en-ciel.org"
         tel = self._dlg_tel.text().strip() or None
-
-        # Trouver le prochain ID disponible dans la plage 10001-10400
-        cur.execute("""
-            SELECT COALESCE(MAX(id), 10000) + 1
-            FROM larcauth_aecuser
-            WHERE id BETWEEN 10001 AND 10400
-        """)
-        next_id = cur.fetchone()[0]
-        if next_id > 10400:
-            raise Exception("Plus de slots parents disponibles (limite 10400)")
-
-        # Créer aecuser
         from datetime import datetime
         now = datetime.now().isoformat()
-        cur.execute("""
-            INSERT INTO larcauth_aecuser
-                (id, password, last_login, is_superuser, username, first_name, last_name,
-                 email, is_staff, is_active, date_joined, type_parentutor, is_adm,
-                 is_coordonator, is_secretary, tel_smartphone_1)
-            VALUES (%s, '', NULL, FALSE, %s, %s, %s, %s, FALSE, TRUE, %s,
-                    TRUE, FALSE, FALSE, FALSE, %s)
-        """, (next_id, email, prenom, nom, email, now, tel))
 
-        # Créer larcauth_parent
+        # Premier slot libre dans le gabarit parent
         cur.execute("""
-            INSERT INTO larcauth_parent (aecuser_ptr_id, enabled, nature)
-            VALUES (%s, TRUE, %s)
-        """, (next_id, nature))
+            SELECT aecuser_ptr_id FROM larcauth_parent
+            WHERE aecuser_ptr_id BETWEEN 10001 AND 10800 AND enabled = FALSE
+            ORDER BY aecuser_ptr_id LIMIT 1
+        """)
+        row = cur.fetchone()
+        if not row:
+            raise Exception("Plus de slots parents disponibles (limite 10800)")
+        next_id = row[0]
 
-        # Créer ou rattacher un foyer
-        self._save_foyer(cur, next_id)
+        cur.execute("""
+            UPDATE larcauth_aecuser SET
+                first_name = %s, last_name = %s,
+                email = %s, username = %s, tel_smartphone_1 = %s,
+                date_joined = %s, password = '', type_parentutor = TRUE,
+                is_active = TRUE
+            WHERE id = %s
+        """, (prenom, nom, email, email, tel, now, next_id))
+        cur.execute("""
+            UPDATE larcauth_parent SET enabled = TRUE, nature = %s
+            WHERE aecuser_ptr_id = %s
+        """, (nature, next_id))
+        cur.execute("DELETE FROM student_parent WHERE parent_id = %s", (next_id,))
 
         log(f"ParentEditDialog: created parent #{next_id}")
+        self._save_foyer(cur, next_id)
 
     def _save_foyer(self, cur, aecuser_id: int):
         """Crée ou met à jour le foyer associé à un aecuser."""

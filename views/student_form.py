@@ -27,6 +27,7 @@ from PySide6.QtGui import (
 from PySide6.QtPrintSupport import QPrinter
 
 import os
+import json
 
 from LarcSecretaire.common.database import db
 from LarcSecretaire.common.session import session
@@ -619,23 +620,82 @@ class StudentEditDialog(QDialog):
 
         # --- Tab 2 : Contact ---
 
-        # --- Tab 3 : Adresse ---
+        # --- Tab 3 : Adresse & Parents ---
         tab3 = QWidget()
         tab3_layout = QVBoxLayout(tab3)
         tab3_layout.setSpacing(d.spacing)
-        tab3_layout.addWidget(_lbl("Adresse"))
-        tab3_layout.addWidget(self._inp_addr1)
-        tab3_layout.addWidget(_lbl("Complément d'adresse"))
-        tab3_layout.addWidget(self._inp_addr2)
+        addr_scroll = QScrollArea()
+        addr_scroll.setWidgetResizable(True)
+        addr_scroll.setFrameShape(QFrame.NoFrame)
+        addr_inner = QWidget()
+        addr_inner_layout = QVBoxLayout(addr_inner)
+        addr_inner_layout.setSpacing(d.spacing)
+        addr_inner_layout.addWidget(_lbl("Adresse de l'élève"))
+        addr_inner_layout.addWidget(self._inp_addr1)
+        addr_inner_layout.addWidget(_lbl("Complément d'adresse"))
+        addr_inner_layout.addWidget(self._inp_addr2)
         g3 = QGridLayout()
         g3.setSpacing(d.spacing)
         g3.addWidget(_lbl("Code postal"), 0, 0); g3.addWidget(_lbl("Ville"), 0, 1)
         g3.addWidget(self._inp_cp, 1, 0); g3.addWidget(self._inp_ville, 1, 1)
         g3.addWidget(_lbl("Pays"), 2, 0)
         g3.addWidget(self._inp_pays, 3, 0, 1, 2)
-        tab3_layout.addLayout(g3)
-        tab3_layout.addStretch()
-        tabs.addTab(tab3, "Adresse")
+        addr_inner_layout.addLayout(g3)
+
+        parents_title = QLabel("Parents / tuteurs")
+        parents_title.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_strong}; font-weight: bold; margin-top: 8px;")
+        addr_inner_layout.addWidget(parents_title)
+        self._parents_table = QTableWidget()
+        self._parents_table.setColumnCount(4)
+        self._parents_table.setHorizontalHeaderLabels(["Nom", "Nature", "Email", "Téléphone"])
+        self._parents_table.horizontalHeader().setStretchLastSection(True)
+        self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self._parents_table.setMaximumHeight(120)
+        self._parents_table.setStyleSheet(
+            f"QTableWidget {{ border: 1px solid {p.border}; gridline-color: {p.border_light}; "
+            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong}; }}"
+            f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
+            f"font-weight: bold; padding: 2px; border: none; }}")
+        addr_inner_layout.addWidget(self._parents_table)
+
+        parent_tools = QHBoxLayout()
+        parent_tools.setSpacing(d.spacing)
+        add_par_btn = QPushButton("+ Ajouter un parent")
+        add_par_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
+            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.success}; }}")
+        add_par_btn.clicked.connect(self._add_parent_link)
+        parent_tools.addWidget(add_par_btn)
+        edit_par_btn = QPushButton("✎ Nature")
+        edit_par_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
+            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.active}; }}")
+        edit_par_btn.clicked.connect(self._edit_parent_nature)
+        parent_tools.addWidget(edit_par_btn)
+        remove_par_btn = QPushButton("− Retirer")
+        remove_par_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {p.error}; "
+            f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
+            f"padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.error_container}; }}")
+        remove_par_btn.clicked.connect(self._remove_parent_link)
+        parent_tools.addWidget(remove_par_btn)
+        parent_tools.addStretch()
+        copy_btn = QPushButton("Copier l'adresse")
+        copy_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
+            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.primary}; }}")
+        copy_btn.clicked.connect(self._copy_parent_address)
+        parent_tools.addWidget(copy_btn)
+        addr_inner_layout.addLayout(parent_tools)
+        addr_inner_layout.addStretch()
+        addr_scroll.setWidget(addr_inner)
+        tab3_layout.addWidget(addr_scroll, 1)
+        tabs.addTab(tab3, "Adresse & Parents")
 
         # --- Tab 4 : Notes structurées (JSON) ---
         tab4 = QWidget()
@@ -953,7 +1013,7 @@ class StudentEditDialog(QDialog):
             QMessageBox.information(self, "Debug 3/6",
                 f"foyer {fid}: INSERT ON CONFLICT OK\naddr={addr}")
 
-            notes_json = self._notes_panel.get_json()
+            notes_json = json.dumps(self._notes_panel.get_json())
             cur.execute("UPDATE larcauth_student SET notes_json = %s WHERE aecuser_ptr_id = %s",
                         (notes_json, self._sid))
             QMessageBox.information(self, "Debug 4/6",
@@ -1389,6 +1449,8 @@ class StudentCreateDialog(QDialog):
         self._class_id: int | None = None
         self._next_free: int | None = None
         self._sid: int | None = None
+        self._parent_ids: list[int] = []
+        self._search_parents_data: list[int] = []
         self._classes: list[tuple] = []
         self._class_btns: dict[int, QPushButton] = {}
         self._preselected_class = preselected_class
@@ -1969,7 +2031,7 @@ class StudentCreateDialog(QDialog):
                   emailperso, tel, tel2, date_str, birth_str,
                   self._inp_genre.currentData() or None, now, student_id))
 
-            notes_json = self._notes_panel.get_json()
+            notes_json = json.dumps(self._notes_panel.get_json())
             cur.execute("""
                 UPDATE larcauth_student SET enabled = TRUE, updated_s = %s, notes_json = %s
                 WHERE aecuser_ptr_id = %s
@@ -1996,11 +2058,15 @@ class StudentCreateDialog(QDialog):
 
             conn.commit()
             self._result_data = {'id': student_id, 'last_name': nom, 'first_name': prenom}
+            self._sid = student_id
             log(f"StudentCreateDialog: activated #{student_id} (slot {slot:02d})")
 
             cur.execute("SET LOCAL app.sync_source = 'intranet'")
             cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
             audit.create_student(student_id, f"Création {prenom} {nom}")
+
+            # Charger les parents maintenant que l'élève existe
+            self._load_parents()
 
             QMessageBox.information(self, "Succès",
                 f"Élève créé : {prenom} {nom}\n"
@@ -2014,6 +2080,9 @@ class StudentCreateDialog(QDialog):
                 w.clear()
             self._notes_panel.clear()
             self._inp_pays.setText("Togo")
+            self._sid = None
+            self._parent_ids = []
+            self._parents_table.setRowCount(0)
             # Re-vérifier le slot libre
             self._on_class_changed(self._class_id)
 
@@ -2021,6 +2090,183 @@ class StudentCreateDialog(QDialog):
             conn.rollback()
             log(f"StudentCreateDialog._create_student: {e}")
             QMessageBox.critical(self, "Erreur", str(e))
+
+    def _load_parents(self):
+        self._parent_ids = []
+        conn = db.server_conn
+        if not conn or not self._sid:
+            return
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT aec.id, aec.last_name || ' ' || aec.first_name, sp.nature, aec.email, aec.tel_smartphone_1
+                FROM student_parent sp
+                JOIN larcauth_aecuser aec ON aec.id = sp.parent_id
+                WHERE sp.student_id = %s
+                ORDER BY aec.last_name, aec.first_name
+            """, (self._sid,))
+            rows = cur.fetchall()
+            self._parent_ids = []
+            self._parents_table.setRowCount(len(rows))
+            for i, (pid, name, nat, em, tel) in enumerate(rows):
+                self._parent_ids.append(pid)
+                self._parents_table.setItem(i, 0, QTableWidgetItem(name))
+                if nat:
+                    self._parents_table.setItem(i, 1, QTableWidgetItem(nat))
+                self._parents_table.setItem(i, 2, QTableWidgetItem(em or ''))
+                self._parents_table.setItem(i, 3, QTableWidgetItem(tel or ''))
+            self._parents_table.resizeColumnsToContents()
+            if rows:
+                self._parents_table.selectRow(0)
+        except Exception as e:
+            log(f"StudentCreateDialog._load_parents: {e}")
+
+    def _copy_parent_address(self):
+        if not self._sid:
+            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            return
+        sel = self._parents_table.selectedItems()
+        if not sel or not self._parent_ids:
+            QMessageBox.warning(self, "Copie adresse", "Sélectionnez d'abord un parent.")
+            return
+        row = sel[0].row()
+        if row >= len(self._parent_ids):
+            return
+        pid = self._parent_ids[row]
+        conn = db.server_conn
+        if not conn:
+            return
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT address_line1, address_line2, postal_code, city, country
+                FROM foyer WHERE id = %s
+            """, (pid,))
+            row = cur.fetchone()
+            if row and any(row):
+                addr1, addr2, cp, ville, pays = row
+                self._inp_addr1.setPlainText(addr1 or '')
+                self._inp_addr2.setText(addr2 or '')
+                self._inp_cp.setText(cp or '')
+                self._inp_ville.setText(ville or '')
+                if pays:
+                    self._inp_pays.setText(pays)
+        except Exception as e:
+            log(f"StudentCreateDialog._copy_parent_address: {e}")
+
+    def _add_parent_link(self):
+        if not self._sid:
+            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Ajouter un parent")
+        dlg.setMinimumSize(450, 400)
+        p = theme_manager.palette; d = theme_manager.design; s = theme_manager.font_size
+        dlg.setStyleSheet(f"background: {p.surface}; color: {p.text_strong};")
+        layout = QVBoxLayout(dlg)
+        search_inp = QLineEdit()
+        search_inp.setPlaceholderText("Taper au moins 3 caractères...")
+        search_inp.setStyleSheet(
+            f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
+        layout.addWidget(search_inp)
+        result_list = QListWidget()
+        result_list.setStyleSheet(
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
+        layout.addWidget(result_list, 1)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        def on_search(text):
+            if len(text.strip()) < 3:
+                result_list.clear()
+                return
+            conn = db.server_conn
+            if not conn: return
+            try:
+                cur = conn.cursor()
+                q = "%" + text.strip() + "%"
+                cur.execute("""
+                    SELECT id, last_name, first_name, email
+                    FROM larcauth_aecuser
+                    WHERE type_parentutor = TRUE
+                      AND (LOWER(last_name) LIKE LOWER(%s) OR LOWER(first_name) LIKE LOWER(%s) OR LOWER(email) LIKE LOWER(%s))
+                      AND id NOT IN (SELECT parent_id FROM student_parent WHERE student_id = %s)
+                    ORDER BY last_name, first_name LIMIT 50
+                """, (q, q, q, self._sid))
+                result_list.clear()
+                self._search_parents_data = []
+                for pid, ln, fn, em in cur.fetchall():
+                    result_list.addItem(f"{ln or ''} {fn or ''} ({em or 'pas d e-mail'})")
+                    self._search_parents_data.append(pid)
+            except Exception as e:
+                log(f"_add_parent_link search: {e}")
+
+        search_inp.textChanged.connect(on_search)
+        self._search_parents_data = []
+
+        if dlg.exec() == QDialog.Accepted:
+            cur_sel = result_list.currentRow()
+            if cur_sel < 0 or cur_sel >= len(self._search_parents_data): return
+            pid = self._search_parents_data[cur_sel]
+            conn = db.server_conn
+            if not conn: return
+            try:
+                cur = conn.cursor()
+                cur.execute("INSERT INTO student_parent (student_id, parent_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (self._sid, pid))
+            except Exception as e:
+                log(f"_add_parent_link insert: {e}")
+                QMessageBox.critical(self, "Erreur", str(e))
+            self._load_parents()
+
+    def _edit_parent_nature(self):
+        if not self._sid:
+            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            return
+        sel = self._parents_table.selectedItems()
+        if not sel or not self._parent_ids:
+            QMessageBox.warning(self, "Nature", "Sélectionnez d'abord un parent.")
+            return
+        row = sel[0].row()
+        if row >= len(self._parent_ids): return
+        pid = self._parent_ids[row]
+        from PySide6.QtWidgets import QInputDialog
+        nature, ok = QInputDialog.getText(self, "Nature du lien", "Nature (ex: père, mère, tuteur légal...):")
+        if not ok: return
+        conn = db.server_conn
+        if not conn: return
+        try:
+            cur = conn.cursor()
+            cur.execute("UPDATE student_parent SET nature = %s WHERE student_id = %s AND parent_id = %s", (nature.strip(), self._sid, pid))
+            self._load_parents()
+        except Exception as e:
+            log(f"_edit_parent_nature: {e}")
+
+    def _remove_parent_link(self):
+        if not self._sid:
+            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            return
+        sel = self._parents_table.selectedItems()
+        if not sel or not self._parent_ids:
+            QMessageBox.warning(self, "Retirer", "Sélectionnez d'abord un parent.")
+            return
+        row = sel[0].row()
+        if row >= len(self._parent_ids): return
+        pid = self._parent_ids[row]
+        confirm = QMessageBox.question(self, "Confirmation",
+            "Retirer ce parent de l'élève ?", QMessageBox.Yes | QMessageBox.No)
+        if confirm != QMessageBox.Yes: return
+        conn = db.server_conn
+        if not conn: return
+        try:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM student_parent WHERE student_id = %s AND parent_id = %s", (self._sid, pid))
+            self._load_parents()
+        except Exception as e:
+            log(f"_remove_parent_link: {e}")
 
     def get_data(self) -> dict | None:
         return self._result_data

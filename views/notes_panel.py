@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtCore import Qt, QDate, QSize
-from PySide6.QtGui import QTextDocument
+from PySide6.QtGui import QTextDocument, QPageSize
 from PySide6.QtPrintSupport import QPrinter
 from LarcSecretaire.common.theme import theme_manager
 
@@ -361,7 +361,7 @@ class NotesPanel(QWidget):
             printer = QPrinter(QPrinter.HighResolution)
             printer.setOutputFormat(QPrinter.PdfFormat)
             printer.setOutputFileName(path)
-            printer.setPageSize(QPrinter.A4)
+            printer.setPageSize(QPageSize(QPageSize.A4))
             doc.print_(printer)
             QMessageBox.information(self, "Export PDF",
                 f"Notes exportées vers :\n{path}")

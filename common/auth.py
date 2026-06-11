@@ -97,6 +97,10 @@ class AuthManager:
             return False, AuthResult(), str(e)
 
     @classmethod
+    def auth_cloud(cls) -> Tuple[bool, AuthResult, str]:
+        return OAuth2Manager.authenticate()
+
+    @classmethod
     def check_teacher_exists(cls, email: str) -> Tuple[bool, dict]:
         """
         Vérifie si l'email correspond à un professeur actif dans teachadm.
@@ -285,30 +289,7 @@ class OAuth2Manager:
         if hd != 'arc-en-ciel.org':
             return False, AuthResult(), f'Domaine non autorisé : {hd or "(aucun)"}'
 
-        # Vérifier que l'email correspond au professeur de cette instance
-        try:
-            from common.database import db as _local_db
-            _local_conn = _local_db.local_conn
-            if _local_conn is None:
-                return False, AuthResult(), (
-                    'Aucune base locale. Créez d\'abord une instance '
-                    'via l\'onglet "Nouvelle instance" ou le mode 4.'
-                )
-            _cur = _local_conn.cursor()
-            _cur.execute("SELECT email_professeur FROM module_config WHERE id = 1")
-            _row = _cur.fetchone()
-            if not _row or not _row[0]:
-                return False, AuthResult(), (
-                    'Module non instancié. Créez d\'abord une instance '
-                    'via l\'onglet "Nouvelle instance" ou le mode 4.'
-                )
-            if _row[0].lower() != email.lower():
-                return False, AuthResult(), (
-                    f'Cette instance est liée à {_row[0]}. '
-                    f'Connectez-vous avec ce compte ou créez votre propre instance.'
-                )
-        except Exception as e:
-            return False, AuthResult(), f'Erreur de lecture du module : {e}'
+        # Vérification instance locale : on saute pour LarcSecretaire
 
         # Lookup user in DB
         conn = db.server_conn

@@ -1,6 +1,6 @@
 # LarcSecretaire — Contexte projet
 
-_Dernière mise à jour : 10 juin 2026_
+_Dernière mise à jour : 11 juin 2026_
 
 ## Règle importante — Décisions avant actions
 Quand je demande "qu'est-ce que tu pens ?" à propos d'une approche ou d'une solution,
@@ -136,7 +136,7 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 - `fk_foyer_id` sur `larcauth_aecuser` — adresse universelle
 - `student_parent` (N-N) — liaison élève ↔ parent avec nature override
 - Contrainte d'unicité partielle : deux foyers actifs ne peuvent pas avoir la même adresse
-- IDs parents réservés : 10001–10400
+- IDs parents réservés : 10001–10800 (gabarit pré-rempli `larcauth_parent.enabled = FALSE`)
 
 ### Principes gabarit
 - Tous les slots 01-40 pré-existants (INSERT avec noms placeholders `'Name of XXXX'`)
@@ -198,10 +198,49 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 - `docs/migrate_notes_json.sql` : `ALTER TABLE larcauth_student ADD COLUMN notes_json JSONB DEFAULT '{}'::jsonb`
 - `sql/02_date_columns.sql` : `ALTER TABLE larcauth_aecuser ADD COLUMN date_of_birth DATE` + COMMENT
 
+### 9. Gabarit parents (UPDATE uniquement, 10 juin)
+- `larcauth_parent` pré-rempli avec 800 gabarits (10001–10800, `enabled = FALSE`) comme `larcauth_student`
+- Même logique : l'INSERT est remplacé par UPDATE des gabarits
+- La recherche du slot libre interroge `larcauth_parent` (pas `larcauth_aecuser`)
+- `docs/parent_gabarit.sql` exécuté sur Intranet + Supabase
+
+### 10. Onglet Contact ajouté à l'EditDialog
+- L'onglet 2 "Contact" était manquant alors que les champs existaient — ajouté
+- L'onglet 3 passe de "Adresse" à "Adresse & Parents" avec `_parents_table`
+
+## Changements récents (11 juin 2026)
+
+### 1. Cloud OAuth2 — AuthManager.auth_cloud
+- Ajout de `AuthManager.auth_cloud()` qui délègue à `OAuth2Manager.authenticate()`
+- Suppression du contrôle `module_config.email_professeur` (spécifique eLarcProfPy, non applicable aux secrétaires)
+- Fix import `from common.database` → `from LarcSecretaire.common.database` dans OAuth2
+
+### 2. Parent management dans StudentEditDialog
+- Tab 3 "Adresse" fusionné en "Adresse & Parents" avec tableau parents + boutons (Ajouter, ✎ Nature, − Retirer, Copier l'adresse)
+- Tab 5 reste "Fichiers" (la partie parents déplacée dans onglet 3)
+
+### 3. Parent management dans StudentCreateDialog
+- Ajout des 4 méthodes parents manquantes : `_add_parent_link`, `_edit_parent_nature`, `_remove_parent_link`, `_copy_parent_address`
+- `self._sid` stocké après création pour permettre la liaison parents immédiate
+- `_parent_ids` et `_search_parents_data` initialisés dans `__init__`
+
+### 4. Bouton "📋 Liste" dans Supervision
+- Nouveau bouton "📋 Liste" à côté du bouton "+" dans l'en-tête
+- Ouvre `ClassListDialog` : table avec checkbox par élève, colonnes N°, Nom, Prénom
+- Espacement ajouté autour des deux boutons
+
+### 5. Fix `UPDATE larcauth_aecuser` sans `enabled`
+- `_create_new` dans `parent_manager.py` : retiré `enabled = TRUE` du `UPDATE larcauth_aecuser` (colonne inexistante, `is_active` utilisé à la place)
+
+### 6. Fix `can't adapt type 'dict'` (Cloud/PgBouncer)
+- `json.dumps()` appliqué à `notes_json` avant passage à `cur.execute` dans `_save` et `_create_student`
+- Le JSONB est mal typé via PgBouncer, la sérialisation explicite contourne le problème
+
 ### À faire
 1. Connecter `sync.py` aux nouvelles tables (`student_event`, `student_parent`, `foyer`)
 2. Bouton Synchroniser dans le dashboard
-3. Phase 2 : gestion financière
+3. Ajuster les thèmes (Dark trop clair, Contraste pas assez marqué)
+4. Phase 2 : gestion financière
 
 ## Phase 2 — À VENIR
 Gestion financière : paiements de scolarité, échéancier, reçus.
@@ -212,7 +251,7 @@ Nouvelles tables à connecter : `student_event`, `student_parent`.
 
 ## Identifiants élèves (gabarit)
 Format `XXYYZZ` : ex. `121101` = élève n°01, classe 1211. 40 slots par classe (XXYY01 à XXYY40).
-IDs parents : 10001–10400.
+IDs parents : 10001–10800 (gabarit pré-rempli `larcauth_parent.enabled = FALSE`).
 
 ## Compte secrétaire
 - Email : `patrlabo@arc-en-ciel.org`

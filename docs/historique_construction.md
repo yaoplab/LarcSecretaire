@@ -269,3 +269,39 @@ Les deux popups (édition et création) ont été unifiés et repensés :
 2. Bouton Synchroniser dans le dashboard
 3. Vue classe complète (class_view.py)
 4. Phase 2 : gestion financière
+
+---
+
+## Itération 8 — 11 juin 2026 : Cloud OAuth2 fix, parent management harmonisé, ClassListDialog
+
+### Cloud OAuth2 (LarcSecretaire)
+- Ajout de `AuthManager.auth_cloud()` qui délègue à `OAuth2Manager.authenticate()`
+- Suppression du bloc `module_config.email_professeur` (contrôle eLarcProfPy, inadapté aux secrétaires)
+- Fix import du module database dans OAuth2
+
+### Parent management dans les deux dialogues
+- `StudentEditDialog` : onglet 3 passe de "Adresse" à "Adresse & Parents" avec tableau parents + 4 boutons de gestion
+- `StudentCreateDialog` : ajout des 4 méthodes parents manquantes (`_add_parent_link`, `_edit_parent_nature`, `_remove_parent_link`, `_copy_parent_address`)
+- `self._sid` stocké après création pour permettre la liaison parents immédiate
+
+### ClassListDialog
+- Nouveau bouton "📋 Liste" dans l'en-tête Supervision (à côté du "+")
+- Ouvre `ClassListDialog` : table stylée avec checkbox par élève (colonnes N°, Nom, Prénom)
+- Espacement ajouté autour des deux boutons
+
+### Corrections Cloud/PgBouncer
+- `UPDATE larcauth_aecuser` sans `enabled = TRUE` (table aecuser utilise `is_active`)
+- `json.dumps(notes_json)` pour contourner l'absence d'adaptateur JSON via PgBouncer
+- Erreur `can't adapt type 'dict'` résolue
+
+### État actuel
+- Cloud OAuth2 fonctionnel pour les secrétaires
+- Gestion parents inline dans les deux dialogues (édition et création)
+- ClassListDialog avec checkboxes disponible en Supervision
+- Compatibilité Cloud Supabase via PgBouncer assurée
+
+### Prochaines étapes
+1. Connecter `sync.py` aux nouvelles tables (`student_event`, `student_parent`, `foyer`)
+2. Bouton Synchroniser dans le dashboard
+3. Ajuster les thèmes (Dark trop clair, Contraste pas assez marqué)
+4. Phase 2 : gestion financière
