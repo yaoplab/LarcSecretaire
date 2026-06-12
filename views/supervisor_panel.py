@@ -30,6 +30,51 @@ EVENT_COLORS = {
 }
 
 
+def _event_icon(event_type: str) -> str:
+    """Retourne l'icône pour un type d'événement (legacy ou hiérarchique)."""
+    legacy = {'arrival': '▲', 'departure': '▼', 'exit': '→', 'return': '←',
+              'absence': '✕', 'justified': '✓', 'late': '⏰'}
+    if event_type in legacy:
+        return legacy[event_type]
+    if event_type.startswith('Bureau BI'):
+        return '🔴'
+    if event_type.startswith('Médical'):
+        return '🏥'
+    if event_type.startswith('Sortie'):
+        return '🚪'
+    if event_type.startswith('Suivi'):
+        return '👁'
+    return '●'
+
+
+def _event_color(event_type: str) -> str:
+    """Retourne la couleur pour un type d'événement (legacy ou hiérarchique)."""
+    legacy = {'arrival': '#27ae60', 'departure': '#2980b9', 'exit': '#e67e22',
+              'return': '#2ecc71', 'absence': '#e74c3c', 'justified': '#95a5a6',
+              'late': '#f1c40f'}
+    if event_type in legacy:
+        return legacy[event_type]
+    if event_type.startswith('Bureau BI'):
+        return '#d32f2f'
+    if event_type.startswith('Médical'):
+        return '#1976d2'
+    if event_type.startswith('Sortie'):
+        return '#e65100'
+    if event_type.startswith('Suivi'):
+        return '#f9a825'
+    return '#555'
+
+
+def _event_label(event_type: str) -> str:
+    """Retourne le label lisible pour un type d'événement."""
+    legacy = {'arrival': '▲ Arrivée', 'departure': '▼ Départ', 'exit': '→ Sortie',
+              'return': '← Retour', 'absence': '✕ Absence', 'justified': '✓ Justifié',
+              'late': '⏰ Retard'}
+    if event_type in legacy:
+        return legacy[event_type]
+    return f"{_event_icon(event_type)} {event_type}"
+
+
 class StudentCard(QFrame):
     clicked = Signal(int)
 
@@ -69,8 +114,8 @@ class StudentCard(QFrame):
         self._name_label.setTextFormat(Qt.RichText)
         self._name_label.setAlignment(Qt.AlignCenter)
         self._name_label.setText(
-            f"<b style='font-size:{s(11)}px'>{self._last_name}</b><br>"
-            f"<span style='font-size:{s(10)}px; color:{p.text_soft}'>{self._first_name}</span>"
+            f"<b style='font-size:{s(13)}px'>{self._last_name}</b><br>"
+            f"<span style='font-size:{s(12)}px; color:{p.text_soft}'>{self._first_name}</span>"
         )
         layout.addWidget(self._name_label)
         layout.addStretch()
@@ -96,7 +141,7 @@ class StudentCard(QFrame):
 
         self._status_label = QLabel()
         self._status_label.setAlignment(Qt.AlignCenter)
-        self._status_label.setStyleSheet(f"font-size: {s(10)}px; font-weight: bold;")
+        self._status_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold;")
         layout.addWidget(self._status_label)
 
     def _make_avatar(self) -> QPixmap:
@@ -289,8 +334,8 @@ class SupervisorPanel(QWidget):
         evt_layout.setContentsMargins(4, 4, 4, 4)
 
         self._sd_events = QTableWidget()
-        self._sd_events.setColumnCount(5)
-        self._sd_events.setHorizontalHeaderLabels(["Heure", "Type", "Note", "Par", "Validé"])
+        self._sd_events.setColumnCount(7)
+        self._sd_events.setHorizontalHeaderLabels(["Heure", "Type", "Matière", "Lieu", "Note", "Par", "Validé"])
         self._sd_events.horizontalHeader().setStretchLastSection(True)
         self._sd_events.setEditTriggers(QTableWidget.NoEditTriggers)
         self._sd_events.setSelectionBehavior(QTableWidget.SelectRows)
@@ -429,27 +474,52 @@ class SupervisorPanel(QWidget):
             return
         try:
             cur = conn.cursor()
-            cur.execute("""
-                SELECT se.event_at, se.event_type, se.note,
-                       aec.last_name || ' ' || aec.first_name AS author,
-                        CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END, se.event_id
-                FROM student_event se
-                JOIN larcauth_aecuser aec ON aec.id = se.created_by
-                WHERE se.student_id = %s
-                ORDER BY se.event_at DESC LIMIT 50
-            """, (student_id,))
+            try:
+                cur.execute("""
+                    SELECT se.event_at, se.event_type, se.note,
+                           aec.last_name || ' ' || aec.first_name AS author,
+                           CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
+                           se.event_id,
+                           COALESCE(se.lieu_label, '') AS lieu_label,
+                           COALESCE(se.subject_label, '') AS subject_label
+                    FROM student_event se
+                    JOIN larcauth_aecuser aec ON aec.id = se.created_by
+                    WHERE se.student_id = %s
+                    ORDER BY se.event_at DESC LIMIT 50
+                """, (student_id,))
+            except Exception:
+                cur.execute("""
+                    SELECT se.event_at, se.event_type, se.note,
+                           aec.last_name || ' ' || aec.first_name AS author,
+                           CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
+                           se.event_id
+                    FROM student_event se
+                    JOIN larcauth_aecuser aec ON aec.id = se.created_by
+                    WHERE se.student_id = %s
+                    ORDER BY se.event_at DESC LIMIT 50
+                """, (student_id,))
             rows = cur.fetchall()
+            has_extra = len(rows) > 0 and len(rows[0]) >= 8
             self._sd_events.setRowCount(len(rows))
-            for i, (evt_at, etype, note, author, validated, eid) in enumerate(rows):
-                color = EVENT_COLORS.get(etype, '#000')
-                label = dict(EVENT_TYPES).get(etype, etype)
+            for i, row in enumerate(rows):
+                evt_at    = row[0]
+                etype     = row[1]
+                note      = row[2]
+                author    = row[3]
+                validated = row[4]
+                lieu      = row[6] if has_extra else ''
+                matiere   = row[7] if has_extra else ''
+                color = _event_color(etype)
+                label = _event_label(etype)
                 self._sd_events.setItem(i, 0, QTableWidgetItem(str(evt_at)[:16]))
                 it = QTableWidgetItem(label)
                 it.setForeground(QColor(color))
                 self._sd_events.setItem(i, 1, it)
-                self._sd_events.setItem(i, 2, QTableWidgetItem(note or ''))
-                self._sd_events.setItem(i, 3, QTableWidgetItem(author))
-                self._sd_events.setItem(i, 4, QTableWidgetItem(validated))
+                self._sd_events.setItem(i, 2, QTableWidgetItem(matiere))
+                self._sd_events.setItem(i, 3, QTableWidgetItem(lieu))
+                self._sd_events.setItem(i, 4, QTableWidgetItem(note or ''))
+                self._sd_events.setItem(i, 5, QTableWidgetItem(author))
+                self._sd_events.setItem(i, 6, QTableWidgetItem(validated))
             self._sd_events.resizeColumnsToContents()
         except Exception as e:
             log(f"SupervisorPanel._load_events: {e}")

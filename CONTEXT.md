@@ -1,6 +1,42 @@
 # LarcSecretaire — Contexte projet
 
-_Dernière mise à jour : 11 juin 2026_
+_Dernière mise à jour : 12 juin 2026_
+
+## ⚠️ Routing par version de modèle IA
+
+Chaque version de DeepSeek a un niveau de capacité différent. **Choisis les tâches adaptées à ta version :**
+
+| Version | Capacités | Types de tâches |
+|---|---|---|
+| **V4 Free** | Contexte limité, instructions simples | Docs, correction typos, renommage simple, explication de code, tests unitaires basiques |
+| **V4 Flash** | Contexte moyen, refactoring modéré | Correction bug mono-fichier, ajout méthode, QSS/styling, ajustement UI mineur, SQL simple |
+| **V4 Pro** | Contexte large, architecture multi-fichiers | Refactoring lourd, nouvelle feature multi-fichiers, sync, auth OAuth2, DDL complexes, analyse statique |
+
+**Règle :** Si ta version n'est pas assez puissante pour une tâche, **ne l'entreprends pas**. Explique pourquoi et suggère de repasser avec V4 Pro.
+
+### Tâches en attente — routées par version
+
+| # | Tâche | Version | Fichiers |
+|---|---|---|---|
+| 1 | Corriger CHECK constraint `event_type` DDL | **Pro** | `LarcSuperviseur/sql/student_event.sql` |
+| 2 | Mettre à jour DDL `student_event` (lieu_label, subject_label) | **Pro** | `LarcSuperviseur/sql/student_event.sql` |
+| 3 | Régler `autocommit=True` vs `rollback()` | **Pro** | `LarcSecretaire/common/database.py` + `views/` |
+| 4 | Supprimer QMessageBox de debug (`Debug 1/6` à `4/6`) | **Free** | `views/student_form.py` |
+| 5 | Déplacer `SET LOCAL` avant `conn.commit()` | **Flash** | `views/student_form.py:1024-1028` |
+| 6 | Adapter affichage événements hiérarchiques LarcSecretaire | **Pro** | `views/supervisor_panel.py` |
+| 7 | Ajouter Cloud auth à LarcSuperviseur | **Pro** | `LarcSuperviseur/common/auth.py`, `views/login.py` |
+| 8 | Nettoyer docs des références PIN obsolètes | **Free** | `CONTEXT.md`, `docs/01_specifications.md`, `docs/02_authentification.md`, `docs/03_sync.md`, `docs/historique_construction.md`, `docs/processus_enregistrement.md` |
+| 9 | Connecter `sync.py` aux tables manquantes | **Pro** | `common/sync.py` |
+| 10 | Créer `class_view.py` et `search.py` | **Pro** | `views/class_view.py`, `views/search.py` |
+| 11 | Ajouter sel aux hashs SHA-256 | **Pro** | `common/auth.py` (les 2 apps) |
+| 12 | Ajouter rate limiting login | **Flash** | `views/login.py` (les 2 apps) |
+| 13 | Ajouter audit login LarcSuperviseur | **Free** | `LarcSuperviseur/views/login.py` |
+| 14 | Supprimer `shell=True` dans subprocess | **Free** | `views/student_form.py:1098` |
+| 15 | Corriger `application_name` `'eLarcProf'` → `'LarcSecretaire'` | **Free** | `common/database.py:58` |
+| 16 | Corriger chemin fallback `eLarcProf` → `eLarcProfPy` | **Free** | `common/database.py:20` |
+| 17 | Ajouter timer inactivité LarcSuperviseur | **Flash** | `LarcSuperviseur/views/main_window.py` |
+| 18 | Chemin photos configurable (config.ini) | **Flash** | `views/supervisor_panel.py` |
+| 19 | Rapport détaillé des corrections à faire | **Pro** | `docs/rapport_audit_2026-06-12.md` |
 
 ## Règle importante — Décisions avant actions
 Quand je demande "qu'est-ce que tu pens ?" à propos d'une approche ou d'une solution,
@@ -24,7 +60,7 @@ Mobile/tablette = phase ultérieure (FastAPI + Flutter ou PWA).
 |---|---|---|
 | Intranet | PostgreSQL `127.0.0.1:5432/NewLarcDB` | Données en ligne réseau local |
 | Cloud | Supabase PostgreSQL (PgBouncer port 6543) | Données en ligne internet |
-| Device | SQLite `larcsecretaire.db` | Cache local + auth PIN + sync |
+| Device | SQLite `larcsecretaire.db` | Cache local + sync |
 
 Config dans `config.ini` (jamais commité).
 Même structure que les autres projets Larc.
@@ -46,7 +82,7 @@ LarcSecretaire/
 ├── data/
 │   └── students/           # Fichiers joints par élève (créé automatiquement)
 ├── views/
-│   ├── login.py            # LoginWindow — 4 onglets auth
+│   ├── login.py            # LoginWindow — Intranet + Cloud (pas de PIN)
 │   ├── password.py         # ChangePinDialog + ChangePasswordDialog
 │   ├── main_window.py      # MainWindow — sidebar + dashboard + stack pages
 │   ├── supervisor_panel.py # Grille élèves, présence, événements (page 1)
@@ -82,8 +118,6 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 ### Fonctionnel
 - Connexion Intranet (SHA-256) → vérifie `type_secretary = TRUE`
 - Connexion Cloud (OAuth2 PKCE Google @arc-en-ciel.org)
-- Connexion PIN (hors ligne, hash SHA-256 en SQLite)
-- Nouvelle instance (copie du projet)
 - Dashboard avec KPIs (total élèves, collège, lycée, enseignants)
 - Tableau fusionné : Programme \| Actifs \| Places \| Taux \| ♂ \| ♀ \| Total (colonnes stretch largeur égale, centré)
 - Tableau enseignants : Enseignants / Admins / Coordinateurs / Secrétaires
@@ -237,10 +271,7 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 - Le JSONB est mal typé via PgBouncer, la sérialisation explicite contourne le problème
 
 ### À faire
-1. Connecter `sync.py` aux nouvelles tables (`student_event`, `student_parent`, `foyer`)
-2. Bouton Synchroniser dans le dashboard
-3. Ajuster les thèmes (Dark trop clair, Contraste pas assez marqué)
-4. Phase 2 : gestion financière
+Voir la table de routage en haut de ce fichier (19 tâches classées par version de modèle).
 
 ## Phase 2 — À VENIR
 Gestion financière : paiements de scolarité, échéancier, reçus.

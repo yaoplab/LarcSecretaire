@@ -35,6 +35,7 @@ from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.common.logger import log
 from LarcSecretaire.common.audit import audit
 from LarcSecretaire.views.notes_panel import NotesPanel
+from LarcSecretaire.views.supervisor_panel import _event_icon, _event_color, _event_label
 
 LARCSUPERVISEUR_PHOTOS = os.path.normpath(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -520,10 +521,10 @@ class StudentEditDialog(QDialog):
 
         id_col = QVBoxLayout()
         self._id_name = QLabel("")
-        self._id_name.setStyleSheet(f"font-size: {s(15)}px; font-weight: bold; color: {p.text_strong};")
+        self._id_name.setStyleSheet(f"font-size: {s(17)}px; font-weight: bold; color: {p.text_strong};")
         id_col.addWidget(self._id_name)
         self._id_info = QLabel("")
-        self._id_info.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft};")
+        self._id_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
         id_col.addWidget(self._id_info)
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
@@ -953,7 +954,9 @@ class StudentEditDialog(QDialog):
             self._evt_table.setRowCount(len(rows))
             for i, (evt_at, etype, note, author, validated) in enumerate(rows):
                 self._evt_table.setItem(i, 0, QTableWidgetItem(str(evt_at)[:16]))
-                self._evt_table.setItem(i, 1, QTableWidgetItem(etype or ''))
+                it = QTableWidgetItem(_event_label(etype))
+                it.setForeground(QColor(_event_color(etype)))
+                self._evt_table.setItem(i, 1, it)
                 self._evt_table.setItem(i, 2, QTableWidgetItem(note or ''))
                 self._evt_table.setItem(i, 3, QTableWidgetItem(author))
                 self._evt_table.setItem(i, 4, QTableWidgetItem(validated))
