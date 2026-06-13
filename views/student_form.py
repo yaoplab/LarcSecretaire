@@ -620,6 +620,18 @@ class StudentEditDialog(QDialog):
         tabs.addTab(tab1, "Identité")
 
         # --- Tab 2 : Contact ---
+        tab2 = QWidget()
+        tab2_layout = QVBoxLayout(tab2)
+        tab2_layout.setSpacing(d.spacing)
+        g2 = QGridLayout()
+        g2.setSpacing(d.spacing)
+        g2.addWidget(_lbl("Email"), 0, 0); g2.addWidget(_lbl("Email personnel"), 0, 1)
+        g2.addWidget(self._inp_email, 1, 0); g2.addWidget(self._inp_emailperso, 1, 1)
+        g2.addWidget(_lbl("Téléphone portable"), 2, 0); g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
+        g2.addWidget(self._inp_tel, 3, 0); g2.addWidget(self._inp_tel2, 3, 1)
+        tab2_layout.addLayout(g2)
+        tab2_layout.addStretch()
+        tabs.addTab(tab2, "Contact")
 
         # --- Tab 3 : Adresse & Parents ---
         tab3 = QWidget()
@@ -986,14 +998,10 @@ class StudentEditDialog(QDialog):
                 'fk_gender_id': self._inp_genre.currentData() or None,
                 'updated': now,
             }
-            QMessageBox.information(self, "Debug 1/6",
-                f"ID={self._sid}\naec={aec}")
             cur.execute(
                 "UPDATE larcauth_aecuser SET " +
                 ", ".join(f"{k}=%s" for k in aec) + " WHERE id=%s",
                 list(aec.values()) + [self._sid])
-            QMessageBox.information(self, "Debug 2/6",
-                f"aecuser UPDATE rowcount={cur.rowcount}")
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun enregistrement trouve pour l'ID {self._sid}")
 
@@ -1013,14 +1021,9 @@ class StudentEditDialog(QDialog):
                 ") ON CONFLICT (id) DO UPDATE SET " +
                 ", ".join(f"{k}=EXCLUDED.{k}" for k in cols),
                 [fid] + vals)
-            QMessageBox.information(self, "Debug 3/6",
-                f"foyer {fid}: INSERT ON CONFLICT OK\naddr={addr}")
-
             notes_json = json.dumps(self._notes_panel.get_json())
             cur.execute("UPDATE larcauth_student SET notes_json = %s WHERE aecuser_ptr_id = %s",
                         (notes_json, self._sid))
-            QMessageBox.information(self, "Debug 4/6",
-                f"student notes_json UPDATE rowcount={cur.rowcount}")
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun etudiant trouve pour l'ID {self._sid}")
 
@@ -1098,11 +1101,11 @@ class StudentEditDialog(QDialog):
     def _open_file(self, item):
         path = os.path.join(self._student_dir(), item.text())
         import subprocess
-        subprocess.Popen(['explorer', path], shell=True)
+        subprocess.Popen(['explorer', path])
 
     def _open_folder(self):
         import subprocess
-        subprocess.Popen(['explorer', self._student_dir()], shell=True)
+        subprocess.Popen(['explorer', self._student_dir()])
 
     def _copy_parent_address(self):
         sel = self._parents_table.selectedItems()
@@ -1702,7 +1705,7 @@ class StudentCreateDialog(QDialog):
         ph5.setAlignment(Qt.AlignCenter)
         tab5_layout.addWidget(ph5)
         tab5_layout.addStretch()
-        tabs.addTab(tab5, "Fichiers & Parents")
+        tabs.addTab(tab5, "Fichiers")
 
         # --- Tab 6 : Événements (placeholder) ---
         tab6 = QWidget()

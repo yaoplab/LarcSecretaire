@@ -684,7 +684,7 @@ class MainWindow(QWidget):
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sup_path = os.path.join(base, 'LarcSuperviseur', 'main.py')
         if os.path.exists(sup_path):
-            subprocess.Popen(['python', sup_path], shell=True)
+            subprocess.Popen(['python', sup_path])
         else:
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(self, "LarcSuperviseur",

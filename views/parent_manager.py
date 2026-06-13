@@ -810,28 +810,42 @@ class ParentEditDialog(QDialog):
         city = self._dlg_ville.text().strip() or None
         country = self._dlg_pays.text().strip() or 'France'
 
-        # Vérifier si le foyer existe déjà (même ID que aecuser)
-        cur.execute("SELECT id FROM foyer WHERE id = %s", (aecuser_id,))
-        existing = cur.fetchone()
+        # Vérifier si un foyer avec cette adresse existe déjà
+        cur.execute("""
+            SELECT id FROM foyer
+            WHERE address_line1 IS NOT DISTINCT FROM %s
+              AND postal_code IS NOT DISTINCT FROM %s
+              AND city IS NOT DISTINCT FROM %s
+              AND enabled = TRUE
+            LIMIT 1
+        """, (addr1, cp, city))
+        existing_addr = cur.fetchone()
 
-        if existing:
-            # Mettre à jour le foyer existant
-            cur.execute("""
-                UPDATE foyer SET
-                    address_line1 = %s, address_line2 = %s,
-                    postal_code = %s, city = %s, country = %s,
-                    enabled = TRUE
-                WHERE id = %s
-            """, (addr1, addr2, cp, city, country, aecuser_id))
+        if existing_addr:
+            # Réutiliser le foyer existant
+            foyer_id = existing_addr[0]
         else:
-            # Créer un nouveau foyer
-            cur.execute("""
-                INSERT INTO foyer (id, address_line1, address_line2, postal_code,
-                                   city, country, enabled)
-                VALUES (%s, %s, %s, %s, %s, %s, TRUE)
-            """, (aecuser_id, addr1, addr2, cp, city, country))
+            # Vérifier si le foyer du parent existe déjà (même ID)
+            cur.execute("SELECT id FROM foyer WHERE id = %s", (aecuser_id,))
+            existing = cur.fetchone()
+            if existing:
+                foyer_id = aecuser_id
+                cur.execute("""
+                    UPDATE foyer SET
+                        address_line1 = %s, address_line2 = %s,
+                        postal_code = %s, city = %s, country = %s,
+                        enabled = TRUE
+                    WHERE id = %s
+                """, (addr1, addr2, cp, city, country, foyer_id))
+            else:
+                foyer_id = aecuser_id
+                cur.execute("""
+                    INSERT INTO foyer (id, address_line1, address_line2, postal_code,
+                                       city, country, enabled)
+                    VALUES (%s, %s, %s, %s, %s, %s, TRUE)
+                """, (foyer_id, addr1, addr2, cp, city, country))
 
         # S'assurer que aecuser pointe vers ce foyer
         cur.execute(
             "UPDATE larcauth_aecuser SET fk_foyer_id = %s WHERE id = %s",
-            (aecuser_id, aecuser_id))
+            (foyer_id, aecuser_id))

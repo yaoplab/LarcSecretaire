@@ -17,7 +17,7 @@ def _find_cfg() -> str:
     here = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(here, '..', 'config.ini'),
-        os.path.join(here, '..', '..', 'eLarcProf', 'config.ini'),
+        os.path.join(here, '..', '..', 'eLarcProfPy', 'config.ini'),
     ]
     for p in candidates:
         p = os.path.normpath(p)
@@ -55,7 +55,7 @@ class Database:
             'dbname':           cfg.get(section, 'DB',   fallback=default_db),
             'user':             cfg.get(section, 'User', fallback='postgres'),
             'password':         cfg.get(section, 'Pass', fallback=''),
-            'application_name': 'eLarcProf',
+            'application_name': 'LarcSecretaire',
             'connect_timeout':  5,
         }
 
