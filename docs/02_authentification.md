@@ -46,26 +46,7 @@ Authentification via Google OAuth2 avec PKCE, réservée aux comptes `@arc-en-ci
 7. Récupération du profil (email, nom)
 8. Vérification du domaine `@arc-en-ciel.org` et `type_secretary = TRUE`
 
-### 3. PIN (Hors ligne)
-
-Authentification locale via SQLite `session_cache`.
-
-```python
-# Stockage
-pin_hash = sha256(pin)  # hashé côté client
-session_cache : (user_id, email, last_name, first_name, pin_hash, role)
-
-# Vérification
-stored_hash = get_pin_hash(user_id)
-sha256(entered_pin) == stored_hash
-```
-
-Le PIN est configuré via `ChangePinDialog` (bouton dans l'onglet Hors connexion).
-Contrainte : 4 à 8 chiffres.
-
-### 4. Nouvelle instance
-
-Copie le projet dans un nouveau dossier avec `shutil.copytree()`.
+*Les sections PIN (Hors ligne) et Nouvelle instance ont été supprimées — non retenues pour le périmètre secrétariat.*
 
 ---
 

@@ -11,7 +11,7 @@ Le système existant (eLarcProfPy, LarcSuperviseur) repose sur une base PostgreS
 ### Principes communs
 - **PySide6** (Qt6) — pas PyQt, pas Flet
 - Connexion directe **psycopg2** au PostgreSQL Intranet (127.0.0.1:5432/NewLarcDB)
-- Auth : Intranet (SHA-256, colonne `password`), Cloud (OAuth2 PKCE Google @arc-en-ciel.org), PIN (SQLite `session_cache`)
+- Auth : Intranet (SHA-256, colonne `password`), Cloud (OAuth2 PKCE Google @arc-en-ciel.org)
 - Rôle SECR authentifié par `type_secretary = TRUE` dans `larcauth_aecuser`
 - Base SQLite device locale (`larcsecretaire.db`) avec tables shadow (`_ref`)
 - Sync via diff cellule → pull/push (identique à eLarcProfPy)
@@ -138,9 +138,8 @@ Clic sur "Gestion parents" → page de gestion des liens élèves↔parents.
 ## 5. Phase 1 — Réalisé
 
 ### 5.1 Connexion (views/login.py)
-- 4 onglets : Intranet (SHA-256), Cloud (OAuth2 Google), Hors connexion (PIN), Nouvelle instance
+- 2 onglets : Intranet (SHA-256), Cloud (OAuth2 Google)
 - Vérifie `type_secretary = TRUE` pour autoriser l'accès
-- Boutons "Changer le mot de passe" (onglet Intranet) et "Changer le code PIN" (onglet Hors connexion)
 - Détection réseau avec indicateur coloré en haut
 
 ### 5.2 Tableau de bord (views/main_window.py)

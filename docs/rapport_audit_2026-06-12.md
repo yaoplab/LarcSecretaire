@@ -178,14 +178,11 @@
 |---|---|---|
 | Intranet SHA-256 | Oui (via AuthManager) | Oui (direct) |
 | Cloud OAuth2 | Oui (PKCE Google) | **À ajouter** (objectif confirmé) |
-| PIN hors ligne | **Supprimé** (code clean, docs à mettre à jour) | Non |
+| PIN hors ligne | **Supprimé** (code + docs nettoyés) | Non |
 | Vérification rôle | `type_secretary` | `type_supervisor` / `type_coordonator` / `type_director` |
 
-### 4.5 Documentation PIN obsolète
-- **Fichiers :** `CONTEXT.md`, `docs/01_specifications.md`, `docs/02_authentification.md`, `docs/03_sync.md`, `docs/historique_construction.md`, `docs/processus_enregistrement.md`
-- **Sévérité :** MOYENNE (docs trompeuses)
-- **Détail :** Le code ne contient plus aucune trace de login PIN (pas d'onglet Hors connexion, pas de `session_cache` DDL, pas de `ChangePinDialog`). Mais 9 endroits dans 6 documents le décrivent encore comme fonctionnel.
-- **Correction :** Mettre à jour tous ces documents pour refléter que seul Intranet + Cloud sont actifs. Supprimer les sections PIN et Nouvelle instance.
+### 4.5 Documentation PIN obsolète — **FAIT**
+- **Correction appliquée :** Tous les documents ont été mis à jour le 13/06/2026. Les sections PIN et Nouvelle instance sont supprimées ou remplacées par une note indiquant leur retrait.
 
 ### 4.6 LarcSuperviseur — Absence de Cloud auth
 - **Fichier :** `views/login.py`, `common/auth.py` (absent)
@@ -210,7 +207,7 @@
 
 ### Priorité MOYENNE
 8. **Ajouter Cloud auth à LarcSuperviseur** — Reprendre/partager `OAuth2Manager`
-9. **Nettoyer la documentation du PIN** — 6 fichiers à mettre à jour
+9. ~~**Nettoyer la documentation du PIN** — 6 fichiers à mettre à jour~~ **FAIT**
 10. **Connecter sync.py** aux tables manquantes
 11. **Créer `class_view.py` et `search.py`**
 12. **Ajouter un sel aux hashs de mot de passe**

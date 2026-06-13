@@ -1,5 +1,7 @@
 from typing import Optional, Tuple
 
+import time
+
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QFormLayout,
     QTabWidget, QLabel, QLineEdit, QPushButton,
@@ -34,6 +36,26 @@ class _Worker(QThread):
 
 
 class LoginWindow(QMainWindow):
+
+    _login_attempts: dict[str, dict] = {}
+
+    @classmethod
+    def _check_rate_limit(cls, key: str) -> bool:
+        now = time.time()
+        entry = cls._login_attempts.get(key)
+        if entry and entry['until'] > now:
+            remaining = int(entry['until'] - now)
+            raise RuntimeError(f"Trop de tentatives. Réessayez dans {remaining}s.")
+        if entry and entry['until'] <= now:
+            cls._login_attempts.pop(key, None)
+        return True
+
+    @classmethod
+    def _record_failure(cls, key: str):
+        entry = cls._login_attempts.setdefault(key, {'count': 0, 'until': 0})
+        entry['count'] += 1
+        if entry['count'] >= 5:
+            entry['until'] = time.time() + 30
 
     def _style(self) -> str:
         p = theme_manager.palette
@@ -207,17 +229,28 @@ class LoginWindow(QMainWindow):
         if not email or not pwd:
             self._show_error("Veuillez saisir votre email et mot de passe.")
             return
+        try:
+            self._check_rate_limit(email.lower())
+        except RuntimeError as e:
+            self._show_error(str(e))
+            return
         self._hide_error()
         self._set_busy(True)
+        email_key = email.lower()
         self._worker = _Worker(AuthManager.auth_intranet, email, pwd, parent=self)
-        self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.INTRANET))
+        self._worker.done.connect(lambda r, ek=email_key: self._on_auth_done(r, ConnMode.INTRANET, ek))
         self._worker.start()
 
     def _on_cloud(self):
+        try:
+            self._check_rate_limit('cloud')
+        except RuntimeError as e:
+            self._show_error(str(e))
+            return
         self._hide_error()
         self._set_busy(True)
         self._worker = _Worker(AuthManager.auth_cloud, parent=self)
-        self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.CLOUD))
+        self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.CLOUD, 'cloud'))
         self._worker.start()
 
     def _check_secretary_exists(self, email: str) -> Tuple[bool, dict]:
@@ -246,10 +279,11 @@ class LoginWindow(QMainWindow):
             log(f"_check_secretary_exists: {e}")
             return False, {}
 
-    def _on_auth_done(self, result, mode: ConnMode):
+    def _on_auth_done(self, result, mode: ConnMode, rate_key: str):
         self._set_busy(False)
         ok, res, err = result
         if not ok:
+            self._record_failure(rate_key)
             self._show_error(err or "Authentification échouée.")
             return
 

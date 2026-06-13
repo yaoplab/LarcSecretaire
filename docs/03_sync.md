@@ -40,7 +40,7 @@ Comparaison colonne par colonne. Si `t.col != r.col` → diff.
 ## Tables SQLite device
 
 ```sql
--- Session cache pour auth PIN
+-- (session_cache supprimée — auth PIN non retenue)
 CREATE TABLE session_cache (
     user_id INTEGER PRIMARY KEY,
     email TEXT NOT NULL,

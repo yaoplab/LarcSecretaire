@@ -78,15 +78,7 @@ requêtes déjà exécutées.
 7. Cross-check : `module_config.email_professeur` en SQLite
 8. Re-quête du rôle dans PostgreSQL
 
-### PIN (Hors-ligne)
-
-1. SHA-256 du PIN
-2. Requête SQLite :
-   ```sql
-   SELECT user_id, email, full_name, role, pin_hash
-   FROM session_cache
-   WHERE email = ? AND pin_hash = ?
-   ```
+*Authentification PIN hors ligne supprimée — non retenue pour le périmètre secrétariat.*
 
 ### Post-auth — `_on_auth_done()` (login.py:355)
 

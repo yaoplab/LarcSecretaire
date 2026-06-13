@@ -18,9 +18,9 @@
 ### Modules spécifiques
 - `common/sqlite_init.py` : DDL secrétaire avec `student_profile`, `student_profile_ref`, `session_cache`, `module_config`, `sync_state`, `sync_cursor`
 - `common/sync.py` : SyncManager avec diff cellule via shadow-tables
-- `views/login.py` : 4 onglets (Intranet/Cloud/PIN/Nouvelle instance), vérifie `type_secretary`
+- `views/login.py` : 2 onglets (Intranet/Cloud), vérifie `type_secretary`
 - `views/main_window.py` : Sidebar + Dashboard KPIs (total élèves, collège, lycée, places, répartition par programme, alertes)
-- `views/password.py` : ChangePinDialog + ChangePasswordDialog
+- `views/password.py` : ChangePasswordDialog
 - `main.py` : point d'entrée
 - `requirements.txt` : PySide6 + psycopg2-binary
 
