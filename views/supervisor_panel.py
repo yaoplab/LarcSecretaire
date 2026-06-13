@@ -335,7 +335,7 @@ class SupervisorPanel(QWidget):
 
         self._sd_events = QTableWidget()
         self._sd_events.setColumnCount(7)
-        self._sd_events.setHorizontalHeaderLabels(["Heure", "Type", "Matière", "Lieu", "Note", "Par", "Validé"])
+        self._sd_events.setHorizontalHeaderLabels(["Heure", "Type", "Lieu", "Matière", "Note", "Par", "Validé"])
         self._sd_events.horizontalHeader().setStretchLastSection(True)
         self._sd_events.setEditTriggers(QTableWidget.NoEditTriggers)
         self._sd_events.setSelectionBehavior(QTableWidget.SelectRows)
@@ -426,13 +426,14 @@ class SupervisorPanel(QWidget):
                            SELECT 1 FROM student_event e2
                            WHERE e2.student_id = se.student_id
                              AND DATE(e2.event_at) = %s
-                              AND e2.event_type = 'absence' AND e2.validated_by IS NULL
+                              AND (e2.event_type = 'absence' OR e2.event_type ILIKE 'Suivi > Absence%%')
+                              AND e2.validated_by IS NULL
                        ) THEN 'ABSENT'
                        WHEN EXISTS (
                            SELECT 1 FROM student_event e3
                            WHERE e3.student_id = se.student_id
                              AND DATE(e3.event_at) = %s
-                             AND e3.event_type != 'absence'
+                             AND e3.event_type != 'absence' AND e3.event_type NOT ILIKE 'Suivi > Absence%%'
                        ) THEN 'PRESENT'
                        ELSE 'UNKNOWN' END
                 FROM larcauth_student s
@@ -474,32 +475,19 @@ class SupervisorPanel(QWidget):
             return
         try:
             cur = conn.cursor()
-            try:
-                cur.execute("""
-                    SELECT se.event_at, se.event_type, se.note,
-                           aec.last_name || ' ' || aec.first_name AS author,
-                           CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
-                           se.event_id,
-                           COALESCE(se.lieu_label, '') AS lieu_label,
-                           COALESCE(se.subject_label, '') AS subject_label
-                    FROM student_event se
-                    JOIN larcauth_aecuser aec ON aec.id = se.created_by
-                    WHERE se.student_id = %s
-                    ORDER BY se.event_at DESC LIMIT 50
-                """, (student_id,))
-            except Exception:
-                cur.execute("""
-                    SELECT se.event_at, se.event_type, se.note,
-                           aec.last_name || ' ' || aec.first_name AS author,
-                           CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
-                           se.event_id
-                    FROM student_event se
-                    JOIN larcauth_aecuser aec ON aec.id = se.created_by
-                    WHERE se.student_id = %s
-                    ORDER BY se.event_at DESC LIMIT 50
-                """, (student_id,))
+            cur.execute("""
+                SELECT se.event_at, se.event_type, se.note,
+                       aec.last_name || ' ' || aec.first_name AS author,
+                       CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
+                       se.event_id,
+                       COALESCE(se.lieu_label, '') AS lieu_label,
+                       COALESCE(se.subject_label, '') AS subject_label
+                FROM student_event se
+                JOIN larcauth_aecuser aec ON aec.id = se.created_by
+                WHERE se.student_id = %s
+                ORDER BY se.event_at DESC LIMIT 50
+            """, (student_id,))
             rows = cur.fetchall()
-            has_extra = len(rows) > 0 and len(rows[0]) >= 8
             self._sd_events.setRowCount(len(rows))
             for i, row in enumerate(rows):
                 evt_at    = row[0]
@@ -507,16 +495,16 @@ class SupervisorPanel(QWidget):
                 note      = row[2]
                 author    = row[3]
                 validated = row[4]
-                lieu      = row[6] if has_extra else ''
-                matiere   = row[7] if has_extra else ''
+                lieu      = row[6] or ''
+                matiere   = row[7] or ''
                 color = _event_color(etype)
                 label = _event_label(etype)
                 self._sd_events.setItem(i, 0, QTableWidgetItem(str(evt_at)[:16]))
                 it = QTableWidgetItem(label)
                 it.setForeground(QColor(color))
                 self._sd_events.setItem(i, 1, it)
-                self._sd_events.setItem(i, 2, QTableWidgetItem(matiere))
-                self._sd_events.setItem(i, 3, QTableWidgetItem(lieu))
+                self._sd_events.setItem(i, 2, QTableWidgetItem(lieu))
+                self._sd_events.setItem(i, 3, QTableWidgetItem(matiere))
                 self._sd_events.setItem(i, 4, QTableWidgetItem(note or ''))
                 self._sd_events.setItem(i, 5, QTableWidgetItem(author))
                 self._sd_events.setItem(i, 6, QTableWidgetItem(validated))

@@ -21,13 +21,11 @@ CREATE TABLE IF NOT EXISTS student_event (
     student_id     INTEGER NOT NULL REFERENCES larcauth_student(aecuser_ptr_id)
                              ON DELETE CASCADE,
     agenda_day_id  INTEGER NOT NULL REFERENCES larcauth_agenda(id),
-    event_type     TEXT NOT NULL
-                     CHECK (event_type IN (
-                       'arrival', 'departure', 'exit',
-                       'return', 'absence', 'justified', 'late'
-                     )),
+    event_type     TEXT NOT NULL,
     event_at       TIMESTAMP NOT NULL,
     note           TEXT CHECK (length(note) <= 200),
+    lieu_label     TEXT,
+    subject_label  TEXT,
     source         TEXT NOT NULL DEFAULT 'intranet'
                      CHECK (source IN ('intranet', 'cloud')),
     created_by     INTEGER NOT NULL REFERENCES larcauth_aecuser(id),
@@ -38,6 +36,26 @@ CREATE TABLE IF NOT EXISTS student_event (
     sync_revision  BIGINT DEFAULT 0,
     synced         BOOLEAN DEFAULT FALSE
 );
+
+-- Migration : supprimer l'ancienne CHECK constraint restrictive
+DO $$
+DECLARE
+    cons_name text;
+BEGIN
+    SELECT con.conname INTO cons_name
+    FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    WHERE rel.relname = 'student_event'
+      AND con.contype = 'c'
+      AND pg_get_constraintdef(con.oid) ILIKE '%event_type%';
+    IF cons_name IS NOT NULL THEN
+        EXECUTE 'ALTER TABLE student_event DROP CONSTRAINT ' || cons_name;
+    END IF;
+END $$;
+
+-- Ajouter les colonnes manquantes (si la table existe déjà)
+ALTER TABLE student_event ADD COLUMN IF NOT EXISTS lieu_label TEXT;
+ALTER TABLE student_event ADD COLUMN IF NOT EXISTS subject_label TEXT;
 
 -- 3. Index
 CREATE INDEX IF NOT EXISTS idx_event_student_date
@@ -87,22 +105,22 @@ SELECT
             SELECT 1 FROM student_event e2
             WHERE e2.student_id = se.student_id
               AND e2.agenda_day_id = ag.id
-              AND e2.event_type = 'absence'
+              AND (e2.event_type = 'absence' OR e2.event_type ILIKE 'Suivi > Absence%')
               AND e2.validated_by IS NULL
         ) THEN 'ABSENT'
         WHEN EXISTS (
             SELECT 1 FROM student_event e3
             WHERE e3.student_id = se.student_id
               AND e3.agenda_day_id = ag.id
-              AND e3.event_type != 'absence'
+              AND e3.event_type NOT ILIKE 'Suivi > Absence%' AND e3.event_type != 'absence'
         ) THEN 'PRESENT'
         ELSE 'UNKNOWN'
     END AS presence,
     MIN(CASE WHEN se.event_type = 'arrival'   THEN se.event_at END) AS first_arrival,
     MAX(CASE WHEN se.event_type = 'departure' THEN se.event_at END) AS last_departure,
-    COUNT(*) FILTER (WHERE se.event_type = 'exit')      AS exit_count,
+    COUNT(*) FILTER (WHERE se.event_type ILIKE 'Sortie%' OR se.event_type ILIKE '%Fuite%' OR se.event_type = 'exit') AS exit_count,
     COUNT(*) FILTER (WHERE se.event_type = 'late')      AS late_count,
-    COUNT(*) FILTER (WHERE se.event_type = 'absence'
+    COUNT(*) FILTER (WHERE (se.event_type = 'absence' OR se.event_type ILIKE 'Suivi > Absence%')
         AND se.validated_by IS NULL) AS absence_count,
     COUNT(*) FILTER (WHERE se.event_type = 'justified') AS justified_count,
     COUNT(*) AS total_events
@@ -118,9 +136,9 @@ SELECT
     ag.date_all AS day,
     ag.working_day,
     ag.day_notice,
-    COUNT(*) FILTER (WHERE se.event_type = 'exit') AS exit_count,
+    COUNT(*) FILTER (WHERE se.event_type ILIKE 'Sortie%' OR se.event_type ILIKE '%Fuite%' OR se.event_type = 'exit') AS exit_count,
     CASE
-        WHEN COUNT(*) FILTER (WHERE se.event_type = 'absence'
+        WHEN COUNT(*) FILTER (WHERE (se.event_type = 'absence' OR se.event_type ILIKE 'Suivi > Absence%')
             AND se.validated_by IS NULL) > 0 THEN TRUE
         ELSE FALSE
     END AS has_unjustified_absence,
@@ -133,7 +151,7 @@ WHERE se.event_at >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY se.student_id, aec.last_name, aec.first_name,
          ag.id, ag.date_all, ag.working_day, ag.day_notice
 HAVING
-    COUNT(*) FILTER (WHERE se.event_type = 'exit') >= 3
-    OR COUNT(*) FILTER (WHERE se.event_type = 'absence'
+    COUNT(*) FILTER (WHERE se.event_type ILIKE 'Sortie%' OR se.event_type ILIKE '%Fuite%' OR se.event_type = 'exit') >= 3
+    OR COUNT(*) FILTER (WHERE (se.event_type = 'absence' OR se.event_type ILIKE 'Suivi > Absence%')
         AND se.validated_by IS NULL) > 0
 ORDER BY has_unjustified_absence DESC, exit_count DESC;

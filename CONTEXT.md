@@ -18,12 +18,12 @@ Chaque version de DeepSeek a un niveau de capacité différent. **Choisis les t�
 
 | # | Tâche | Version | Fichiers |
 |---|---|---|---|
-| 1 | Corriger CHECK constraint `event_type` DDL | **Pro** | `LarcSuperviseur/sql/student_event.sql` |
-| 2 | Mettre à jour DDL `student_event` (lieu_label, subject_label) | **Pro** | `LarcSuperviseur/sql/student_event.sql` |
+| 1 | ~~Corriger CHECK constraint `event_type` DDL~~ | **Pro** | **FAIT** |
+| 2 | ~~Mettre à jour DDL `student_event` (lieu_label, subject_label)~~ | **Pro** | **FAIT** |
 | 3 | Régler `autocommit=True` vs `rollback()` | **Pro** | `LarcSecretaire/common/database.py` + `views/` |
 | 4 | ~~Supprimer QMessageBox de debug (`Debug 1/6` à `4/6`)~~ | **Free** | **FAIT** |
 | 5 | Déplacer `SET LOCAL` avant `conn.commit()` | **Flash** | `views/student_form.py:1024-1028` |
-| 6 | Adapter affichage événements hiérarchiques LarcSecretaire | **Pro** | `views/supervisor_panel.py` |
+| 6 | ~~Adapter affichage événements hiérarchiques LarcSecretaire~~ | **Pro** | **FAIT** |
 | 7 | Ajouter Cloud auth à LarcSuperviseur | **Pro** | `LarcSuperviseur/common/auth.py`, `views/login.py` |
 | 8 | ~~Nettoyer docs des références PIN obsolètes~~ | **Free** | **FAIT** |
 | 9 | Connecter `sync.py` aux tables manquantes | **Pro** | `common/sync.py` |
