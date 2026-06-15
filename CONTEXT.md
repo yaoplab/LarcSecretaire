@@ -1,44 +1,8 @@
 # LarcSecretaire — Contexte projet
 
-_Dernière mise à jour : 12 juin 2026_
+_Dernière mise à jour : 14 juin 2026_
 
-## ⚠️ Routing par version de modèle IA
-
-Chaque version de DeepSeek a un niveau de capacité différent. **Choisis les tâches adaptées à ta version :**
-
-| Version | Capacités | Types de tâches |
-|---|---|---|
-| **V4 Free** | Contexte limité, instructions simples | Docs, correction typos, renommage simple, explication de code, tests unitaires basiques |
-| **V4 Flash** | Contexte moyen, refactoring modéré | Correction bug mono-fichier, ajout méthode, QSS/styling, ajustement UI mineur, SQL simple |
-| **V4 Pro** | Contexte large, architecture multi-fichiers | Refactoring lourd, nouvelle feature multi-fichiers, sync, auth OAuth2, DDL complexes, analyse statique |
-
-**Règle :** Si ta version n'est pas assez puissante pour une tâche, **ne l'entreprends pas**. Explique pourquoi et suggère de repasser avec V4 Pro.
-
-### Tâches en attente — routées par version
-
-| # | Tâche | Version | Fichiers |
-|---|---|---|---|
-| 1 | ~~Corriger CHECK constraint `event_type` DDL~~ | **Pro** | **FAIT** |
-| 2 | ~~Mettre à jour DDL `student_event` (lieu_label, subject_label)~~ | **Pro** | **FAIT** |
-| 3 | Régler `autocommit=True` vs `rollback()` | **Pro** | `LarcSecretaire/common/database.py` + `views/` |
-| 4 | ~~Supprimer QMessageBox de debug (`Debug 1/6` à `4/6`)~~ | **Free** | **FAIT** |
-| 5 | Déplacer `SET LOCAL` avant `conn.commit()` | **Flash** | `views/student_form.py:1024-1028` |
-| 6 | ~~Adapter affichage événements hiérarchiques LarcSecretaire~~ | **Pro** | **FAIT** |
-| 7 | Ajouter Cloud auth à LarcSuperviseur | **Pro** | `LarcSuperviseur/common/auth.py`, `views/login.py` |
-| 8 | ~~Nettoyer docs des références PIN obsolètes~~ | **Free** | **FAIT** |
-| 9 | Connecter `sync.py` aux tables manquantes | **Pro** | `common/sync.py` |
-| 10 | Créer `class_view.py` et `search.py` | **Pro** | `views/class_view.py`, `views/search.py` |
-| 11 | Ajouter sel aux hashs SHA-256 | **Pro** | `common/auth.py` (les 2 apps) |
-| 12 | ~~Ajouter rate limiting login~~ | **Flash** | **FAIT** |
-| 13 | ~~Ajouter audit login LarcSuperviseur~~ | **Free** | **FAIT** |
-| 14 | ~~Supprimer `shell=True` dans subprocess~~ | **Free** | **FAIT** |
-| 15 | ~~Corriger `application_name` `'eLarcProf'` → `'LarcSecretaire'`~~ | **Free** | **FAIT** |
-| 16 | ~~Corriger chemin fallback `eLarcProf` → `eLarcProfPy`~~ | **Free** | **FAIT** |
-| 17 | ~~Ajouter timer inactivité LarcSuperviseur~~ | **Flash** | **FAIT** |
-| 18 | ~~Chemin photos configurable (config.ini)~~ | **Flash** | **FAIT** |
-| 19 | Rapport détaillé des corrections à faire | **Pro** | `docs/rapport_audit_2026-06-12.md` |
-
-## Règle importante — Décisions avant actions
+## Règle — Décisions avant actions
 Quand je demande "qu'est-ce que tu pens ?" à propos d'une approche ou d'une solution,
 **ne rien modifier ni implémenter** avant d'avoir donné mon avis et confirmé la décision.
 D'abord répondre avec l'analyse/avis, puis attendre mon accord avant d'exécuter.
@@ -270,8 +234,7 @@ Source FB : `C:\Projets\LarcSuperviseur\photos\FB\*.jpg` → redim 500×500 + fo
 - `json.dumps()` appliqué à `notes_json` avant passage à `cur.execute` dans `_save` et `_create_student`
 - Le JSONB est mal typé via PgBouncer, la sérialisation explicite contourne le problème
 
-### À faire
-Voir la table de routage en haut de ce fichier (19 tâches classées par version de modèle).
+
 
 ## Phase 2 — À VENIR
 Gestion financière : paiements de scolarité, échéancier, reçus.

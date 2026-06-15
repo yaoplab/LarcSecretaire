@@ -17,24 +17,27 @@ COMMENT ON COLUMN public.larcauth_agenda.day_notice IS
 
 -- 2. Table événements
 CREATE TABLE IF NOT EXISTS student_event (
-    event_id       INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    student_id     INTEGER NOT NULL REFERENCES larcauth_student(aecuser_ptr_id)
-                             ON DELETE CASCADE,
-    agenda_day_id  INTEGER NOT NULL REFERENCES larcauth_agenda(id),
-    event_type     TEXT NOT NULL,
-    event_at       TIMESTAMP NOT NULL,
-    note           TEXT CHECK (length(note) <= 200),
-    lieu_label     TEXT,
-    subject_label  TEXT,
-    source         TEXT NOT NULL DEFAULT 'intranet'
-                     CHECK (source IN ('intranet', 'cloud')),
-    created_by     INTEGER NOT NULL REFERENCES larcauth_aecuser(id),
-    validated_by   INTEGER REFERENCES larcauth_aecuser(id),
-    validated      BOOLEAN NOT NULL DEFAULT FALSE,
-    validated_at   TIMESTAMP,
-    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    sync_revision  BIGINT DEFAULT 0,
-    synced         BOOLEAN DEFAULT FALSE
+    event_id          INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    student_id        INTEGER NOT NULL REFERENCES larcauth_student(aecuser_ptr_id)
+                               ON DELETE CASCADE,
+    agenda_day_id     INTEGER NOT NULL REFERENCES larcauth_agenda(id),
+    event_type        TEXT NOT NULL,
+    event_at          TIMESTAMP NOT NULL,
+    note              TEXT CHECK (length(note) <= 200),
+    lieu_label        TEXT,
+    subject_label     TEXT,
+    fk_lieu_id        SMALLINT REFERENCES larcauth_lieu(IDLieu),
+    fk_termsubject_id INTEGER REFERENCES larcauth_classroom_termsubject(id),
+    fk_teacher_id     INTEGER REFERENCES larcauth_aecuser(id),
+    source            TEXT NOT NULL DEFAULT 'intranet'
+                        CHECK (source IN ('intranet', 'cloud')),
+    created_by        INTEGER NOT NULL REFERENCES larcauth_aecuser(id),
+    validated_by      INTEGER REFERENCES larcauth_aecuser(id),
+    validated         BOOLEAN NOT NULL DEFAULT FALSE,
+    validated_at      TIMESTAMP,
+    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sync_revision     BIGINT DEFAULT 0,
+    synced            BOOLEAN DEFAULT FALSE
 );
 
 -- Migration : supprimer l'ancienne CHECK constraint restrictive
@@ -56,6 +59,9 @@ END $$;
 -- Ajouter les colonnes manquantes (si la table existe déjà)
 ALTER TABLE student_event ADD COLUMN IF NOT EXISTS lieu_label TEXT;
 ALTER TABLE student_event ADD COLUMN IF NOT EXISTS subject_label TEXT;
+ALTER TABLE student_event ADD COLUMN IF NOT EXISTS fk_lieu_id SMALLINT REFERENCES larcauth_lieu(IDLieu);
+ALTER TABLE student_event ADD COLUMN IF NOT EXISTS fk_termsubject_id INTEGER REFERENCES larcauth_classroom_termsubject(id);
+ALTER TABLE student_event ADD COLUMN IF NOT EXISTS fk_teacher_id INTEGER REFERENCES larcauth_aecuser(id);
 
 -- 3. Index
 CREATE INDEX IF NOT EXISTS idx_event_student_date

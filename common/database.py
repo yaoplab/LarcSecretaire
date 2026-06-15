@@ -25,7 +25,6 @@ def _find_cfg() -> str:
             return p
     # Aucun fichier trouvé, retourner le premier candidat (qui n'existe pas)
     _log("AVERTISSEMENT : config.ini introuvable. Utilisation des valeurs par défaut.")
-    print("AVERTISSEMENT : config.ini introuvable. Utilisation des valeurs par défaut.")
     return os.path.normpath(candidates[0])
 
 
@@ -62,7 +61,6 @@ class Database:
     def connect_intranet(self) -> bool:
         if not _PG_OK:
             _log("connect_intranet: psycopg2 non installé")
-            print("connect_intranet: psycopg2 non installé")
             return False
         try:
             if self._intranet:
@@ -71,18 +69,15 @@ class Database:
             msg = (f"connect_intranet: tentative de connexion à {params['host']}:{params['port']}/{params['dbname']} "
                    f"utilisateur={params['user']}")
             _log(msg)
-            print(msg)
             self._intranet = psycopg2.connect(**params)
             self._intranet.autocommit = True
             self._mode = DBMode.INTRANET
             self._server_mode = DBMode.INTRANET
             _log("connect_intranet: connexion réussie")
-            print("connect_intranet: connexion réussie")
             return True
         except Exception as e:
             msg = f"connect_intranet: échec : {e}"
             _log(msg)
-            print(msg)
             self._mode = DBMode.NONE
             self._server_mode = DBMode.NONE
             return False
@@ -90,7 +85,6 @@ class Database:
     def connect_cloud(self) -> bool:
         if not _PG_OK:
             _log("connect_cloud: psycopg2 non installé")
-            print("connect_cloud: psycopg2 non installé")
             return False
         try:
             if self._cloud:
@@ -99,18 +93,15 @@ class Database:
             msg = (f"connect_cloud: tentative de connexion à {params['host']}:{params['port']}/{params['dbname']} "
                    f"utilisateur={params['user']}")
             _log(msg)
-            print(msg)
             self._cloud = psycopg2.connect(**params)
             self._cloud.autocommit = True
             self._mode = DBMode.CLOUD
             self._server_mode = DBMode.CLOUD
             _log("connect_cloud: connexion réussie")
-            print("connect_cloud: connexion réussie")
             return True
         except Exception as e:
             msg = f"connect_cloud: échec : {e}"
             _log(msg)
-            print(msg)
             self._mode = DBMode.NONE
             self._server_mode = DBMode.NONE
             return False

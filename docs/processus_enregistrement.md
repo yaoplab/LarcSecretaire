@@ -75,7 +75,7 @@ requêtes déjà exécutées.
 4. Échange du code contre des tokens
 5. Décodage du JWT (payload seulement)
 6. Vérification `hd == 'arc-en-ciel.org'`
-7. Cross-check : `module_config.email_professeur` en SQLite
+7. Cross-check : `module_config.secretary_email` en SQLite
 8. Re-quête du rôle dans PostgreSQL
 
 *Authentification PIN hors ligne supprimée — non retenue pour le périmètre secrétariat.*
@@ -439,7 +439,7 @@ if dialog.exec():
 
 | Table | Usage |
 |---|---|
-| `session_cache` | Auth hors-ligne (email, pin_hash, role) |
+| ~~`session_cache`~~ | ~~Auth hors-ligne (email, pin_hash, role)~~ |
 | `module_config` | Config clé-valeur (secretary_name, etc.) |
 | `sync_state` | Timestamp dernière sync par table |
 | `student_profile` | Shadow local données élève |

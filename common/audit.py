@@ -4,9 +4,9 @@ Usage :
     from common.audit import audit
     audit.log('update_student', 'student', 123101, 'Email modifié')
 """
-from common.database import db
-from common.session import session
-from common.logger import log
+from LarcSecretaire.common.database import db
+from LarcSecretaire.common.session import session
+from LarcSecretaire.common.logger import log
 
 
 def _insert(action: str, target_type: str, target_id: int | None,

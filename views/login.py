@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
 from LarcSecretaire.common.network import NetworkMode, detect_network
 from LarcSecretaire.common.database import db
+from LarcSecretaire.common.app_config import app_config
 from LarcSecretaire.common.auth import AuthManager
 from LarcSecretaire.common.sqlite_init import sqlite_init
 from LarcSecretaire.common.theme import theme_manager
@@ -105,6 +106,7 @@ class LoginWindow(QMainWindow):
             db.connect_cloud()
         # Initialiser la base SQLite locale
         sqlite_init.init()
+        app_config.load()
 
         self._setup_ui()
         self._start_net_detection()

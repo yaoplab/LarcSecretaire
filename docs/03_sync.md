@@ -41,14 +41,7 @@ Comparaison colonne par colonne. Si `t.col != r.col` → diff.
 
 ```sql
 -- (session_cache supprimée — auth PIN non retenue)
-CREATE TABLE session_cache (
-    user_id INTEGER PRIMARY KEY,
-    email TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    first_name TEXT NOT NULL,
-    pin_hash TEXT,
-    role TEXT NOT NULL DEFAULT 'SECR'
-);
+-- CREATE TABLE session_cache (...);  -- retirée du périmètre secrétariat
 
 -- Configuration du module
 CREATE TABLE module_config (

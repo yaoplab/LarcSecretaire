@@ -375,6 +375,9 @@ class ParentManager(QWidget):
                 "INSERT INTO student_parent (student_id, parent_id, nature) VALUES (%s, %s, %s)",
                 (student_id, parent_id, nature)
             )
+            cur.execute("SET LOCAL app.sync_source = 'intranet'")
+            cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
+            audit.update_parent(parent_id, f"Lié à l'élève #{student_id}")
             conn.commit()
             self._load_links(parent_id)
             self._populate_student_combo(parent_id)
@@ -425,6 +428,9 @@ class ParentManager(QWidget):
                 "DELETE FROM student_parent WHERE student_id = %s AND parent_id = %s",
                 (student_id, parent_id)
             )
+            cur.execute("SET LOCAL app.sync_source = 'intranet'")
+            cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
+            audit.update_parent(parent_id, f"Délié de l'élève #{student_id}")
             conn.commit()
             self._load_links(parent_id)
             self._populate_student_combo(parent_id)
@@ -518,6 +524,9 @@ class ParentManager(QWidget):
                 cur.execute(
                     "UPDATE larcauth_aecuser SET fk_foyer_id = %s WHERE id = %s",
                     (source_foyer_id, target_id))
+                cur.execute("SET LOCAL app.sync_source = 'intranet'")
+                cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
+                audit.update_foyer(target_id, f"Foyer partagé avec #{source_foyer_id}")
                 conn.commit()
                 QMessageBox.information(self, "Partage",
                     "Adresse partagée !")

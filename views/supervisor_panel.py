@@ -13,10 +13,7 @@ from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.common.logger import log
 from LarcSecretaire.common.audit import audit
-
-PHOTOS_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                 '..', 'LarcSuperviseur', 'photos'))
+from LarcSecretaire.common.photos import get_photo_path
 
 EVENT_TYPES = [
     ('arrival', '▲ Arrivée'), ('departure', '▼ Départ'), ('exit', '→ Sortie'),
@@ -129,7 +126,7 @@ class StudentCard(QFrame):
         self._photo = QLabel()
         self._photo.setFixedSize(100, 100)
         self._photo.setAlignment(Qt.AlignCenter)
-        px = QPixmap(os.path.join(PHOTOS_DIR, f"{self._sid}.png"))
+        px = QPixmap(get_photo_path(self._sid))
         if px.isNull():
             px = self._make_avatar()
         else:
@@ -178,21 +175,60 @@ class StudentCard(QFrame):
 
 
 class EventDialog(QDialog):
-    def __init__(self, student_id: int, student_name: str, parent=None):
+    def __init__(self, student_id: int, student_name: str, parent=None, class_id: int | None = None):
         super().__init__(parent)
         self._student_id = student_id
+        self._class_id = class_id
         self._selected_type = None
+        self._selected_lieu_id = None
+        self._selected_lieu_label = ''
+        self._selected_termsubject_id = None
+        self._selected_subject_label = ''
+        self._selected_teacher_id = None
         self.setWindowTitle(f"Événement — {student_name}")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(580)
         self._init_ui()
 
     def _init_ui(self):
+        p = theme_manager.palette
         s = theme_manager.font_size
+        d = theme_manager.design
+        fs = 10
         layout = QVBoxLayout(self)
+        layout.setSpacing(d.spacing)
+
         info = QLabel(f"<b>Élève #{self._student_id}</b>")
-        info.setStyleSheet(f"font-size: {s(14)}px; padding: 10px;")
+        info.setStyleSheet(f"font-size: {s(14)}px;")
         layout.addWidget(info)
 
+        combo_style = (
+            f"padding: 4px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
+
+        # Lieu
+        layout.addWidget(QLabel("<b>Lieu :</b>"))
+        self._lieu_combo = QComboBox()
+        self._lieu_combo.setStyleSheet(combo_style)
+        self._lieu_combo.addItem("— Aucun —", None)
+        self._load_lieux()
+        layout.addWidget(self._lieu_combo)
+
+        # Matière
+        layout.addWidget(QLabel("<b>Matière :</b>"))
+        self._subject_combo = QComboBox()
+        self._subject_combo.setStyleSheet(combo_style)
+        self._subject_combo.addItem("— Aucune —", None)
+        self._load_subjects()
+        self._subject_combo.currentIndexChanged.connect(self._on_subject_changed)
+        layout.addWidget(self._subject_combo)
+
+        # Professeur (lecture seule, auto-rempli)
+        self._teacher_label = QLabel("")
+        self._teacher_label.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft}; font-style: italic;")
+        layout.addWidget(self._teacher_label)
+
+        # Type d'événement
+        layout.addWidget(QLabel("<b>Type d'événement :</b>"))
         type_group = QButtonGroup(self)
         type_layout = QHBoxLayout()
         type_layout.setSpacing(4)
@@ -201,9 +237,9 @@ class EventDialog(QDialog):
             rb.toggled.connect(lambda checked, v=value: setattr(self, '_selected_type', v) if checked else None)
             type_group.addButton(rb)
             type_layout.addWidget(rb)
-        layout.addWidget(QLabel("<b>Type d'événement :</b>"))
         layout.addLayout(type_layout)
 
+        # Note
         self._note = QTextEdit()
         self._note.setPlaceholderText("Note optionnelle (200 caractères max)")
         self._note.setMaximumHeight(80)
@@ -215,6 +251,59 @@ class EventDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _load_lieux(self):
+        conn = db.server_conn
+        if not conn:
+            return
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT IDLieu, Lieu FROM larcauth_lieu ORDER BY Lieu")
+            for lid, label in cur.fetchall():
+                self._lieu_combo.addItem(label, lid)
+        except Exception as e:
+            log(f"EventDialog._load_lieux: {e}")
+
+    def _load_subjects(self):
+        if not self._class_id:
+            return
+        conn = db.server_conn
+        if not conn:
+            return
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT cts.id, cts.label, cts.fk_teacher_id,
+                       aec.last_name || ' ' || aec.first_name AS teacher_name
+                FROM larcauth_classroom_termsubject cts
+                LEFT JOIN larcauth_aecuser aec ON aec.id = cts.fk_teacher_id
+                WHERE cts.fk_classroom_id = %s AND cts.enabled = TRUE
+                ORDER BY cts.label
+            """, (self._class_id,))
+            self._subjects_data = []
+            for sid, label, tid, tname in cur.fetchall():
+                self._subjects_data.append({'id': sid, 'label': label, 'teacher_id': tid, 'teacher_name': tname or ''})
+                self._subject_combo.addItem(label, sid)
+        except Exception as e:
+            log(f"EventDialog._load_subjects: {e}")
+
+    def _on_subject_changed(self, idx):
+        idx_data = self._subject_combo.currentData()
+        if idx_data is None:
+            self._teacher_label.setText("")
+            self._selected_termsubject_id = None
+            self._selected_teacher_id = None
+            self._selected_subject_label = ''
+            return
+        sub = next((s for s in self._subjects_data if s['id'] == idx_data), None)
+        if sub:
+            self._selected_termsubject_id = sub['id']
+            self._selected_teacher_id = sub['teacher_id']
+            self._selected_subject_label = sub['label']
+            if sub['teacher_name']:
+                self._teacher_label.setText(f"👤 Professeur : {sub['teacher_name']}")
+            else:
+                self._teacher_label.setText("")
+
     def _validate(self):
         if not self._selected_type:
             QMessageBox.warning(self, "Erreur", "Sélectionnez un type d'événement.")
@@ -223,11 +312,17 @@ class EventDialog(QDialog):
 
     def get_data(self) -> dict:
         from datetime import datetime
+        lieu_data = self._lieu_combo.currentData()
         return {
             'student_id': self._student_id,
             'event_type': self._selected_type,
             'event_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'note': self._note.toPlainText().strip()[:200],
+            'lieu_label': self._lieu_combo.currentText() if lieu_data else '',
+            'fk_lieu_id': lieu_data,
+            'subject_label': self._selected_subject_label,
+            'fk_termsubject_id': self._selected_termsubject_id,
+            'fk_teacher_id': self._selected_teacher_id,
         }
 
 
@@ -336,7 +431,14 @@ class SupervisorPanel(QWidget):
         self._sd_events = QTableWidget()
         self._sd_events.setColumnCount(7)
         self._sd_events.setHorizontalHeaderLabels(["Heure", "Type", "Lieu", "Matière", "Note", "Par", "Validé"])
-        self._sd_events.horizontalHeader().setStretchLastSection(True)
+        hh_evt = self._sd_events.horizontalHeader()
+        hh_evt.setSectionResizeMode(0, QHeaderView.Interactive); self._sd_events.setColumnWidth(0, 150)
+        hh_evt.setSectionResizeMode(1, QHeaderView.Interactive); self._sd_events.setColumnWidth(1, 110)
+        hh_evt.setSectionResizeMode(2, QHeaderView.Interactive); self._sd_events.setColumnWidth(2, 100)
+        hh_evt.setSectionResizeMode(3, QHeaderView.Interactive); self._sd_events.setColumnWidth(3, 100)
+        hh_evt.setSectionResizeMode(4, QHeaderView.Stretch)
+        hh_evt.setSectionResizeMode(5, QHeaderView.Interactive); self._sd_events.setColumnWidth(5, 120)
+        hh_evt.setSectionResizeMode(6, QHeaderView.Interactive); self._sd_events.setColumnWidth(6, 55)
         self._sd_events.setEditTriggers(QTableWidget.NoEditTriggers)
         self._sd_events.setSelectionBehavior(QTableWidget.SelectRows)
         self._sd_events.setAlternatingRowColors(True)
@@ -474,19 +576,34 @@ class SupervisorPanel(QWidget):
         if not conn:
             return
         try:
+            from psycopg2 import errors as pg_errors
             cur = conn.cursor()
-            cur.execute("""
-                SELECT se.event_at, se.event_type, se.note,
-                       aec.last_name || ' ' || aec.first_name AS author,
-                       CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
-                       se.event_id,
-                       COALESCE(se.lieu_label, '') AS lieu_label,
-                       COALESCE(se.subject_label, '') AS subject_label
-                FROM student_event se
-                JOIN larcauth_aecuser aec ON aec.id = se.created_by
-                WHERE se.student_id = %s
-                ORDER BY se.event_at DESC LIMIT 50
-            """, (student_id,))
+            try:
+                cur.execute("""
+                    SELECT se.event_at, se.event_type, se.note,
+                           aec.last_name || ' ' || aec.first_name AS author,
+                           CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
+                           se.event_id,
+                           COALESCE(se.lieu_label, '') AS lieu_label,
+                           COALESCE(se.subject_label, '') AS subject_label
+                    FROM student_event se
+                    JOIN larcauth_aecuser aec ON aec.id = se.created_by
+                    WHERE se.student_id = %s
+                    ORDER BY se.event_at DESC LIMIT 50
+                """, (student_id,))
+            except pg_errors.UndefinedColumn:
+                cur.execute("""
+                    SELECT se.event_at, se.event_type, se.note,
+                           aec.last_name || ' ' || aec.first_name AS author,
+                           CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END,
+                           se.event_id,
+                           '' AS lieu_label,
+                           '' AS subject_label
+                    FROM student_event se
+                    JOIN larcauth_aecuser aec ON aec.id = se.created_by
+                    WHERE se.student_id = %s
+                    ORDER BY se.event_at DESC LIMIT 50
+                """, (student_id,))
             rows = cur.fetchall()
             self._sd_events.setRowCount(len(rows))
             for i, row in enumerate(rows):
@@ -508,7 +625,6 @@ class SupervisorPanel(QWidget):
                 self._sd_events.setItem(i, 4, QTableWidgetItem(note or ''))
                 self._sd_events.setItem(i, 5, QTableWidgetItem(author))
                 self._sd_events.setItem(i, 6, QTableWidgetItem(validated))
-            self._sd_events.resizeColumnsToContents()
         except Exception as e:
             log(f"SupervisorPanel._load_events: {e}")
 
@@ -518,7 +634,7 @@ class SupervisorPanel(QWidget):
                     if f"{s['last_name']} {s['first_name']}" == name), 0)
         if not sid:
             return
-        dlg = EventDialog(sid, name, self)
+        dlg = EventDialog(sid, name, self, class_id=self._current_class_id)
         if dlg.exec():
             data = dlg.get_data()
             conn = db.server_conn
@@ -526,15 +642,31 @@ class SupervisorPanel(QWidget):
                 QMessageBox.warning(self, "Erreur", "Non connecté au serveur.")
                 return
             try:
+                from psycopg2 import errors as pg_errors
                 cur = conn.cursor()
-                cur.execute(
-                    "INSERT INTO student_event (student_id, event_type, event_at, note, source, created_by) "
-                    "VALUES (%s, %s, %s, %s, %s, %s)",
-                    (data['student_id'], data['event_type'], data['event_at'],
-                     data['note'], 'intranet', session.user_id)
-                )
-                conn.commit()
+                try:
+                    cur.execute(
+                        "INSERT INTO student_event "
+                        "(student_id, event_type, event_at, note, lieu_label, fk_lieu_id, "
+                        " subject_label, fk_termsubject_id, fk_teacher_id, source, created_by) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                        (data['student_id'], data['event_type'], data['event_at'],
+                         data['note'], data.get('lieu_label', ''), data.get('fk_lieu_id'),
+                         data.get('subject_label', ''), data.get('fk_termsubject_id'),
+                         data.get('fk_teacher_id'), 'intranet', session.user_id)
+                    )
+                except pg_errors.UndefinedColumn:
+                    cur.execute(
+                        "INSERT INTO student_event "
+                        "(student_id, event_type, event_at, note, source, created_by) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
+                        (data['student_id'], data['event_type'], data['event_at'],
+                         data['note'], 'intranet', session.user_id)
+                    )
+                cur.execute("SET LOCAL app.sync_source = 'intranet'")
+                cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
                 audit.add_event(data['student_id'], data['event_type'], data.get('note', ''))
+                conn.commit()
                 self._load_events(sid)
                 self._load_presence()
             except Exception as e:

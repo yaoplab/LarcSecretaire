@@ -81,4 +81,4 @@ cur.execute("""
 | Dialog | Déclencheur | Cible |
 |---|---|---|
 | `ChangePasswordDialog` | Bouton onglet Intranet | `larcauth_aecuser.password` (SHA-256) |
-| `ChangePinDialog` | Bouton onglet Hors connexion | `session_cache.pin_hash` (SQLite) |
+| ~~`ChangePinDialog`~~ | ~~Bouton onglet Hors connexion~~ | ~~`session_cache.pin_hash` (SQLite)~~ |

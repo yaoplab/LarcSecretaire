@@ -13,6 +13,7 @@ from typing import Tuple
 
 from .session import AuthResult, UserRole
 from .database import db, DBMode, _find_cfg
+from .logger import log
 
 
 def _sha256_hex(s: str) -> str:
@@ -100,78 +101,7 @@ class AuthManager:
     def auth_cloud(cls) -> Tuple[bool, AuthResult, str]:
         return OAuth2Manager.authenticate()
 
-    @classmethod
-    def check_teacher_exists(cls, email: str) -> Tuple[bool, dict]:
-        """
-        Vérifie si l'email correspond à un professeur actif dans teachadm.
-        Retourne (True, infos) ou (False, {}).
-        """
-        conn = db.server_conn
-        if conn is None or db.server_mode not in (DBMode.INTRANET, DBMode.CLOUD):
-            print(f"check_teacher_exists: pas de connexion serveur (mode={db.mode}, server_mode={db.server_mode})")
-            return False, {}
 
-        try:
-            # Étape 1 : récupérer l'identité de l'utilisateur
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT id, first_name, last_name, email "
-                    "FROM public.larcauth_aecuser WHERE email = %s",
-                    (email,)
-                )
-                user_row = cur.fetchone()
-                if user_row is None:
-                    print(f"check_teacher_exists: email {email} introuvable dans aecuser")
-                    return False, {}
-
-                user_id = user_row[0]
-                first_name = user_row[1]
-                last_name = user_row[2]
-                email = user_row[3]
-
-            # Étape 2 : vérifier s'il est professeur dans teachadm
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT 1 FROM public.larcauth_teachadm WHERE aecuser_ptr_id = %s",
-                    (user_id,)
-                )
-                tadm_row = cur.fetchone()
-                if tadm_row is None:
-                    print(f"check_teacher_exists: user {user_id} n'a pas d'entrée dans teachadm")
-                    return False, {}
-
-            # Récupérer l'année scolaire et le trimestre en cours
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT
-                        ay.label AS annee_scolaire,
-                        ay.current_term_number AS trimestre_courant,
-                        tm.label AS trimestre_label
-                    FROM public.larcauth_academicyear ay
-                    JOIN public.larcauth_term tm ON tm.trim = ay.current_term_number
-                    WHERE ay.current_term_number IS NOT NULL
-                    ORDER BY ay.start_date DESC
-                    LIMIT 1
-                """)
-                year_row = cur.fetchone()
-                if year_row is None:
-                    print("check_teacher_exists: année scolaire non trouvée")
-                    return False, {}
-
-            infos = {
-                'user_id': user_id,
-                'first_name': first_name,
-                'last_name': last_name,
-                'email': email,
-                'annee_scolaire': year_row[0],
-                'trimestre_courant': year_row[1],
-                'trimestre_label': year_row[2],
-            }
-            return True, infos
-
-        except Exception as e:
-            print(f"Erreur check_teacher_exists: {e}")
-            return False, {}
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +122,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         self.wfile.write(
             '<html><body style="font-family:sans-serif;text-align:center;padding:40px">'
             '<h2>✔ Authentification réussie</h2>'
-            '<p>Vous pouvez fermer cet onglet et revenir à eLarcProf.</p>'
+            '<p>Vous pouvez fermer cet onglet et revenir à LarcSecrétariat.</p>'
             '</body></html>'.encode('utf-8')
         )
         _CallbackHandler.event.set()

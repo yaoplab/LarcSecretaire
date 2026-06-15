@@ -36,10 +36,7 @@ from LarcSecretaire.common.logger import log
 from LarcSecretaire.common.audit import audit
 from LarcSecretaire.views.notes_panel import NotesPanel
 from LarcSecretaire.views.supervisor_panel import _event_icon, _event_color, _event_label
-
-LARCSUPERVISEUR_PHOTOS = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                 '..', 'LarcSuperviseur', 'photos'))
+from LarcSecretaire.common.photos import get_photo_path
 
 # ──────────────────────────────────────────────
 #   Classe utilitaire : cercle avatar initiales
@@ -263,7 +260,7 @@ class StudentForm(QWidget):
                         aec.email, aec.emailperso,
                         aec.tel_smartphone_1, aec.tel_maison,
                         c.label AS classroom,
-                        aec.date_entree, aec.date_of_birth, aec.fk_foyer_id,
+                        aec.date_joined, aec.date_entree, aec.date_of_birth, aec.fk_foyer_id,
                         aec.fk_gender_id, s.s_classroom_id,
                         s.notes, s.notes_json,
                         f.address_line1, f.address_line2, f.postal_code,
@@ -287,7 +284,7 @@ class StudentForm(QWidget):
                         aec.email, aec.emailperso,
                         aec.tel_smartphone_1, aec.tel_maison,
                         c.label AS classroom,
-                        aec.date_entree, aec.date_of_birth, aec.fk_foyer_id,
+                        aec.date_joined, aec.date_entree, aec.date_of_birth, aec.fk_foyer_id,
                         aec.fk_gender_id, s.s_classroom_id,
                         NULL AS notes, NULL AS notes_json,
                         f.address_line1, f.address_line2, f.postal_code,
@@ -362,7 +359,8 @@ class StudentForm(QWidget):
                         s.aecuser_ptr_id AS id,
                         aec.last_name, aec.first_name, aec.email,
                         aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
-                        c.label AS classroom, aec.date_entree,
+                        c.label AS classroom, aec.date_joined,
+                        aec.date_entree,
                         aec.date_of_birth,
                         aec.fk_foyer_id, aec.fk_gender_id,
                         s.s_classroom_id, s.notes, s.notes_json,
@@ -380,7 +378,8 @@ class StudentForm(QWidget):
                         s.aecuser_ptr_id AS id,
                         aec.last_name, aec.first_name, aec.email,
                         aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
-                        c.label AS classroom, aec.date_entree,
+                        c.label AS classroom, aec.date_joined,
+                        aec.date_entree,
                         aec.date_of_birth,
                         aec.fk_foyer_id, aec.fk_gender_id,
                         s.s_classroom_id, NULL AS notes, NULL AS notes_json,
@@ -408,8 +407,7 @@ class StudentForm(QWidget):
     def _update_info_card(self, data: dict):
         """Met à jour la vignette info."""
         sid = data['id']
-        photo_path = os.path.join(LARCSUPERVISEUR_PHOTOS, f"{sid}.png")
-        px = QPixmap(photo_path)
+        px = QPixmap(get_photo_path(sid))
         if px.isNull():
             px = _make_avatar(data['last_name'], data['first_name'], 160)
         else:
@@ -466,7 +464,8 @@ class StudentEditDialog(QDialog):
                     s.aecuser_ptr_id AS id,
                     aec.last_name, aec.first_name, aec.email,
                     aec.emailperso, aec.tel_smartphone_1, aec.tel_maison,
-                    c.label AS classroom, aec.date_entree,
+                    c.label AS classroom, aec.date_joined,
+                    aec.date_entree,
                     aec.date_of_birth,
                     aec.fk_foyer_id, aec.fk_gender_id,
                     s.s_classroom_id, s.notes, s.notes_json,
@@ -511,7 +510,7 @@ class StudentEditDialog(QDialog):
             lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
             return lbl
 
-        # Photo + identité (toujours visible)
+        # Photo + identité + boutons (toujours visibles)
         photo_row = QHBoxLayout()
         self._photo = QLabel()
         self._photo.setFixedSize(120, 120)
@@ -528,11 +527,11 @@ class StudentEditDialog(QDialog):
         id_col.addWidget(self._id_info)
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
-        layout.addLayout(photo_row)
 
-        # Boutons d'action (toujours visibles)
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(d.spacing)
+        # Boutons d'action verticaux à droite
+        btn_col = QVBoxLayout()
+        btn_col.setSpacing(d.spacing)
+
         save_btn = QPushButton("Enregistrer")
         save_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
@@ -540,7 +539,9 @@ class StudentEditDialog(QDialog):
             f"font-size: {s(fs)}px; font-weight: bold; }}"
             f"QPushButton:hover {{ background: {p.success}; }}")
         save_btn.clicked.connect(self._save)
-        btn_row.addWidget(save_btn)
+        save_btn.setMinimumWidth(110)
+        btn_col.addWidget(save_btn)
+
         pdf_btn = QPushButton("PDF")
         pdf_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
@@ -548,7 +549,9 @@ class StudentEditDialog(QDialog):
             f"font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.active}; }}")
         pdf_btn.clicked.connect(self._export_pdf)
-        btn_row.addWidget(pdf_btn)
+        pdf_btn.setMinimumWidth(110)
+        btn_col.addWidget(pdf_btn)
+
         word_btn = QPushButton("Word")
         word_btn.setStyleSheet(
             f"QPushButton {{ background: {p.tertiary}; color: {p.on_tertiary}; border: none; "
@@ -556,7 +559,9 @@ class StudentEditDialog(QDialog):
             f"font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.primary_container}; }}")
         word_btn.clicked.connect(self._export_word)
-        btn_row.addWidget(word_btn)
+        word_btn.setMinimumWidth(110)
+        btn_col.addWidget(word_btn)
+
         cancel_btn = QPushButton("Annuler")
         cancel_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.text_soft}; "
@@ -564,9 +569,13 @@ class StudentEditDialog(QDialog):
             f"padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}")
         cancel_btn.clicked.connect(self.reject)
-        btn_row.addWidget(cancel_btn)
-        btn_row.addStretch()
-        layout.addLayout(btn_row)
+        cancel_btn.setMinimumWidth(110)
+        btn_col.addWidget(cancel_btn)
+
+        btn_col.addStretch()
+        photo_row.addLayout(btn_col)
+
+        layout.addLayout(photo_row)
 
         # Champs (créés avant les onglets)
         self._inp_nom = QLineEdit(); self._inp_nom.setStyleSheet(field_style)
@@ -575,6 +584,12 @@ class StudentEditDialog(QDialog):
         self._inp_emailperso = QLineEdit(); self._inp_emailperso.setStyleSheet(field_style)
         self._inp_tel = QLineEdit(); self._inp_tel.setStyleSheet(field_style)
         self._inp_tel2 = QLineEdit(); self._inp_tel2.setStyleSheet(field_style)
+        self._inp_date_joined = QDateEdit()
+        self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
+        self._inp_date_joined.setCalendarPopup(True)
+        self._inp_date_joined.setSpecialValueText(" ")
+        self._inp_date_joined.setDate(QDate())
+        self._inp_date_joined.setStyleSheet(field_style)
         self._inp_date = QDateEdit()
         self._inp_date.setDisplayFormat("yyyy-MM-dd")
         self._inp_date.setCalendarPopup(True)
@@ -611,10 +626,12 @@ class StudentEditDialog(QDialog):
         g1.setSpacing(d.spacing)
         g1.addWidget(_lbl("Nom *"), 0, 0); g1.addWidget(_lbl("Prénom *"), 0, 1)
         g1.addWidget(self._inp_nom, 1, 0); g1.addWidget(self._inp_prenom, 1, 1)
-        g1.addWidget(_lbl("Date d'entrée"), 2, 0); g1.addWidget(_lbl("Genre"), 2, 1)
-        g1.addWidget(self._inp_date, 3, 0); g1.addWidget(self._inp_genre, 3, 1)
-        g1.addWidget(_lbl("Date de naissance"), 4, 0)
-        g1.addWidget(self._inp_birthdate, 5, 0)
+        g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
+        g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
+        g1.addWidget(_lbl("Date d'entrée"), 4, 0); g1.addWidget(_lbl("Genre"), 4, 1)
+        g1.addWidget(self._inp_date, 5, 0); g1.addWidget(self._inp_genre, 5, 1)
+        g1.addWidget(_lbl("Date de naissance"), 6, 0)
+        g1.addWidget(self._inp_birthdate, 7, 0)
         tab1_layout.addLayout(g1)
         tab1_layout.addStretch()
         tabs.addTab(tab1, "Identité")
@@ -729,7 +746,7 @@ class StudentEditDialog(QDialog):
         self._file_list.setStyleSheet(
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
-        self._file_list.setMaximumHeight(100)
+        self._file_list.setMaximumHeight(250)
         self._file_list.itemDoubleClicked.connect(self._open_file)
         tab5_layout.addWidget(self._file_list)
         file_btn_row = QHBoxLayout()
@@ -837,7 +854,7 @@ class StudentEditDialog(QDialog):
         sid = d['id']
 
         # Photo
-        px = QPixmap(os.path.join(LARCSUPERVISEUR_PHOTOS, f"{sid}.png"))
+        px = QPixmap(get_photo_path(sid))
         if px.isNull():
             px = _make_avatar(d['last_name'], d['first_name'], 120)
         else:
@@ -855,6 +872,11 @@ class StudentEditDialog(QDialog):
         self._inp_emailperso.setText(d.get('emailperso', '') or '')
         self._inp_tel.setText(d.get('tel_smartphone_1', '') or '')
         self._inp_tel2.setText(d.get('tel_maison', '') or '')
+        raw_joined = d.get('date_joined', '')
+        if raw_joined:
+            self._inp_date_joined.setDate(QDate.fromString(str(raw_joined), "yyyy-MM-dd"))
+        else:
+            self._inp_date_joined.setDate(QDate())
         raw_date = d.get('date_entree', '')
         if raw_date:
             self._inp_date.setDate(QDate.fromString(str(raw_date), "yyyy-MM-dd"))
@@ -993,6 +1015,7 @@ class StudentEditDialog(QDialog):
                 'emailperso': self._inp_emailperso.text().strip() or None,
                 'tel_smartphone_1': self._inp_tel.text().strip() or None,
                 'tel_maison': self._inp_tel2.text().strip() or None,
+                'date_joined': self._inp_date_joined.date().toString("yyyy-MM-dd") if self._inp_date_joined.date().isValid() and not self._inp_date_joined.date().isNull() else None,
                 'date_entree': self._inp_date.date().toString("yyyy-MM-dd") if self._inp_date.date().isValid() and not self._inp_date.date().isNull() else None,
                 'date_of_birth': self._inp_birthdate.date().toString("yyyy-MM-dd") if self._inp_birthdate.date().isValid() and not self._inp_birthdate.date().isNull() else None,
                 'fk_gender_id': self._inp_genre.currentData() or None,
@@ -1027,9 +1050,6 @@ class StudentEditDialog(QDialog):
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun etudiant trouve pour l'ID {self._sid}")
 
-            conn.commit()
-            log(f"StudentEditDialog: saved #{self._sid}")
-
             cur.execute("SET LOCAL app.sync_source = 'intranet'")
             cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
             changes = []
@@ -1042,6 +1062,9 @@ class StudentEditDialog(QDialog):
                 audit.update_student(self._sid, f"Modifiés : {', '.join(changes)}")
             elif any(v is not None for v in addr.values()):
                 audit.update_student(self._sid, "Adresse modifiée")
+
+            conn.commit()
+            log(f"StudentEditDialog: saved #{self._sid}")
 
             QMessageBox.information(self, "Succès", "Élève mis à jour.")
             self.accept()
@@ -1491,7 +1514,7 @@ class StudentCreateDialog(QDialog):
             self._class_grid_layout.setSpacing(4)
             layout.addWidget(self._class_grid)
 
-        # Photo + identité (placeholder)
+        # Photo + identité + boutons (toujours visibles)
         photo_row = QHBoxLayout()
         self._photo = QLabel()
         self._photo.setFixedSize(120, 120)
@@ -1508,6 +1531,34 @@ class StudentCreateDialog(QDialog):
         id_col.addWidget(self._id_info)
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
+
+        # Boutons d'action verticaux à droite
+        btn_col = QVBoxLayout()
+        btn_col.setSpacing(d.spacing)
+
+        self._create_btn = QPushButton("Créer l'élève")
+        self._create_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
+            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: {s(fs)}px; font-weight: bold; }}"
+            f"QPushButton:hover {{ background: {p.success}; }}"
+            f"QPushButton:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}")
+        self._create_btn.setEnabled(False)
+        self._create_btn.clicked.connect(self._on_create)
+        self._create_btn.setMinimumWidth(110)
+        btn_col.addWidget(self._create_btn)
+
+        self._cancel_btn = QPushButton("Annuler")
+        self._cancel_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {p.text_soft}; border: 1px solid {p.border}; "
+            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.surface_variant}; }}")
+        self._cancel_btn.clicked.connect(self.reject)
+        self._cancel_btn.setMinimumWidth(110)
+        btn_col.addWidget(self._cancel_btn)
+
+        btn_col.addStretch()
+        photo_row.addLayout(btn_col)
+
         layout.addLayout(photo_row)
 
         field_style = (
@@ -1534,6 +1585,12 @@ class StudentCreateDialog(QDialog):
         self._inp_tel.setPlaceholderText("+228 XX XX XX XX")
         self._inp_tel2 = QLineEdit(); self._inp_tel2.setStyleSheet(field_style)
         self._inp_tel2.setPlaceholderText("+228 XX XX XX XX")
+        self._inp_date_joined = QDateEdit()
+        self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
+        self._inp_date_joined.setCalendarPopup(True)
+        self._inp_date_joined.setSpecialValueText(" ")
+        self._inp_date_joined.setDate(QDate())
+        self._inp_date_joined.setStyleSheet(field_style)
         self._inp_date = QDateEdit()
         self._inp_date.setDisplayFormat("yyyy-MM-dd")
         self._inp_date.setCalendarPopup(True)
@@ -1572,10 +1629,12 @@ class StudentCreateDialog(QDialog):
         g1.setSpacing(d.spacing)
         g1.addWidget(_lbl("Nom *"), 0, 0); g1.addWidget(_lbl("Prénom *"), 0, 1)
         g1.addWidget(self._inp_nom, 1, 0); g1.addWidget(self._inp_prenom, 1, 1)
-        g1.addWidget(_lbl("Date d'entrée"), 2, 0); g1.addWidget(_lbl("Genre"), 2, 1)
-        g1.addWidget(self._inp_date, 3, 0); g1.addWidget(self._inp_genre, 3, 1)
-        g1.addWidget(_lbl("Date de naissance"), 4, 0)
-        g1.addWidget(self._inp_birthdate, 5, 0)
+        g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
+        g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
+        g1.addWidget(_lbl("Date d'entrée"), 4, 0); g1.addWidget(_lbl("Genre"), 4, 1)
+        g1.addWidget(self._inp_date, 5, 0); g1.addWidget(self._inp_genre, 5, 1)
+        g1.addWidget(_lbl("Date de naissance"), 6, 0)
+        g1.addWidget(self._inp_birthdate, 7, 0)
         tab1_layout.addLayout(g1)
         tab1_layout.addStretch()
         tabs.addTab(tab1, "Identité")
@@ -1696,11 +1755,11 @@ class StudentCreateDialog(QDialog):
         self._inp_prenom.textChanged.connect(lambda: self._notes_panel.set_student_name(
             f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève"))
 
-        # --- Tab 5 : Fichiers & Parents (placeholder) ---
+        # --- Tab 5 : Fichiers ---
         tab5 = QWidget()
         tab5_layout = QVBoxLayout(tab5)
         tab5_layout.setSpacing(d.spacing)
-        ph5 = QLabel("Les fichiers et parents seront disponibles après la création de l'élève.")
+        ph5 = QLabel("Les fichiers seront disponibles après la création de l'élève.")
         ph5.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft}; font-style: italic;")
         ph5.setAlignment(Qt.AlignCenter)
         tab5_layout.addWidget(ph5)
@@ -1726,28 +1785,7 @@ class StudentCreateDialog(QDialog):
             f"font-size: {s(11)}px; color: {p.text_soft}; padding: {d.radius}px; font-style: italic;")
         layout.addWidget(self._slot_info)
 
-        # Boutons
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
 
-        self._create_btn = QPushButton("Créer l'élève")
-        self._create_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: {s(fs)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
-            f"QPushButton:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}")
-        self._create_btn.setEnabled(False)
-        self._create_btn.clicked.connect(self._on_create)
-        btn_row.addWidget(self._create_btn)
-
-        self._cancel_btn = QPushButton("Annuler")
-        self._cancel_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.text_soft}; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}")
-        self._cancel_btn.clicked.connect(self.reject)
-        btn_row.addWidget(self._cancel_btn)
-        layout.addLayout(btn_row)
 
     def _load_classes(self):
         conn = db.server_conn
@@ -2025,17 +2063,17 @@ class StudentCreateDialog(QDialog):
             birth_str = self._inp_birthdate.date().toString("yyyy-MM-dd") if self._inp_birthdate.date().isValid() and not self._inp_birthdate.date().isNull() else None
             username = email or f"student.{nom.lower()}.{prenom.lower()}"
 
+            joined_str = self._inp_date_joined.date().toString("yyyy-MM-dd") if self._inp_date_joined.date().isValid() and not self._inp_date_joined.date().isNull() else None
             cur.execute("""
                 UPDATE larcauth_aecuser SET
                     first_name = %s, last_name = %s, email = %s,
                     username = %s, is_active = TRUE, updated = %s,
                     emailperso = %s, tel_smartphone_1 = %s, tel_maison = %s,
-                    date_entree = %s, date_of_birth = %s, fk_gender_id = %s,
-                    date_joined = %s
+                    date_joined = %s, date_entree = %s, date_of_birth = %s, fk_gender_id = %s
                 WHERE id = %s
             """, (prenom, nom, email or '', username, now,
-                  emailperso, tel, tel2, date_str, birth_str,
-                  self._inp_genre.currentData() or None, now, student_id))
+                  emailperso, tel, tel2, joined_str, date_str, birth_str,
+                  self._inp_genre.currentData() or None, student_id))
 
             notes_json = json.dumps(self._notes_panel.get_json())
             cur.execute("""
@@ -2062,14 +2100,14 @@ class StudentCreateDialog(QDialog):
             cur.execute("UPDATE larcauth_aecuser SET fk_foyer_id = %s WHERE id = %s",
                        (student_id, student_id))
 
+            cur.execute("SET LOCAL app.sync_source = 'intranet'")
+            cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
+            audit.create_student(student_id, f"Création {prenom} {nom}")
+
             conn.commit()
             self._result_data = {'id': student_id, 'last_name': nom, 'first_name': prenom}
             self._sid = student_id
             log(f"StudentCreateDialog: activated #{student_id} (slot {slot:02d})")
-
-            cur.execute("SET LOCAL app.sync_source = 'intranet'")
-            cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
-            audit.create_student(student_id, f"Création {prenom} {nom}")
 
             # Charger les parents maintenant que l'élève existe
             self._load_parents()
