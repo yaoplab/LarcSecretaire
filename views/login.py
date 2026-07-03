@@ -1,25 +1,27 @@
 import os
+import time
 from typing import Optional, Tuple
 
-import time
-
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QFormLayout,
-    QTabWidget, QLabel, QLineEdit, QPushButton,
-    QMessageBox,
-)
-from PySide6.QtCore import Qt, QThread, Signal, QTimer
-
-from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
-from LarcSecretaire.common.network import NetworkMode, detect_network
-from LarcSecretaire.common.database import db
 from LarcSecretaire.common.app_config import app_config
+from LarcSecretaire.common.audit import audit
 from LarcSecretaire.common.auth import AuthManager
+from LarcSecretaire.common.database import db
+from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.network import detect_network
+from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
 from LarcSecretaire.common.sqlite_init import sqlite_init
 from LarcSecretaire.common.theme import theme_manager
-from LarcSecretaire.common.logger import log
-from LarcSecretaire.common.audit import audit
+from PySide6.QtCore import QEvent, Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class _Worker(QThread):
@@ -38,101 +40,115 @@ class _Worker(QThread):
             self.done.emit((False, None, str(exc)))
 
 
-class LoginWindow(QMainWindow):
-
+class LoginWindow(QWidget):
     _login_attempts: dict[str, dict] = {}
 
     @classmethod
     def _check_rate_limit(cls, key: str) -> bool:
         now = time.time()
         entry = cls._login_attempts.get(key)
-        if entry and entry['until'] > now:
-            remaining = int(entry['until'] - now)
+        if entry and entry["until"] > now:
+            remaining = int(entry["until"] - now)
             raise RuntimeError(f"Trop de tentatives. Réessayez dans {remaining}s.")
-        if entry and entry['until'] <= now:
+        if entry and entry["until"] <= now:
             cls._login_attempts.pop(key, None)
         return True
 
     @classmethod
     def _record_failure(cls, key: str):
-        entry = cls._login_attempts.setdefault(key, {'count': 0, 'until': 0})
-        entry['count'] += 1
-        if entry['count'] >= 5:
-            entry['until'] = time.time() + 30
+        entry = cls._login_attempts.setdefault(key, {"count": 0, "until": 0})
+        entry["count"] += 1
+        if entry["count"] >= 5:
+            entry["until"] = time.time() + 30
+
+    def _get_current_term_label(self) -> str:
+        conn = db.server_conn
+        if not conn:
+            return ""
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT t.label
+                FROM larcauth_term t, larcauth_academicyear ay
+                WHERE ay.s_id = 1 AND t.trim = ay.current_term_number
+                LIMIT 1
+            """)
+            r = cur.fetchone()
+            return r[0] if r else ""
+        except Exception:
+            return ""
 
     def _style(self) -> str:
         p = theme_manager.palette
-        d = theme_manager.design
-        s = theme_manager.font_size
+        rd = 8
         return f"""
-            QMainWindow  {{ background: {p.background}; }}
             QWidget#root {{ background: {p.background}; }}
+            QLabel {{ font-size: 13px; color: {p.text_strong}; }}
             QTabWidget::pane {{
-                border: 1px solid {p.border}; background: {p.surface}; border-radius: {d.radius}px;
+                border: 1px solid {p.outline_variant}; background: {p.surface};
+                border-radius: {rd}px;
             }}
-            QTabBar::tab          {{ padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: {s(11)}px; }}
+            QTabBar::tab          {{ padding: 6px 16px; font-size: 13px; }}
             QTabBar::tab:selected {{
                 background: {p.surface}; border-bottom: 2px solid {p.primary};
                 color: {p.text_strong}; font-weight: bold;
             }}
-            QTabBar::tab:!selected {{ background: {p.border_light}; color: {p.text_soft}; }}
+            QTabBar::tab:!selected {{ background: {p.surface_variant}; color: {p.text_soft}; }}
             QLineEdit {{
-                padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border};
-                border-radius: {d.radius}px; font-size: {s(12)}px; background: {p.surface};
+                padding: 7px 10px; border: 1px solid {p.outline_variant};
+                border-radius: {rd}px; font-size: 13px; background: {p.surface};
+                color: {p.text_strong};
             }}
             QLineEdit:focus {{ border-color: {p.primary}; }}
             QPushButton {{
-                padding: {d.btn_pad_v}px {d.btn_pad_h}px; border: none; border-radius: {d.radius}px;
-                font-size: {s(12)}px; font-weight: bold; color: white;
+                padding: 9px 20px; border: none; border-radius: {rd}px;
+                font-size: 13px; font-weight: bold; color: white;
             }}
-            QPushButton#btnIntra  {{ background: {p.button_primary}; }}
-            QPushButton#btnIntra:hover  {{ background: {p.primary}; }}
+            QPushButton#btnIntra  {{ background: {p.primary}; }}
+            QPushButton#btnIntra:hover  {{ background: {p.active}; }}
             QPushButton#btnIntra:disabled  {{ background: {p.inactive}; }}
-            QPushButton#btnGoogle {{ background: {p.button_danger}; }}
-            QPushButton#btnGoogle:hover {{ background: {p.danger}; }}
+            QPushButton#btnGoogle {{ background: #DB4437; }}
+            QPushButton#btnGoogle:hover {{ background: #C53929; }}
             QPushButton#btnGoogle:disabled {{ background: {p.inactive}; }}
-            QLabel#errLabel {{ color: {p.danger}; font-size: {s(11)}px; }}
-            QLabel#hdrTitle {{ color: {p.text_strong}; font-size: {s(22)}px; font-weight: bold; }}
-            QLabel#hdrSub   {{ color: {p.text_soft}; font-size: {s(11)}px; }}
-            QLabel#infoLbl  {{ color: {p.text_secondary}; font-size: {s(11)}px; }}
+            QLabel#errLabel {{ color: {p.error}; font-size: 13px; }}
+            QLabel#hdrTitle {{ color: {p.text_strong}; font-size: 21px; font-weight: bold; }}
+            QLabel#hdrSub   {{ color: {p.text_soft}; font-size: 13px; }}
+            QLabel#infoLbl  {{ color: {p.text_soft}; font-size: 13px; }}
+            QLabel#formLbl {{ color: {p.text_strong}; font-size: 13px; }}
         """
 
     def __init__(self):
         super().__init__()
         self._worker: Optional[_Worker] = None
-        self._net_mode: Optional[NetworkMode] = None
+        self._tabs_forced = False
 
-        # Initialiser la base de données serveur
         db.connect_intranet()
-        # Tenter Cloud si Intranet indisponible
         if not db.server_conn:
             db.connect_cloud()
-        # Initialiser la base SQLite locale
         sqlite_init.init()
         app_config.load()
 
-        self._setup_ui()
-        self._start_net_detection()
+        self._term_label = self._get_current_term_label()
+        self._init_ui()
 
-        self._network_timer = QTimer(self)
-        self._network_timer.setInterval(30000)
-        self._network_timer.timeout.connect(self._update_network_status)
-        self._network_timer.start()
+        self._net_timer = QTimer(self)
+        self._net_timer.setInterval(30000)
+        self._net_timer.timeout.connect(self._update_network_status)
+        self._net_timer.start()
 
         self.setWindowTitle("LarcSecrétariat — Connexion")
-        self.setMinimumSize(377, 377)
-        self.setMaximumSize(610, 610)
 
-    def _setup_ui(self):
+    def _init_ui(self):
         self.setStyleSheet(self._style())
-        central = QWidget()
-        central.setObjectName("root")
-        self.setCentralWidget(central)
-        outer = QVBoxLayout(central)
-        outer.setContentsMargins(34, 21, 34, 13)
+        W = 420
+        H = int(W * 1.618033988749895)
+        self.setFixedSize(W, H)
 
-        # Logo
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'img', 'logoAEC.png')
+        outer = QVBoxLayout()
+        outer.setContentsMargins(34, 21, 34, 21)
+        outer.setSpacing(0)
+
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "img", "logoAEC.png")
         self._logo_label = QLabel()
         if os.path.exists(logo_path):
             pix = QPixmap(logo_path)
@@ -143,75 +159,111 @@ class LoginWindow(QMainWindow):
             self._logo_label.setText("[Logo]")
         self._logo_label.setAlignment(Qt.AlignCenter)
         self._logo_label.setCursor(Qt.PointingHandCursor)
+        self._logo_label.installEventFilter(self)
         outer.addWidget(self._logo_label)
         outer.addSpacing(21)
 
-        # En-tête
-        hdr = QLabel("LarcSecrétariat")
-        hdr.setObjectName("hdrTitle")
-        hdr.setAlignment(Qt.AlignCenter)
-        outer.addWidget(hdr)
+        title = QLabel("LarcSecrétariat")
+        title.setObjectName("hdrTitle")
+        title.setAlignment(Qt.AlignCenter)
+        outer.addWidget(title)
+        outer.addSpacing(8)
 
         sub = QLabel("Module de gestion administrative — Secrétariat")
         sub.setObjectName("hdrSub")
         sub.setAlignment(Qt.AlignCenter)
         outer.addWidget(sub)
-        outer.addSpacing(8)
+        outer.addSpacing(21)
 
-        # Indicateur réseau
         self._net_label = QLabel()
         self._net_label.setAlignment(Qt.AlignCenter)
         self._net_label.setObjectName("infoLbl")
         outer.addWidget(self._net_label)
-        outer.addSpacing(8)
+        outer.addSpacing(21)
 
-        # Onglets
-        tabs = QTabWidget()
-        tabs.addTab(self._tab_intranet(), "Intranet")
-        tabs.addTab(self._tab_cloud(), "Cloud")
-        outer.addWidget(tabs, 1)
+        self._force_check = QCheckBox("Choisir connexion")
+        self._force_check.setVisible(False)
+        self._force_check.toggled.connect(self._on_force_toggle)
+        outer.addWidget(self._force_check, 0, Qt.AlignCenter)
+        outer.addSpacing(21)
 
-        # Message d'erreur
+        self._tabs = QTabWidget()
+        self._tab_intra_widget = self._tab_intranet()
+        self._tab_cloud_widget = self._tab_cloud()
+        self._tabs.addTab(self._tab_intra_widget, "Intranet")
+        self._tabs.addTab(self._tab_cloud_widget, "Cloud")
+        outer.addWidget(self._tabs, 1)
+
         self._err_label = QLabel()
         self._err_label.setObjectName("errLabel")
         self._err_label.setAlignment(Qt.AlignCenter)
         self._err_label.setWordWrap(True)
         outer.addWidget(self._err_label)
+        outer.addSpacing(8)
 
-        # Barre d'état
         self._status_label = QLabel()
         self._status_label.setObjectName("infoLbl")
-        self._status_label.setAlignment(Qt.AlignCenter)
         outer.addWidget(self._status_label)
+
+        self.setLayout(outer)
+        self._update_network_status()
+
+    def eventFilter(self, obj, event):
+        if obj is self._logo_label and event.type() == QEvent.MouseButtonDblClick:
+            self._force_check.setVisible(True)
+            if self._force_check.isChecked():
+                self._tabs_forced = True
+                self._apply_tab_visibility()
+        return super().eventFilter(obj, event)
+
+    def _on_force_toggle(self, checked: bool):
+        self._tabs_forced = checked
+        self._apply_tab_visibility()
 
     # ---- Intranet ----
     def _tab_intranet(self) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setAlignment(Qt.AlignCenter)
-        form = QFormLayout()
-        form.setSpacing(8)
 
+        email_lbl = QLabel("Email :")
+        email_lbl.setObjectName("formLbl")
+        layout.addWidget(email_lbl)
         email = QLineEdit()
         email.setPlaceholderText("prenom.nom@votreedu.com")
+        email.setFixedHeight(55)
         self._edt_i_email = email
+        layout.addWidget(email)
+
+        layout.addSpacing(21)
+
+        pwd_lbl = QLabel("Mot de passe :")
+        pwd_lbl.setObjectName("formLbl")
+        layout.addWidget(pwd_lbl)
         pwd = QLineEdit()
         pwd.setEchoMode(QLineEdit.Password)
         pwd.setPlaceholderText("Mot de passe")
+        pwd.setFixedHeight(55)
         pwd.returnPressed.connect(self._on_intranet)
         self._edt_i_pwd = pwd
+        layout.addWidget(pwd)
 
-        form.addRow("Email :", email)
-        form.addRow("Mot de passe :", pwd)
-        layout.addLayout(form)
+        layout.addSpacing(34)
+
+        if self._term_label:
+            term_lbl = QLabel(f"Trimestre : {self._term_label}")
+            term_lbl.setObjectName("infoLbl")
+            term_lbl.setAlignment(Qt.AlignCenter)
+            layout.addWidget(term_lbl)
+            layout.addSpacing(16)
 
         btn = QPushButton("Connexion Intranet")
         btn.setObjectName("btnIntra")
-        btn.setMinimumHeight(34)
+        btn.setFixedSize(210, 55)
         btn.clicked.connect(self._on_intranet)
-        layout.addWidget(btn)
+        layout.addWidget(btn, 0, Qt.AlignCenter)
 
-        layout.addSpacing(8)
+        layout.addSpacing(21)
         info = QLabel("Authentification via le serveur interne.")
         info.setObjectName("infoLbl")
         info.setAlignment(Qt.AlignCenter)
@@ -228,21 +280,29 @@ class LoginWindow(QMainWindow):
         info.setObjectName("infoLbl")
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
-        layout.addSpacing(8)
+        layout.addSpacing(24)
+
+        if self._term_label:
+            term_lbl = QLabel(f"Trimestre : {self._term_label}")
+            term_lbl.setObjectName("infoLbl")
+            term_lbl.setAlignment(Qt.AlignCenter)
+            layout.addWidget(term_lbl)
+            layout.addSpacing(16)
 
         btn = QPushButton("Connexion Google")
         btn.setObjectName("btnGoogle")
-        btn.setMinimumHeight(34)
+        btn.setFixedSize(210, 55)
         btn.clicked.connect(self._on_cloud)
-        layout.addWidget(btn)
+        layout.addWidget(btn, 0, Qt.AlignCenter)
 
-        layout.addSpacing(8)
+        layout.addSpacing(16)
         info2 = QLabel("Utilise le protocole OAuth2 PKCE.")
         info2.setObjectName("infoLbl")
         info2.setAlignment(Qt.AlignCenter)
         layout.addWidget(info2)
         return w
 
+    # ---- Auth ----
     def _on_intranet(self):
         email = self._edt_i_email.text().strip()
         pwd = self._edt_i_pwd.text()
@@ -258,42 +318,46 @@ class LoginWindow(QMainWindow):
         self._set_busy(True)
         email_key = email.lower()
         self._worker = _Worker(AuthManager.auth_intranet, email, pwd, parent=self)
-        self._worker.done.connect(lambda r, ek=email_key: self._on_auth_done(r, ConnMode.INTRANET, ek))
+        self._worker.done.connect(
+            lambda r, ek=email_key: self._on_auth_done(r, ConnMode.INTRANET, ek)
+        )
         self._worker.start()
 
     def _on_cloud(self):
         try:
-            self._check_rate_limit('cloud')
+            self._check_rate_limit("cloud")
         except RuntimeError as e:
             self._show_error(str(e))
             return
         self._hide_error()
         self._set_busy(True)
         self._worker = _Worker(AuthManager.auth_cloud, parent=self)
-        self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.CLOUD, 'cloud'))
+        self._worker.done.connect(lambda r: self._on_auth_done(r, ConnMode.CLOUD, "cloud"))
         self._worker.start()
 
     def _check_secretary_exists(self, email: str) -> Tuple[bool, dict]:
-        """Vérifie que l'utilisateur est une secrétaire active (type_secretary = TRUE)."""
         conn = db.server_conn
         if not conn:
             return False, {}
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT aec.id, aec.last_name, aec.first_name, aec.email
                 FROM larcauth_aecuser aec
                 WHERE LOWER(aec.email) = %s AND aec.type_secretary = TRUE AND aec.is_active = TRUE
                 LIMIT 1
-            """, (email.lower().strip(),))
+            """,
+                (email.lower().strip(),),
+            )
             row = cur.fetchone()
             if not row:
                 return False, {}
             return True, {
-                'user_id': row[0],
-                'last_name': row[1],
-                'first_name': row[2],
-                'email': row[3],
+                "user_id": row[0],
+                "last_name": row[1],
+                "first_name": row[2],
+                "email": row[3],
             }
         except Exception as e:
             log(f"_check_secretary_exists: {e}")
@@ -307,22 +371,21 @@ class LoginWindow(QMainWindow):
             self._show_error(err or "Authentification échouée.")
             return
 
-        # Vérifier que l'utilisateur est une secrétaire
         if mode in (ConnMode.INTRANET, ConnMode.CLOUD):
             exists, infos = self._check_secretary_exists(res.email)
             if not exists:
                 self._show_error("Ce compte n'est pas une secrétaire active.")
                 return
-            res.user_id = infos['user_id']
+            res.user_id = infos["user_id"]
             res.full_name = f"{infos['first_name']} {infos['last_name']}"
 
             if not sqlite_init.init():
                 self._show_error("Impossible d'initialiser la base locale.")
                 return
 
-            sqlite_init.set_module_config('secretary_name', res.full_name)
-            sqlite_init.set_module_config('secretary_email', res.email)
-            sqlite_init.set_module_config('secretary_id', str(res.user_id))
+            sqlite_init.set_module_config("secretary_name", res.full_name)
+            sqlite_init.set_module_config("secretary_email", res.email)
+            sqlite_init.set_module_config("secretary_id", str(res.user_id))
 
             self._apply_session(res, mode)
 
@@ -336,9 +399,73 @@ class LoginWindow(QMainWindow):
         audit.login(session.user_id, session.full_name, mode.value)
 
         from LarcSecretaire.views.main_window import MainWindow
+
         self._main_window = MainWindow()
         self._main_window.showMaximized()
         self.close()
+
+    # ---- Network ----
+    def _apply_tab_visibility(self):
+        intra_ok, internet_ok = self._net_status
+        p = theme_manager.palette
+
+        if self._tabs_forced:
+            self._tabs.setTabVisible(0, True)
+            self._tabs.setTabVisible(1, True)
+            self._err_label.setText("")
+            intra_color = p.success if intra_ok else p.text_soft
+            cloud_color = p.primary if internet_ok else p.text_soft
+            self._net_label.setText(
+                f"<span style='color:{intra_color}'>Intranet ●</span>"
+                f"   "
+                f"<span style='color:{cloud_color}'>Cloud ●</span>"
+            )
+            self._net_label.setTextFormat(Qt.RichText)
+            self._net_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+            return
+
+        if intra_ok and internet_ok:
+            self._tabs.setTabVisible(0, True)
+            self._tabs.setTabVisible(1, False)
+            self._tabs.setCurrentIndex(0)
+            self._err_label.setText("")
+            self._net_label.setText("Intranet ●")
+            self._net_label.setStyleSheet(
+                f"color: {p.success}; font-weight: bold; font-size: 13px;"
+            )
+
+        elif internet_ok and not intra_ok:
+            self._tabs.setTabVisible(0, False)
+            self._tabs.setTabVisible(1, True)
+            self._tabs.setCurrentIndex(1)
+            self._err_label.setText("")
+            self._net_label.setText("Cloud ●")
+            self._net_label.setStyleSheet(
+                f"color: {p.primary}; font-weight: bold; font-size: 13px;"
+            )
+
+        elif intra_ok and not internet_ok:
+            self._tabs.setTabVisible(0, True)
+            self._tabs.setTabVisible(1, False)
+            self._tabs.setCurrentIndex(0)
+            self._err_label.setText("")
+            self._net_label.setText("Intranet ●")
+            self._net_label.setStyleSheet(
+                f"color: {p.success}; font-weight: bold; font-size: 13px;"
+            )
+
+        else:
+            self._tabs.setTabVisible(0, False)
+            self._tabs.setTabVisible(1, False)
+            self._err_label.setText("Accès à LarcSecrétariat Impossible")
+            self._net_label.setText("Hors ligne")
+            self._net_label.setStyleSheet(
+                f"color: {p.text_disabled}; font-weight: bold; font-size: 13px;"
+            )
+
+    def _update_network_status(self):
+        self._net_status = detect_network()
+        self._apply_tab_visibility()
 
     # ---- UI helpers ----
     def _show_error(self, msg: str):
@@ -354,18 +481,3 @@ class LoginWindow(QMainWindow):
             self._status_label.setText("Connexion en cours...")
         else:
             self._status_label.setText("")
-
-    def _update_network_status(self):
-        mode = detect_network()
-        p = theme_manager.palette
-        if mode == NetworkMode.INTRANET:
-            txt, color = "Intranet ●", p.success
-        elif mode == NetworkMode.INTERNET:
-            txt, color = "Cloud ●", p.primary
-        else:
-            txt, color = "Hors ligne", p.text_disabled
-        self._net_label.setText(txt)
-        self._net_label.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 11px;")
-
-    def _start_net_detection(self):
-        self._update_network_status()
