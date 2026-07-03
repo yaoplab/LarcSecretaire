@@ -691,10 +691,9 @@ class StudentEditDialog(QDialog):
         nav_side.setContentsMargins(0, 0, sp, 0)
 
         nav_items = [
-            "Dossiers",
             "Identité & Contact",
+            "Dossiers",
             "Adresse & Parents",
-            "Fichiers",
             "Événements",
             "Confidentiel",
         ]
@@ -719,18 +718,10 @@ class StudentEditDialog(QDialog):
         nav_btn_active = f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}"
         nav_btn_idle = f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
 
-        # --- Page 1 : Dossiers ---
+        # --- Page 1 : Identité & Contact ---
         p1 = QWidget()
         p1_layout = QVBoxLayout(p1)
-        p1_layout.setContentsMargins(0, 0, 0, 0)
-        self._notes_panel = NotesPanel()
-        p1_layout.addWidget(self._notes_panel, 1)
-        self._nav_pages.append(p1)
-
-        # --- Page 2 : Identité & Contact ---
-        p2 = QWidget()
-        p2_layout = QVBoxLayout(p2)
-        p2_layout.setSpacing(sp)
+        p1_layout.setSpacing(sp)
         g1 = QGridLayout()
         g1.setSpacing(sp)
         r = 0
@@ -740,6 +731,42 @@ class StudentEditDialog(QDialog):
         g1.addWidget(self._inp_nom, r, 0)
         g1.addWidget(self._inp_prenom, r, 1)
         r += 1
+        g1.addWidget(_lbl("Date arrivée école"), r, 0, 1, 2)
+        r += 1
+        g1.addWidget(self._inp_date_joined, r, 0, 1, 2)
+        r += 1
+        g1.addWidget(_lbl("Date d'entrée"), r, 0)
+        g1.addWidget(_lbl("Genre"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_date, r, 0)
+        g1.addWidget(self._inp_genre, r, 1)
+        r += 1
+        g1.addWidget(_lbl("Date de naissance"), r, 0)
+        r += 1
+        g1.addWidget(self._inp_birthdate, r, 0)
+        r += 2
+        g1.addWidget(_lbl("Email"), r, 0)
+        g1.addWidget(_lbl("Email personnel"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_email, r, 0)
+        g1.addWidget(self._inp_emailperso, r, 1)
+        r += 1
+        g1.addWidget(_lbl("Téléphone portable"), r, 0)
+        g1.addWidget(_lbl("Téléphone fixe"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_tel, r, 0)
+        g1.addWidget(self._inp_tel2, r, 1)
+        p1_layout.addLayout(g1)
+        p1_layout.addStretch()
+        self._nav_pages.append(p1)
+
+        # --- Page 2 : Dossiers (sections + fichiers) ---
+        p2 = QWidget()
+        p2_layout = QVBoxLayout(p2)
+        p2_layout.setContentsMargins(0, 0, 0, 0)
+        self._notes_panel = NotesPanel()
+        p2_layout.addWidget(self._notes_panel, 1)
+        self._nav_pages.append(p2)
         g1.addWidget(_lbl("Date arrivée école"), r, 0, 1, 2)
         r += 1
         g1.addWidget(self._inp_date_joined, r, 0, 1, 2)
@@ -839,56 +866,13 @@ class StudentEditDialog(QDialog):
         p4_layout.addStretch()
         self._nav_pages.append(p4)
 
-        # --- Page 5 : Fichiers ---
-        p5 = QWidget()
-        p5_layout = QVBoxLayout(p5)
-        p5_layout.setSpacing(sp)
-        files_label = QLabel("Fichiers joints")
-        files_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
-        p5_layout.addWidget(files_label)
-        self._file_list = QListWidget()
-        self._file_list.setStyleSheet(
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
-        )
-        self._file_list.setMaximumHeight(233)
-        self._file_list.itemDoubleClicked.connect(self._open_file)
-        p5_layout.addWidget(self._file_list)
-        file_btn_row = QHBoxLayout()
-        file_btn_row.setSpacing(d.spacing)
-        self._btn_add_file = QPushButton("Ajouter un fichier")
-        self._btn_add_file.setStyleSheet(_btn_style(p.primary, p.on_primary, p.active))
-        self._btn_add_file.clicked.connect(self._add_file)
-        file_btn_row.addWidget(self._btn_add_file)
-        self._btn_open_folder = QPushButton("Ouvrir le dossier")
-        self._btn_open_folder.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
-        )
-        self._btn_open_folder.clicked.connect(self._open_folder)
-        file_btn_row.addWidget(self._btn_open_folder)
-        self._btn_del_file = QPushButton("Supprimer")
-        self._btn_del_file.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.error}; "
-            f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}"
-        )
-        self._btn_del_file.clicked.connect(self._delete_file)
-        file_btn_row.addWidget(self._btn_del_file)
-        file_btn_row.addStretch()
-        p5_layout.addLayout(file_btn_row)
-        p5_layout.addStretch()
-        self._nav_pages.append(p5)
-
-        # --- Page 6 : Événements ---
-        p6 = QWidget()
-        p6_layout = QVBoxLayout(p6)
-        p6_layout.setSpacing(sp)
+        # --- Page 4 : Événements ---
+        p4 = QWidget()
+        p4_layout = QVBoxLayout(p4)
+        p4_layout.setSpacing(sp)
         evt_label = QLabel("Événements (consultation seule)")
         evt_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
-        p6_layout.addWidget(evt_label)
+        p4_layout.addWidget(evt_label)
         self._evt_table = QTableWidget()
         self._evt_table.setColumnCount(5)
         self._evt_table.setHorizontalHeaderLabels(["Date/Heure", "Type", "Note", "Par", "Validé"])
@@ -904,35 +888,35 @@ class StudentEditDialog(QDialog):
         self._evt_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._evt_table.setSelectionBehavior(QTableWidget.SelectRows)
         self._evt_table.setAlternatingRowColors(True)
-        p6_layout.addWidget(self._evt_table, 1)
-        self._nav_pages.append(p6)
+        p4_layout.addWidget(self._evt_table, 1)
+        self._nav_pages.append(p4)
 
-        # --- Page 7 : Confidentiel (restreint) ---
-        p7 = QWidget()
-        p7_layout = QVBoxLayout(p7)
-        p7_layout.setSpacing(sp)
+        # --- Page 5 : Confidentiel (restreint) ---
+        p5 = QWidget()
+        p5_layout = QVBoxLayout(p5)
+        p5_layout.setSpacing(sp)
         from LarcSecretaire.common.session import UserRole
         from LarcSecretaire.common.session import session as _ses
 
         if _ses.role in (UserRole.ADMIN, UserRole.COORD, UserRole.SECR):
             conf_label = QLabel("Notes confidentielles")
             conf_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
-            p7_layout.addWidget(conf_label)
+            p5_layout.addWidget(conf_label)
             conf_info = QLabel("Réservé aux coordinateurs, directeurs et secrétaires.\nInformations sensibles ne devant pas être diffusées.")
             conf_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft}; padding-bottom: {sp}px;")
             conf_info.setWordWrap(True)
-            p7_layout.addWidget(conf_info)
+            p5_layout.addWidget(conf_info)
             from larccommon.widgets import FilePanel
 
             self._conf_file_panel = FilePanel()
-            p7_layout.addWidget(self._conf_file_panel, 1)
+            p5_layout.addWidget(self._conf_file_panel, 1)
         else:
             deny = QLabel("Accès restreint aux coordinateurs, directeurs et secrétaires.")
             deny.setStyleSheet(f"font-size: {s(15)}px; color: {p.text_disabled}; padding: 40px;")
             deny.setAlignment(Qt.AlignCenter)
             deny.setWordWrap(True)
-            p7_layout.addWidget(deny)
-        self._nav_pages.append(p7)
+            p5_layout.addWidget(deny)
+        self._nav_pages.append(p5)
 
         # Construire la sidebar + stack
         self._nav_stack = QStackedWidget()
