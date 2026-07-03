@@ -9,11 +9,14 @@ import os
 from larccommon.widgets import FilePanel
 from LarcSecretaire.common.session import UserRole, session
 from LarcSecretaire.common.theme import theme_manager
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
+    QDateEdit,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QStackedWidget,
@@ -55,7 +58,14 @@ class _SectionPage(QWidget):
         layout.setContentsMargins(sp, sp, sp, 0)
         layout.setSpacing(sp)
 
-        # --- Table ---
+        # ── Top row : 2 colonnes ──
+        top = QHBoxLayout()
+        top.setSpacing(sp)
+
+        # --- Colonne gauche : Table ---
+        left_col = QVBoxLayout()
+        left_col.setSpacing(4)
+
         self._table = QTableWidget()
         self._table.setColumnCount(2)
         self._table.setHorizontalHeaderLabels(["Date", "Titre"])
@@ -63,7 +73,6 @@ class _SectionPage(QWidget):
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._table.setMaximumHeight(144)
         self._table.setStyleSheet(
             f"QTableWidget {{ border: 1px solid {p.outline_variant}; "
             f"gridline-color: {p.outline_variant}; font-size: {s(12)}px; "
@@ -73,56 +82,94 @@ class _SectionPage(QWidget):
             f"font-weight: bold; padding: 4px 6px; border: none; font-size: {s(12)}px; }}"
         )
         self._table.itemSelectionChanged.connect(self._on_select)
-        layout.addWidget(self._table)
+        left_col.addWidget(self._table)
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
-        add_btn = QPushButton("+ Ajouter")
+        add_btn = QPushButton("+")
+        add_btn.setFixedSize(24, 24)
         add_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 12px; font-size: {s(11)}px; font-weight: bold; }}"
+            f"border-radius: 12px; font-size: {s(14)}px; font-weight: bold; }}"
             f"QPushButton:hover {{ background: {p.active}; }}"
         )
         add_btn.clicked.connect(self._add_entry)
         btn_row.addWidget(add_btn)
-        del_btn = QPushButton("Supprimer")
+        del_btn = QPushButton("−")
+        del_btn.setFixedSize(24, 24)
         del_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
-            f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: 4px 12px; font-size: {s(11)}px; }}"
+            f"border: 1px solid {p.error}; border-radius: 12px; "
+            f"font-size: {s(14)}px; font-weight: bold; }}"
             f"QPushButton:hover {{ background: {p.error_container}; }}"
         )
         del_btn.clicked.connect(self._delete_entry)
         btn_row.addWidget(del_btn)
         btn_row.addStretch()
-        layout.addLayout(btn_row)
+        left_col.addLayout(btn_row)
 
-        # --- Détail ---
-        detail = QWidget()
-        detail_layout = QVBoxLayout(detail)
-        detail_layout.setContentsMargins(0, 0, 0, 0)
-        detail_layout.setSpacing(sp)
+        top.addLayout(left_col, 5)
+
+        # --- Colonne droite : Édition ---
+        right_col = QVBoxLayout()
+        right_col.setSpacing(sp)
+
+        self._title = QLineEdit()
+        self._title.setPlaceholderText("Titre")
+        self._title.setStyleSheet(
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
+            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
+        self._title.textChanged.connect(self._save_current)
+        right_col.addWidget(self._title)
+
+        self._date = QDateEdit()
+        self._date.setDisplayFormat("yyyy-MM-dd")
+        self._date.setCalendarPopup(True)
+        self._date.setSpecialValueText(" ")
+        self._date.setDate(QDate())
+        self._date.setStyleSheet(
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
+            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
+        self._date.dateChanged.connect(self._save_current)
+        right_col.addWidget(self._date)
 
         self._doc = QTextEdit()
         self._doc.setPlaceholderText("Description / note...")
-        self._doc.setMinimumHeight(55)
-        self._doc.setMaximumHeight(89)
         self._doc.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
             f"border-radius: {d.radius}px; font-size: {s(12)}px; "
             f"background: {p.surface}; color: {p.text_strong};"
         )
         self._doc.textChanged.connect(self._save_current)
-        detail_layout.addWidget(self._doc)
+        right_col.addWidget(self._doc, 1)
 
-        self._file_label = QLabel("Fichiers joints")
-        self._file_label.setStyleSheet(f"font-size: {s(11)}px; font-weight: bold; color: {p.text_soft};")
-        detail_layout.addWidget(self._file_label)
+        top.addLayout(right_col, 8)
+
+        layout.addLayout(top, 5)
+
+        # ── Bottom row : Fichiers + Aperçu ──
+        bottom = QHBoxLayout()
+        bottom.setSpacing(sp)
 
         self._file_panel = FilePanel()
-        detail_layout.addWidget(self._file_panel, 1)
+        bottom.addWidget(self._file_panel, 5)
 
-        layout.addWidget(detail, 3)
+        self._preview_frame = QFrame()
+        self._preview_frame.setStyleSheet(f"background: {p.surface_variant}; border-radius: {d.radius_lg}px;")
+        preview_layout = QVBoxLayout(self._preview_frame)
+        self._preview_label = QLabel("Sélectionnez un fichier\npour l'aperçu")
+        self._preview_label.setAlignment(Qt.AlignCenter)
+        self._preview_label.setStyleSheet(f"font-size: {s(11)}px; color: {p.text_disabled};")
+        preview_layout.addWidget(self._preview_label)
+        bottom.addWidget(self._preview_frame, 8)
+
+        self._file_panel._list.itemDoubleClicked.connect(self._on_preview_file)
+
+        layout.addLayout(bottom, 8)
 
     def set_directory(self, base_dir: str):
         """Appelé quand le dossier racine change. Le répertoire par entrée sera défini au clic."""
@@ -137,11 +184,12 @@ class _SectionPage(QWidget):
     def _refresh_table(self):
         self._table.blockSignals(True)
         self._table.setRowCount(len(self._entries))
-        for i, e in enumerate(self._entries):
+        sorted_entries = sorted(self._entries, key=lambda e: e.get("date", ""), reverse=True)
+        for i, e in enumerate(sorted_entries):
             self._table.setItem(i, 0, QTableWidgetItem(e.get("date", "")))
             self._table.setItem(i, 1, QTableWidgetItem(e.get("titre", "")))
         self._table.blockSignals(False)
-        if self._entries:
+        if sorted_entries:
             self._table.selectRow(0)
 
     def _on_select(self):
@@ -149,19 +197,42 @@ class _SectionPage(QWidget):
         if not rows:
             return
         idx = rows[0].row()
-        if 0 <= idx < len(self._entries):
-            self._current_entry = self._entries[idx]
+        sorted_entries = sorted(self._entries, key=lambda e: e.get("date", ""), reverse=True)
+        if 0 <= idx < len(sorted_entries):
+            self._current_entry = sorted_entries[idx]
+            try:
+                self._date.setDate(QDate.fromString(self._current_entry.get("date", ""), "yyyy-MM-dd"))
+            except Exception:
+                self._date.setDate(QDate())
+            self._title.setText(self._current_entry.get("titre", ""))
             self._doc.setPlainText(self._current_entry.get("doc", ""))
             self._file_panel.set_directory(self._entry_dir())
 
     def _save_current(self):
         if self._current_entry is None:
             return
+        self._current_entry["date"] = self._date.date().toString("yyyy-MM-dd") if self._date.date().isValid() else ""
+        self._current_entry["titre"] = self._title.text()
         self._current_entry["doc"] = self._doc.toPlainText()
 
     def _add_entry(self):
-        self._entries.append({"no": len(self._entries) + 1, "date": "", "titre": "", "doc": ""})
+        from datetime import date
+
+        today = date.today().isoformat()
+        self._entries.append({"no": len(self._entries) + 1, "date": today, "titre": "", "doc": ""})
         self._refresh_table()
+
+    def _on_file_selected(self, item):
+        """Met à jour le label d'aperçu avec le nom du fichier."""
+        self._preview_label.setText(f"Fichier : {item.text()}\nDouble-clic pour ouvrir")
+
+    def _on_preview_file(self, item):
+        """Ouvre le fichier dans le viewer."""
+        path = os.path.join(self._entry_dir(), item.text())
+        from larccommon.widgets import FileViewer
+
+        dlg = FileViewer(path, self)
+        dlg.exec()
 
     def _delete_entry(self):
         rows = self._table.selectionModel().selectedRows()
