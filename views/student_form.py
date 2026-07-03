@@ -692,9 +692,9 @@ class StudentEditDialog(QDialog):
 
         nav_items = [
             "Identité & Contact",
-            "Dossiers",
             "Adresse & Parents",
             "Événements",
+            "Dossiers",
             "Confidentiel",
         ]
 
@@ -759,42 +759,6 @@ class StudentEditDialog(QDialog):
         p1_layout.addLayout(g1)
         p1_layout.addStretch()
         self._nav_pages.append(p1)
-
-        # --- Page 2 : Dossiers (sections + fichiers) ---
-        p2 = QWidget()
-        p2_layout = QVBoxLayout(p2)
-        p2_layout.setContentsMargins(0, 0, 0, 0)
-        self._notes_panel = NotesPanel()
-        p2_layout.addWidget(self._notes_panel, 1)
-        self._nav_pages.append(p2)
-        g1.addWidget(_lbl("Date arrivée école"), r, 0, 1, 2)
-        r += 1
-        g1.addWidget(self._inp_date_joined, r, 0, 1, 2)
-        r += 1
-        g1.addWidget(_lbl("Date d'entrée"), r, 0)
-        g1.addWidget(_lbl("Genre"), r, 1)
-        r += 1
-        g1.addWidget(self._inp_date, r, 0)
-        g1.addWidget(self._inp_genre, r, 1)
-        r += 1
-        g1.addWidget(_lbl("Date de naissance"), r, 0)
-        r += 1
-        g1.addWidget(self._inp_birthdate, r, 0)
-        r += 2
-        g1.addWidget(_lbl("Email"), r, 0)
-        g1.addWidget(_lbl("Email personnel"), r, 1)
-        r += 1
-        g1.addWidget(self._inp_email, r, 0)
-        g1.addWidget(self._inp_emailperso, r, 1)
-        r += 1
-        g1.addWidget(_lbl("Téléphone portable"), r, 0)
-        g1.addWidget(_lbl("Téléphone fixe"), r, 1)
-        r += 1
-        g1.addWidget(self._inp_tel, r, 0)
-        g1.addWidget(self._inp_tel2, r, 1)
-        p2_layout.addLayout(g1)
-        p2_layout.addStretch()
-        self._nav_pages.append(p2)
 
         # --- Page 3 : Adresse & Parents ---
         p4 = QWidget()
@@ -917,6 +881,14 @@ class StudentEditDialog(QDialog):
             deny.setWordWrap(True)
             p5_layout.addWidget(deny)
         self._nav_pages.append(p5)
+
+        # --- Dossiers (sections + fichiers) ---
+        p2 = QWidget()
+        p2_layout = QVBoxLayout(p2)
+        p2_layout.setContentsMargins(0, 0, 0, 0)
+        self._notes_panel = NotesPanel()
+        p2_layout.addWidget(self._notes_panel, 1)
+        self._nav_pages.append(p2)
 
         # Construire la sidebar + stack
         self._nav_stack = QStackedWidget()
