@@ -886,8 +886,10 @@ class StudentEditDialog(QDialog):
         p2 = QWidget()
         p2_layout = QVBoxLayout(p2)
         p2_layout.setContentsMargins(0, 0, 0, 0)
-        self._notes_panel = NotesPanel()
-        p2_layout.addWidget(self._notes_panel, 1)
+        from LarcSecretaire.views.dossier_panel import DossierPanel
+
+        self._dossier_panel = DossierPanel()
+        p2_layout.addWidget(self._dossier_panel, 1)
         self._nav_pages.append(p2)
 
         # Construire la sidebar + stack
@@ -1030,7 +1032,6 @@ class StudentEditDialog(QDialog):
         self._inp_cp.setText(d.get("postal_code", "") or "")
         self._inp_ville.setText(d.get("city", "") or "")
         self._inp_pays.setText(d.get("country", "") or "Togo")
-        self._notes_panel.set_student_name(f"{d.get('last_name', '')} {d.get('first_name', '')}".strip() or "Élève")
         raw_notes_json = d.get("notes_json") or None
         if raw_notes_json:
             if isinstance(raw_notes_json, str):
@@ -1041,7 +1042,7 @@ class StudentEditDialog(QDialog):
                 except json.JSONDecodeError:
                     raw_notes_json = None
         if raw_notes_json and isinstance(raw_notes_json, dict):
-            self._notes_panel.set_json(raw_notes_json)
+            self._dossier_panel.set_data(raw_notes_json)
         else:
             # Fallback : importer les anciennes notes TEXT dans la section Autre
             old_notes = d.get("notes", "") or ""
@@ -1061,10 +1062,9 @@ class StudentEditDialog(QDialog):
                         ],
                     }
                 }
-                self._notes_panel.set_json(old_data)
+                self._dossier_panel.set_data(old_data)
             else:
-                self._notes_panel.clear()
-        self._refresh_files()
+                self._dossier_panel.clear()
 
         # Initialiser les dossiers de fichiers
         base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "students", str(self._sid))
@@ -1072,6 +1072,7 @@ class StudentEditDialog(QDialog):
         os.makedirs(dossiers_dir, exist_ok=True)
         conf_dir = os.path.join(base_dir, "confidentiel")
         os.makedirs(conf_dir, exist_ok=True)
+        self._dossier_panel.set_directory(dossiers_dir)
         if hasattr(self, "_conf_file_panel"):
             self._conf_file_panel.set_directory(conf_dir)
 
@@ -1206,8 +1207,11 @@ class StudentEditDialog(QDialog):
                 + ", ".join(f"{k}=EXCLUDED.{k}" for k in cols),
                 [fid] + vals,
             )
-            notes_json = json.dumps(self._notes_panel.get_json())
-            cur.execute("UPDATE larcauth_student SET notes_json = %s WHERE aecuser_ptr_id = %s", (notes_json, self._sid))
+            notes_json = json.dumps(self._dossier_panel.get_data())
+            cur.execute(
+                "UPDATE larcauth_student SET notes_json = %s WHERE aecuser_ptr_id = %s",
+                (notes_json, self._sid),
+            )
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun etudiant trouve pour l'ID {self._sid}")
 
@@ -1243,53 +1247,6 @@ class StudentEditDialog(QDialog):
         d = os.path.join(base, str(self._sid))
         os.makedirs(d, exist_ok=True)
         return d
-
-    def _refresh_files(self):
-        self._file_list.clear()
-        d = self._student_dir()
-        try:
-            for f in sorted(os.listdir(d)):
-                self._file_list.addItem(f)
-        except Exception:
-            pass
-
-    def _add_file(self):
-        paths, _ = QFileDialog.getOpenFileNames(self, "Ajouter des fichiers", "", "Tous les fichiers (*)")
-        if not paths:
-            return
-        d = self._student_dir()
-        for p in paths:
-            name = os.path.basename(p)
-            import shutil
-
-            shutil.copy2(p, os.path.join(d, name))
-        self._refresh_files()
-
-    def _delete_file(self):
-        item = self._file_list.currentItem()
-        if not item:
-            return
-        name = item.text()
-        r = QMessageBox.question(self, "Confirmation", f"Supprimer {name} ?", QMessageBox.Yes | QMessageBox.No)
-        if r != QMessageBox.Yes:
-            return
-        path = os.path.join(self._student_dir(), name)
-        try:
-            os.remove(path)
-            self._refresh_files()
-        except Exception as e:
-            QMessageBox.critical(self, "Erreur", str(e))
-
-    def _open_file(self, item):
-        path = os.path.join(self._student_dir(), item.text())
-        import subprocess
-
-        subprocess.Popen(["explorer", path])
-
-    def _open_folder(self):
-        import subprocess
-
-        subprocess.Popen(["explorer", self._student_dir()])
 
     def _copy_parent_address(self):
         sel = self._parents_table.selectedItems()
