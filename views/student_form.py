@@ -845,7 +845,17 @@ class StudentEditDialog(QDialog):
         p4_layout.addWidget(self._evt_table, 1)
         self._nav_pages.append(p4)
 
-        # --- Page 5 : Confidentiel (restreint) ---
+        # --- Dossiers (sections + fichiers) ---
+        p2 = QWidget()
+        p2_layout = QVBoxLayout(p2)
+        p2_layout.setContentsMargins(0, 0, 0, 0)
+        from LarcSecretaire.views.dossier_panel import DossierPanel
+
+        self._dossier_panel = DossierPanel(self._sid)
+        p2_layout.addWidget(self._dossier_panel, 1)
+        self._nav_pages.append(p2)
+
+        # --- Confidentiel (restreint) ---
         p5 = QWidget()
         p5_layout = QVBoxLayout(p5)
         p5_layout.setSpacing(sp)
@@ -871,16 +881,6 @@ class StudentEditDialog(QDialog):
             deny.setWordWrap(True)
             p5_layout.addWidget(deny)
         self._nav_pages.append(p5)
-
-        # --- Dossiers (sections + fichiers) ---
-        p2 = QWidget()
-        p2_layout = QVBoxLayout(p2)
-        p2_layout.setContentsMargins(0, 0, 0, 0)
-        from LarcSecretaire.views.dossier_panel import DossierPanel
-
-        self._dossier_panel = DossierPanel(self._sid)
-        p2_layout.addWidget(self._dossier_panel, 1)
-        self._nav_pages.append(p2)
 
         # Construire la sidebar + stack
         self._nav_stack = QStackedWidget()
