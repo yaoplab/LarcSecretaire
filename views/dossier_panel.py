@@ -164,13 +164,14 @@ class _SectionPage(QWidget):
 
         self._preview_frame = QFrame()
         self._preview_frame.setStyleSheet(f"background: {p.surface_variant}; border-radius: {d.radius_lg}px;")
-        preview_layout = QVBoxLayout(self._preview_frame)
-        self._preview_label = QLabel("Sélectionnez un fichier\npour l'aperçu")
-        self._preview_label.setAlignment(Qt.AlignCenter)
-        self._preview_label.setStyleSheet(f"font-size: {s(11)}px; color: {p.text_disabled};")
-        preview_layout.addWidget(self._preview_label)
+        self._preview_layout = QVBoxLayout(self._preview_frame)
+        self._preview_widget = QLabel("Sélectionnez un fichier")
+        self._preview_widget.setAlignment(Qt.AlignCenter)
+        self._preview_widget.setStyleSheet(f"font-size: {s(11)}px; color: {p.text_disabled};")
+        self._preview_layout.addWidget(self._preview_widget)
         bottom.addWidget(self._preview_frame, 8)
 
+        self._file_panel._list.itemClicked.connect(self._on_file_selected)
         self._file_panel._list.itemDoubleClicked.connect(self._on_preview_file)
 
         layout.addLayout(bottom, 8)
@@ -234,8 +235,42 @@ class _SectionPage(QWidget):
         self._refresh_table()
 
     def _on_file_selected(self, item):
-        """Met à jour le label d'aperçu avec le nom du fichier."""
-        self._preview_label.setText(f"Fichier : {item.text()}\nDouble-clic pour ouvrir")
+        """Affiche un aperçu dans le panneau de droite."""
+        if not self._base_dir:
+            return
+        path = os.path.join(self._entry_dir(), item.text())
+        ext = os.path.splitext(item.text())[1].lower()
+
+        # Nettoyer l'ancien aperçu
+        w = self._preview_layout.takeAt(0)
+        if w and w.widget():
+            w.widget().deleteLater()
+
+        if ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp"}:
+            from PySide6.QtGui import QPixmap
+
+            lbl = QLabel()
+            pix = QPixmap(path)
+            lbl.setPixmap(pix.scaled(300, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            lbl.setAlignment(Qt.AlignCenter)
+            self._preview_layout.addWidget(lbl)
+        elif ext in {".txt", ".csv", ".md", ".json", ".py", ".sql"}:
+            from PySide6.QtWidgets import QTextEdit
+
+            ed = QTextEdit()
+            ed.setReadOnly(True)
+            ed.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px;")
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    ed.setPlainText(f.read()[:5000])
+            except Exception:
+                ed.setPlainText("(Illisible)")
+            self._preview_layout.addWidget(ed)
+        else:
+            lbl = QLabel(f"{item.text()}\n\n{os.path.getsize(path):,} octets\n\nDouble-clic pour ouvrir")
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px; color: {theme_manager.palette.text_soft};")
+            self._preview_layout.addWidget(lbl)
 
     def _on_col_resize(self):
         TableSettings.save(self._table, f"dossier/{self._key}")
