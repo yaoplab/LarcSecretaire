@@ -6,7 +6,6 @@ Chaque entrée = un document avec ses propres fichiers joints.
 
 import os
 
-from larccommon.widgets import FilePanel
 from larccommon.widgets.table_settings import TableSettings
 from LarcSecretaire.common.session import UserRole, session
 from LarcSecretaire.common.theme import theme_manager
@@ -159,8 +158,65 @@ class _SectionPage(QWidget):
         bottom = QHBoxLayout()
         bottom.setSpacing(sp)
 
-        self._file_panel = FilePanel()
-        bottom.addWidget(self._file_panel, 5)
+        # Table fichiers avec en-têtes
+        file_widget = QWidget()
+        file_layout = QVBoxLayout(file_widget)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.setSpacing(4)
+
+        self._file_table = QTableWidget()
+        self._file_table.setColumnCount(2)
+        self._file_table.setHorizontalHeaderLabels(["Pièce jointe", "Document associé"])
+        self._file_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._file_table.setColumnWidth(0, 144)
+        self._file_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self._file_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self._file_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self._file_table.setStyleSheet(
+            f"QTableWidget {{ border: 1px solid {p.outline_variant}; "
+            f"gridline-color: {p.outline_variant}; font-size: {s(11)}px; "
+            f"background: {p.surface}; color: {p.text_strong}; }}"
+            f"QTableWidget::item {{ padding: 2px 4px; }}"
+            f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
+            f"font-weight: bold; padding: 3px 4px; border: none; font-size: {s(11)}px; }}"
+        )
+        self._file_table.itemSelectionChanged.connect(self._on_file_selected)
+        self._file_table.cellDoubleClicked.connect(self._on_preview_file_row)
+        file_layout.addWidget(self._file_table)
+
+        file_btns = QHBoxLayout()
+        file_btns.setSpacing(4)
+        add_f = QPushButton("+")
+        add_f.setFixedSize(22, 22)
+        add_f.setStyleSheet(
+            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
+            f"border-radius: 11px; font-size: {s(12)}px; font-weight: bold; }}"
+            f"QPushButton:hover {{ background: {p.active}; }}"
+        )
+        add_f.clicked.connect(self._add_file)
+        file_btns.addWidget(add_f)
+        open_f = QPushButton("📂")
+        open_f.setFixedSize(22, 22)
+        open_f.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
+            f"border: 1px solid {p.outline_variant}; border-radius: 11px; font-size: {s(10)}px; }}"
+            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+        )
+        open_f.clicked.connect(self._open_file_dir)
+        file_btns.addWidget(open_f)
+        del_f = QPushButton("−")
+        del_f.setFixedSize(22, 22)
+        del_f.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {p.error}; "
+            f"border: 1px solid {p.error}; border-radius: 11px; "
+            f"font-size: {s(14)}px; font-weight: bold; }}"
+            f"QPushButton:hover {{ background: {p.error_container}; }}"
+        )
+        del_f.clicked.connect(self._delete_file)
+        file_btns.addWidget(del_f)
+        file_btns.addStretch()
+        file_layout.addLayout(file_btns)
+        bottom.addWidget(file_widget, 5)
 
         self._preview_frame = QFrame()
         self._preview_frame.setStyleSheet(f"background: {p.surface_variant}; border-radius: {d.radius_lg}px;")
@@ -171,18 +227,107 @@ class _SectionPage(QWidget):
         self._preview_layout.addWidget(self._preview_widget)
         bottom.addWidget(self._preview_frame, 8)
 
-        self._file_panel._list.itemClicked.connect(self._on_file_selected)
-        self._file_panel._list.itemDoubleClicked.connect(self._on_preview_file)
-
         layout.addLayout(bottom, 8)
 
-    def set_directory(self, base_dir: str):
-        """Appelé quand le dossier racine change."""
-        self._base_dir = base_dir
-        if self._current_entry:
-            self._file_panel.set_directory(self._entry_dir())
+    def _refresh_files(self):
+        d = self._entry_dir()
+        if not d:
+            return
+        self._file_table.setRowCount(0)
+        try:
+            files = sorted(os.listdir(d))
+        except Exception:
+            return
+        titre = self._current_entry.get("titre", "") if self._current_entry else ""
+        for i, fname in enumerate(files):
+            self._file_table.setRowCount(i + 1)
+            self._file_table.setItem(i, 0, QTableWidgetItem(fname))
+            self._file_table.setItem(i, 1, QTableWidgetItem(titre))
 
-    def _entry_dir(self) -> str:
+    def _add_file(self):
+        from PySide6.QtWidgets import QFileDialog
+
+        d = self._entry_dir()
+        if not d:
+            return
+        paths, _ = QFileDialog.getOpenFileNames(self, "Ajouter des fichiers", "")
+        if not paths:
+            return
+        import shutil
+
+        for p in paths:
+            shutil.copy2(p, os.path.join(d, os.path.basename(p)))
+        self._refresh_files()
+
+    def _delete_file(self):
+        rows = self._file_table.selectionModel().selectedRows()
+        if not rows:
+            return
+        name = self._file_table.item(rows[0].row(), 0).text()
+        r = QMessageBox.question(self, "Confirmation", f"Supprimer {name} ?", QMessageBox.Yes | QMessageBox.No)
+        if r != QMessageBox.Yes:
+            return
+        path = os.path.join(self._entry_dir(), name)
+        try:
+            os.remove(path)
+            self._refresh_files()
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", str(e))
+
+    def _open_file_dir(self):
+        d = self._entry_dir()
+        if d:
+            import subprocess
+
+            subprocess.Popen(["explorer", d])
+
+    def _on_preview_file_row(self, row: int, col: int):
+        name = self._file_table.item(row, 0)
+        if not name:
+            return
+        path = os.path.join(self._entry_dir(), name.text())
+        from larccommon.widgets import FileViewer
+
+        dlg = FileViewer(path, self)
+        dlg.exec()
+
+    def _on_file_selected(self):
+        rows = self._file_table.selectionModel().selectedRows()
+        if not rows or not self._base_dir:
+            return
+        name = self._file_table.item(rows[0].row(), 0)
+        if not name:
+            return
+        path = os.path.join(self._entry_dir(), name.text())
+        ext = os.path.splitext(name.text())[1].lower()
+
+        w = self._preview_layout.takeAt(0)
+        if w and w.widget():
+            w.widget().deleteLater()
+
+        if ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp"}:
+            from PySide6.QtGui import QPixmap
+
+            lbl = QLabel()
+            pix = QPixmap(path)
+            lbl.setPixmap(pix.scaled(300, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            lbl.setAlignment(Qt.AlignCenter)
+            self._preview_layout.addWidget(lbl)
+        elif ext in {".txt", ".csv", ".md", ".json", ".py", ".sql"}:
+            ed = QTextEdit()
+            ed.setReadOnly(True)
+            ed.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px;")
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    ed.setPlainText(f.read()[:5000])
+            except Exception:
+                ed.setPlainText("(Illisible)")
+            self._preview_layout.addWidget(ed)
+        else:
+            lbl = QLabel(f"{name.text()}\n\n{os.path.getsize(path):,} octets\n\nDouble-clic pour ouvrir")
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px; color: {theme_manager.palette.text_soft};")
+            self._preview_layout.addWidget(lbl)
         if not self._base_dir:
             return ""
         no = self._current_entry.get("no", 0) if self._current_entry else 0
@@ -219,7 +364,7 @@ class _SectionPage(QWidget):
                 self._date.setDate(QDate())
             self._title.setText(self._current_entry.get("titre", ""))
             self._doc.setPlainText(self._current_entry.get("doc", ""))
-            self._file_panel.set_directory(self._entry_dir())
+            self._refresh_files()
 
     def _save_current(self):
         if self._current_entry is None:
@@ -235,43 +380,18 @@ class _SectionPage(QWidget):
         self._entries.append({"no": len(self._entries) + 1, "date": today, "titre": "", "doc": ""})
         self._refresh_table()
 
-    def _on_file_selected(self, item):
-        """Affiche un aperçu dans le panneau de droite."""
+    def set_directory(self, base_dir: str):
+        self._base_dir = base_dir
+        if self._current_entry:
+            self._refresh_files()
+
+    def _entry_dir(self) -> str:
         if not self._base_dir:
-            return
-        path = os.path.join(self._entry_dir(), item.text())
-        ext = os.path.splitext(item.text())[1].lower()
-
-        # Nettoyer l'ancien aperçu
-        w = self._preview_layout.takeAt(0)
-        if w and w.widget():
-            w.widget().deleteLater()
-
-        if ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp"}:
-            from PySide6.QtGui import QPixmap
-
-            lbl = QLabel()
-            pix = QPixmap(path)
-            lbl.setPixmap(pix.scaled(300, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            lbl.setAlignment(Qt.AlignCenter)
-            self._preview_layout.addWidget(lbl)
-        elif ext in {".txt", ".csv", ".md", ".json", ".py", ".sql"}:
-            from PySide6.QtWidgets import QTextEdit
-
-            ed = QTextEdit()
-            ed.setReadOnly(True)
-            ed.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px;")
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    ed.setPlainText(f.read()[:5000])
-            except Exception:
-                ed.setPlainText("(Illisible)")
-            self._preview_layout.addWidget(ed)
-        else:
-            lbl = QLabel(f"{item.text()}\n\n{os.path.getsize(path):,} octets\n\nDouble-clic pour ouvrir")
-            lbl.setAlignment(Qt.AlignCenter)
-            lbl.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px; color: {theme_manager.palette.text_soft};")
-            self._preview_layout.addWidget(lbl)
+            return ""
+        no = self._current_entry.get("no", 0) if self._current_entry else 0
+        d = os.path.join(self._base_dir, str(no))
+        os.makedirs(d, exist_ok=True)
+        return d
 
     def _on_col_resize(self):
         TableSettings.save(self._table, f"dossier/{self._key}")
