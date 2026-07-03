@@ -578,52 +578,47 @@ class StudentEditDialog(QDialog):
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
 
-        # Boutons d'action
+        # Boutons d'action — même style que la sidebar
         btn_col = QVBoxLayout()
-        btn_col.setSpacing(sp)
+        btn_col.setSpacing(d.spacing)
+        btn_col.setAlignment(Qt.AlignTop)
 
-        save_btn = QPushButton("Enregistrer")
-        save_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h}px; "
-            f"font-size: {s(fs)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
-        )
+        btn_h = 34
+        pad_h = sp * 2
+
+        def _act_btn(text, bg, fg, hover, bordered=False):
+            btn = QPushButton(text)
+            if bordered:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background: transparent; color: {fg}; "
+                    f"border: 1px solid {p.outline_variant}; border-radius: {d.radius_lg}px; "
+                    f"padding: {d.spacing}px {pad_h}px; font-size: {s(13)}px; font-weight: bold; }}"
+                    f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
+                    f"border-radius: {d.radius_lg}px; "
+                    f"padding: {d.spacing}px {pad_h}px; font-size: {s(13)}px; font-weight: bold; }}"
+                    f"QPushButton:hover {{ background: {hover}; }}"
+                )
+            btn.setMinimumHeight(btn_h)
+            return btn
+
+        save_btn = _act_btn("Enregistrer", p.button_success, "white", p.success)
         save_btn.clicked.connect(self._save)
-        save_btn.setMinimumWidth(89)
         btn_col.addWidget(save_btn)
 
-        pdf_btn = QPushButton("PDF")
-        pdf_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; "
-            f"font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
-        )
+        pdf_btn = _act_btn("PDF", p.primary, p.on_primary, p.active)
         pdf_btn.clicked.connect(self._export_pdf)
-        pdf_btn.setMinimumWidth(89)
         btn_col.addWidget(pdf_btn)
 
-        word_btn = QPushButton("Word")
-        word_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.tertiary}; color: {p.on_tertiary}; border: none; "
-            f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; "
-            f"font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.primary_container}; }}"
-        )
+        word_btn = _act_btn("Word", p.tertiary, p.on_tertiary, p.active)
         word_btn.clicked.connect(self._export_word)
-        word_btn.setMinimumWidth(89)
         btn_col.addWidget(word_btn)
 
-        cancel_btn = QPushButton("Annuler")
-        cancel_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.text_soft}; "
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
-        )
+        cancel_btn = _act_btn("Annuler", "transparent", p.text_soft, p.surface_variant, bordered=True)
         cancel_btn.clicked.connect(self.reject)
-        cancel_btn.setMinimumWidth(89)
         btn_col.addWidget(cancel_btn)
 
         btn_col.addStretch()
