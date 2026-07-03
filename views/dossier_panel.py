@@ -67,10 +67,11 @@ class _SectionPage(QWidget):
         left_col.setSpacing(4)
 
         self._table = QTableWidget()
-        self._table.setColumnCount(2)
-        self._table.setHorizontalHeaderLabels(["Date", "Titre"])
+        self._table.setColumnCount(3)
+        self._table.setHorizontalHeaderLabels(["Date", "Titre", "Description"])
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.setStyleSheet(
@@ -186,8 +187,11 @@ class _SectionPage(QWidget):
         self._table.setRowCount(len(self._entries))
         sorted_entries = sorted(self._entries, key=lambda e: e.get("date", ""), reverse=True)
         for i, e in enumerate(sorted_entries):
+            doc = e.get("doc", "")
+            snippet = doc[:80].replace("\n", " ") + ("…" if len(doc) > 80 else "")
             self._table.setItem(i, 0, QTableWidgetItem(e.get("date", "")))
             self._table.setItem(i, 1, QTableWidgetItem(e.get("titre", "")))
+            self._table.setItem(i, 2, QTableWidgetItem(snippet))
         self._table.blockSignals(False)
         if sorted_entries:
             self._table.selectRow(0)
