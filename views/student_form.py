@@ -691,12 +691,12 @@ class StudentEditDialog(QDialog):
         nav_side.setContentsMargins(0, 0, sp, 0)
 
         nav_items = [
-            "Notes",
-            "Identité",
-            "Contact",
+            "Dossiers",
+            "Identité & Contact",
             "Adresse & Parents",
             "Fichiers",
             "Événements",
+            "Confidentiel",
         ]
 
         def _btn_style(bg, fg, hover_bg=None):
@@ -719,7 +719,7 @@ class StudentEditDialog(QDialog):
         nav_btn_active = f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}"
         nav_btn_idle = f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
 
-        # --- Page 1 : Notes ---
+        # --- Page 1 : Dossiers ---
         p1 = QWidget()
         p1_layout = QVBoxLayout(p1)
         p1_layout.setContentsMargins(0, 0, 0, 0)
@@ -727,47 +727,49 @@ class StudentEditDialog(QDialog):
         p1_layout.addWidget(self._notes_panel, 1)
         self._nav_pages.append(p1)
 
-        # --- Page 2 : Identité ---
+        # --- Page 2 : Identité & Contact ---
         p2 = QWidget()
         p2_layout = QVBoxLayout(p2)
         p2_layout.setSpacing(sp)
         g1 = QGridLayout()
         g1.setSpacing(sp)
-        g1.addWidget(_lbl("Nom *"), 0, 0)
-        g1.addWidget(_lbl("Prénom *"), 0, 1)
-        g1.addWidget(self._inp_nom, 1, 0)
-        g1.addWidget(self._inp_prenom, 1, 1)
-        g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
-        g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
-        g1.addWidget(_lbl("Date d'entrée"), 4, 0)
-        g1.addWidget(_lbl("Genre"), 4, 1)
-        g1.addWidget(self._inp_date, 5, 0)
-        g1.addWidget(self._inp_genre, 5, 1)
-        g1.addWidget(_lbl("Date de naissance"), 6, 0)
-        g1.addWidget(self._inp_birthdate, 7, 0)
+        r = 0
+        g1.addWidget(_lbl("Nom *"), r, 0)
+        g1.addWidget(_lbl("Prénom *"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_nom, r, 0)
+        g1.addWidget(self._inp_prenom, r, 1)
+        r += 1
+        g1.addWidget(_lbl("Date arrivée école"), r, 0, 1, 2)
+        r += 1
+        g1.addWidget(self._inp_date_joined, r, 0, 1, 2)
+        r += 1
+        g1.addWidget(_lbl("Date d'entrée"), r, 0)
+        g1.addWidget(_lbl("Genre"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_date, r, 0)
+        g1.addWidget(self._inp_genre, r, 1)
+        r += 1
+        g1.addWidget(_lbl("Date de naissance"), r, 0)
+        r += 1
+        g1.addWidget(self._inp_birthdate, r, 0)
+        r += 2
+        g1.addWidget(_lbl("Email"), r, 0)
+        g1.addWidget(_lbl("Email personnel"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_email, r, 0)
+        g1.addWidget(self._inp_emailperso, r, 1)
+        r += 1
+        g1.addWidget(_lbl("Téléphone portable"), r, 0)
+        g1.addWidget(_lbl("Téléphone fixe"), r, 1)
+        r += 1
+        g1.addWidget(self._inp_tel, r, 0)
+        g1.addWidget(self._inp_tel2, r, 1)
         p2_layout.addLayout(g1)
         p2_layout.addStretch()
         self._nav_pages.append(p2)
 
-        # --- Page 3 : Contact ---
-        p3 = QWidget()
-        p3_layout = QVBoxLayout(p3)
-        p3_layout.setSpacing(sp)
-        g2 = QGridLayout()
-        g2.setSpacing(sp)
-        g2.addWidget(_lbl("Email"), 0, 0)
-        g2.addWidget(_lbl("Email personnel"), 0, 1)
-        g2.addWidget(self._inp_email, 1, 0)
-        g2.addWidget(self._inp_emailperso, 1, 1)
-        g2.addWidget(_lbl("Téléphone portable"), 2, 0)
-        g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
-        g2.addWidget(self._inp_tel, 3, 0)
-        g2.addWidget(self._inp_tel2, 3, 1)
-        p3_layout.addLayout(g2)
-        p3_layout.addStretch()
-        self._nav_pages.append(p3)
-
-        # --- Page 4 : Adresse & Parents ---
+        # --- Page 3 : Adresse & Parents ---
         p4 = QWidget()
         p4_layout = QVBoxLayout(p4)
         p4_layout.setSpacing(sp)
@@ -904,6 +906,33 @@ class StudentEditDialog(QDialog):
         self._evt_table.setAlternatingRowColors(True)
         p6_layout.addWidget(self._evt_table, 1)
         self._nav_pages.append(p6)
+
+        # --- Page 7 : Confidentiel (restreint) ---
+        p7 = QWidget()
+        p7_layout = QVBoxLayout(p7)
+        p7_layout.setSpacing(sp)
+        from LarcSecretaire.common.session import UserRole
+        from LarcSecretaire.common.session import session as _ses
+
+        if _ses.role in (UserRole.ADMIN, UserRole.COORD, UserRole.SECR):
+            conf_label = QLabel("Notes confidentielles")
+            conf_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
+            p7_layout.addWidget(conf_label)
+            conf_info = QLabel("Réservé aux coordinateurs, directeurs et secrétaires.\nInformations sensibles ne devant pas être diffusées.")
+            conf_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft}; padding-bottom: {sp}px;")
+            conf_info.setWordWrap(True)
+            p7_layout.addWidget(conf_info)
+            from larccommon.widgets import FilePanel
+
+            self._conf_file_panel = FilePanel()
+            p7_layout.addWidget(self._conf_file_panel, 1)
+        else:
+            deny = QLabel("Accès restreint aux coordinateurs, directeurs et secrétaires.")
+            deny.setStyleSheet(f"font-size: {s(15)}px; color: {p.text_disabled}; padding: 40px;")
+            deny.setAlignment(Qt.AlignCenter)
+            deny.setWordWrap(True)
+            p7_layout.addWidget(deny)
+        self._nav_pages.append(p7)
 
         # Construire la sidebar + stack
         self._nav_stack = QStackedWidget()
@@ -1080,6 +1109,15 @@ class StudentEditDialog(QDialog):
             else:
                 self._notes_panel.clear()
         self._refresh_files()
+
+        # Initialiser les dossiers de fichiers
+        base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "students", str(self._sid))
+        dossiers_dir = os.path.join(base_dir, "dossiers")
+        os.makedirs(dossiers_dir, exist_ok=True)
+        conf_dir = os.path.join(base_dir, "confidentiel")
+        os.makedirs(conf_dir, exist_ok=True)
+        if hasattr(self, "_conf_file_panel"):
+            self._conf_file_panel.set_directory(conf_dir)
 
         self._load_parents()
         self._load_events()
