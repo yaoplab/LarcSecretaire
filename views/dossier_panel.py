@@ -85,6 +85,7 @@ class _SectionPage(QWidget):
             f"font-weight: bold; padding: 4px 6px; border: none; font-size: {s(12)}px; }}"
         )
         self._table.itemSelectionChanged.connect(self._on_select)
+        self._table.cellClicked.connect(lambda r, c: self._on_select())
         self._table.horizontalHeader().sectionResized.connect(self._on_col_resize)
         TableSettings.restore(self._table, f"dossier/{self._key}")
         left_col.addWidget(self._table)
@@ -490,7 +491,7 @@ class DossierPanel(QWidget):
         btn_base = (
             f"QPushButton {{ border: none; border-radius: {d.radius_lg}px; "
             f"padding: {d.spacing * 2}px {d.spacing * 4}px; "
-            f"font-size: {s(13)}px; font-weight: bold; cursor: pointer; }}"
+            f"font-size: {s(13)}px; font-weight: bold; }}"
         )
 
         for key, label in visible_sections:
@@ -522,7 +523,7 @@ class DossierPanel(QWidget):
         btn_base = (
             f"QPushButton {{ border: none; border-radius: {theme_manager.design.radius_lg}px; "
             f"padding: {sp}px {sp * 2}px; font-size: {theme_manager.font_size(13)}px; "
-            f"font-weight: bold; cursor: pointer; }}"
+            f"font-weight: bold; }}"
         )
         for i, (k, _) in enumerate(self._stack_info):
             if k == key:

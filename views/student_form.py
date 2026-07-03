@@ -707,8 +707,7 @@ class StudentEditDialog(QDialog):
 
         nav_btn_base = (
             f"QPushButton {{ text-align: left; border: none; border-radius: {d.radius_lg}px; "
-            f"padding: {sp}px {sp * 2}px; font-size: {s(13)}px; font-weight: bold; "
-            f"cursor: pointer; }}"
+            f"padding: {sp}px {sp * 2}px; font-size: {s(13)}px; font-weight: bold; }}"
         )
         nav_btn_active = f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}"
         nav_btn_idle = f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
