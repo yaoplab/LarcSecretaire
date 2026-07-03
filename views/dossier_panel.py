@@ -7,6 +7,7 @@ Chaque entrée = un document avec ses propres fichiers joints.
 import os
 
 from larccommon.widgets import FilePanel
+from larccommon.widgets.table_settings import TableSettings
 from LarcSecretaire.common.session import UserRole, session
 from LarcSecretaire.common.theme import theme_manager
 from PySide6.QtCore import QDate, Qt
@@ -84,6 +85,8 @@ class _SectionPage(QWidget):
             f"font-weight: bold; padding: 4px 6px; border: none; font-size: {s(12)}px; }}"
         )
         self._table.itemSelectionChanged.connect(self._on_select)
+        self._table.horizontalHeader().sectionResized.connect(self._on_col_resize)
+        TableSettings.restore(self._table, f"dossier/{self._key}")
         left_col.addWidget(self._table)
 
         top.addLayout(left_col, 5)
@@ -228,6 +231,9 @@ class _SectionPage(QWidget):
     def _on_file_selected(self, item):
         """Met à jour le label d'aperçu avec le nom du fichier."""
         self._preview_label.setText(f"Fichier : {item.text()}\nDouble-clic pour ouvrir")
+
+    def _on_col_resize(self):
+        TableSettings.save(self._table, f"dossier/{self._key}")
 
     def _on_preview_file(self, item):
         """Ouvre le fichier dans le viewer."""
