@@ -294,7 +294,9 @@ class DossierPanel(QWidget):
             visible_sections.append(("confidentielle", "Confidentiel"))
 
         btn_base = (
-            f"QPushButton {{ border: none; border-radius: {d.radius_lg}px; padding: 6px 16px; font-size: {s(12)}px; font-weight: bold; cursor: pointer; }}"
+            f"QPushButton {{ border: none; border-radius: {d.radius_lg}px; "
+            f"padding: {d.spacing * 2}px {d.spacing * 4}px; "
+            f"font-size: {s(13)}px; font-weight: bold; cursor: pointer; }}"
         )
 
         for key, label in visible_sections:
@@ -322,9 +324,10 @@ class DossierPanel(QWidget):
 
     def _select(self, key: str):
         p = theme_manager.palette
+        sp = theme_manager.design.spacing * 2
         btn_base = (
             f"QPushButton {{ border: none; border-radius: {theme_manager.design.radius_lg}px; "
-            f"padding: 6px 16px; font-size: {theme_manager.font_size(12)}px; "
+            f"padding: {sp}px {sp * 2}px; font-size: {theme_manager.font_size(13)}px; "
             f"font-weight: bold; cursor: pointer; }}"
         )
         for i, (k, _) in enumerate(self._stack_info):
