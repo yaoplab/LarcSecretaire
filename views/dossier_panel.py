@@ -7,7 +7,6 @@ Chaque entrée = un document avec ses propres fichiers joints.
 import os
 
 from larccommon.widgets.table_settings import TableSettings
-from LarcSecretaire.common.session import UserRole, session
 from LarcSecretaire.common.theme import theme_manager
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
@@ -351,12 +350,6 @@ class _SectionPage(QWidget):
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px; color: {theme_manager.palette.text_soft};")
             self._preview_layout.addWidget(lbl)
-        if not self._base_dir:
-            return ""
-        no = self._current_entry.get("no", 0) if self._current_entry else 0
-        d = os.path.join(self._base_dir, str(no))
-        os.makedirs(d, exist_ok=True)
-        return d
 
     def _refresh_table(self):
         self._table.blockSignals(True)
@@ -430,14 +423,6 @@ class _SectionPage(QWidget):
     def _on_col_resize(self):
         TableSettings.save(self._table, f"dossier/{self._key}")
 
-    def _on_preview_file(self, item):
-        """Ouvre le fichier dans le viewer."""
-        path = os.path.join(self._entry_dir(), item.text())
-        from larccommon.widgets import FileViewer
-
-        dlg = FileViewer(path, self)
-        dlg.exec()
-
     def _delete_entry(self):
         rows = self._table.selectionModel().selectedRows()
         if not rows:
@@ -488,10 +473,7 @@ class DossierPanel(QWidget):
         self._btns: list[QPushButton] = []
         self._stack_info: list[tuple] = []
 
-        role = session.role
         visible_sections = list(SECTIONS)
-        if role in (UserRole.ADMIN, UserRole.COORD, UserRole.SECR):
-            visible_sections.append(("confidentielle", "Confidentiel"))
 
         btn_base = (
             f"QPushButton {{ border: none; border-radius: {d.radius_lg}px; "

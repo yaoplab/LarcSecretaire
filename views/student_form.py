@@ -675,9 +675,6 @@ class StudentEditDialog(QDialog):
         self._inp_pays = QLineEdit("Togo")
         self._inp_pays.setStyleSheet(field_style)
 
-        # Sidebar + QStackedWidget
-        self._nav_index = 0
-        # Sidebar + QStackedWidget
         # Sidebar verticale + QStackedWidget (remplace les onglets)
         nav_row = QHBoxLayout()
         nav_row.setSpacing(sp)
@@ -765,7 +762,6 @@ class StudentEditDialog(QDialog):
         addr_title = QLabel("Adresse")
         addr_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         addr_card_layout.addWidget(addr_title)
-        self._inp_addr1.setFixedHeight(144)
         addr_card_layout.addWidget(self._inp_addr1)
         addr_card_layout.addWidget(self._inp_addr2)
         addr_grid = QGridLayout()
@@ -907,12 +903,13 @@ class StudentEditDialog(QDialog):
     def _on_nav(self, index: int):
         self._nav_stack.setCurrentIndex(index)
         p = theme_manager.palette
+        sp = theme_manager.design.spacing * 2
         for i, btn in enumerate(self._nav_btns):
             if i == index:
                 btn.setStyleSheet(
                     f"QPushButton {{ text-align: left; border: none; "
                     f"border-radius: {theme_manager.design.radius_lg}px; "
-                    f"padding: {13}px {26}px; "
+                    f"padding: {sp}px {sp * 2}px; "
                     f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; "
                     f"background: {p.primary}; color: {p.on_primary}; }}"
                 )
@@ -920,7 +917,7 @@ class StudentEditDialog(QDialog):
                 btn.setStyleSheet(
                     f"QPushButton {{ text-align: left; border: none; "
                     f"border-radius: {theme_manager.design.radius_lg}px; "
-                    f"padding: {13}px {26}px; "
+                    f"padding: {sp}px {sp * 2}px; "
                     f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; "
                     f"background: transparent; color: {p.text_strong}; }}"
                     f"QPushButton:hover {{ background: {p.surface_variant}; }}"
