@@ -150,6 +150,19 @@ class _SectionPage(QWidget):
         self._doc.textChanged.connect(self._save_current)
         right_col.addWidget(self._doc, 1)
 
+        save_row = QHBoxLayout()
+        save_row.addStretch()
+        save_btn = QPushButton("✓ Enregistrer")
+        save_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
+            f"border-radius: {d.radius_lg}px; padding: {d.spacing}px {d.spacing * 4}px; "
+            f"font-size: {s(13)}px; font-weight: bold; }}"
+            f"QPushButton:hover {{ background: {p.success}; }}"
+        )
+        save_btn.clicked.connect(self._save_and_refresh)
+        save_row.addWidget(save_btn)
+        right_col.addLayout(save_row)
+
         top.addLayout(right_col, 8)
 
         layout.addLayout(top, 5)
@@ -375,12 +388,9 @@ class _SectionPage(QWidget):
             self._doc.setPlainText(self._current_entry.get("doc", ""))
             self._refresh_files()
 
-    def _save_current(self):
-        if self._current_entry is None:
-            return
-        self._current_entry["date"] = self._date.date().toString("yyyy-MM-dd") if self._date.date().isValid() else ""
-        self._current_entry["titre"] = self._title.text()
-        self._current_entry["doc"] = self._doc.toPlainText()
+    def _save_and_refresh(self):
+        self._save_current()
+        self._refresh_table()
         self._refresh_files()
 
     def _add_entry(self):
