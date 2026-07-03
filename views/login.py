@@ -7,7 +7,7 @@ from LarcSecretaire.common.audit import audit
 from LarcSecretaire.common.auth import AuthManager
 from LarcSecretaire.common.database import db
 from LarcSecretaire.common.logger import log
-from LarcSecretaire.common.network import detect_network
+from LarcSecretaire.common.network import NetworkMode, detect_network
 from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
 from LarcSecretaire.common.sqlite_init import sqlite_init
 from LarcSecretaire.common.theme import theme_manager
@@ -406,25 +406,24 @@ class LoginWindow(QWidget):
 
     # ---- Network ----
     def _apply_tab_visibility(self):
-        intra_ok, internet_ok = self._net_status
+        mode = self._net_status
         p = theme_manager.palette
 
         if self._tabs_forced:
             self._tabs.setTabVisible(0, True)
             self._tabs.setTabVisible(1, True)
             self._err_label.setText("")
-            intra_color = p.success if intra_ok else p.text_soft
-            cloud_color = p.primary if internet_ok else p.text_soft
+            intra_color = p.success if mode == NetworkMode.INTRANET else p.text_soft
+            cloud_color = p.primary if mode != NetworkMode.OFFLINE else p.text_soft
             self._net_label.setText(
                 f"<span style='color:{intra_color}'>Intranet ●</span>"
-                f"   "
-                f"<span style='color:{cloud_color}'>Cloud ●</span>"
+                f"   <span style='color:{cloud_color}'>Cloud ●</span>"
             )
             self._net_label.setTextFormat(Qt.RichText)
             self._net_label.setStyleSheet("font-weight: bold; font-size: 13px;")
             return
 
-        if intra_ok and internet_ok:
+        if mode == NetworkMode.INTRANET:
             self._tabs.setTabVisible(0, True)
             self._tabs.setTabVisible(1, False)
             self._tabs.setCurrentIndex(0)
@@ -434,7 +433,7 @@ class LoginWindow(QWidget):
                 f"color: {p.success}; font-weight: bold; font-size: 13px;"
             )
 
-        elif internet_ok and not intra_ok:
+        elif mode == NetworkMode.INTERNET:
             self._tabs.setTabVisible(0, False)
             self._tabs.setTabVisible(1, True)
             self._tabs.setCurrentIndex(1)
@@ -442,16 +441,6 @@ class LoginWindow(QWidget):
             self._net_label.setText("Cloud ●")
             self._net_label.setStyleSheet(
                 f"color: {p.primary}; font-weight: bold; font-size: 13px;"
-            )
-
-        elif intra_ok and not internet_ok:
-            self._tabs.setTabVisible(0, True)
-            self._tabs.setTabVisible(1, False)
-            self._tabs.setCurrentIndex(0)
-            self._err_label.setText("")
-            self._net_label.setText("Intranet ●")
-            self._net_label.setStyleSheet(
-                f"color: {p.success}; font-weight: bold; font-size: 13px;"
             )
 
         else:
