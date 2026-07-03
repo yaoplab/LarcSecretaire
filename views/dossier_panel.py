@@ -47,6 +47,7 @@ class _SectionPage(QWidget):
         self._sid = student_id
         self._entries: list[dict] = []
         self._current_entry: dict | None = None
+        self._base_dir = ""
         self._build()
 
     def _build(self):
@@ -175,10 +176,14 @@ class _SectionPage(QWidget):
         layout.addLayout(bottom, 8)
 
     def set_directory(self, base_dir: str):
-        """Appelé quand le dossier racine change. Le répertoire par entrée sera défini au clic."""
+        """Appelé quand le dossier racine change."""
         self._base_dir = base_dir
+        if self._current_entry:
+            self._file_panel.set_directory(self._entry_dir())
 
     def _entry_dir(self) -> str:
+        if not self._base_dir:
+            return ""
         no = self._current_entry.get("no", 0) if self._current_entry else 0
         d = os.path.join(self._base_dir, str(no))
         os.makedirs(d, exist_ok=True)
