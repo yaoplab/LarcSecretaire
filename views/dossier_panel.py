@@ -214,6 +214,15 @@ class _SectionPage(QWidget):
         )
         del_f.clicked.connect(self._delete_file)
         file_btns.addWidget(del_f)
+        save_f = QPushButton("✓")
+        save_f.setFixedSize(22, 22)
+        save_f.setStyleSheet(
+            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
+            f"border-radius: 11px; font-size: {s(11)}px; font-weight: bold; }}"
+            f"QPushButton:hover {{ background: {p.success}; }}"
+        )
+        save_f.clicked.connect(self._refresh_files)
+        file_btns.addWidget(save_f)
         file_btns.addStretch()
         file_layout.addLayout(file_btns)
         bottom.addWidget(file_widget, 5)
@@ -372,6 +381,7 @@ class _SectionPage(QWidget):
         self._current_entry["date"] = self._date.date().toString("yyyy-MM-dd") if self._date.date().isValid() else ""
         self._current_entry["titre"] = self._title.text()
         self._current_entry["doc"] = self._doc.toPlainText()
+        self._refresh_files()
 
     def _add_entry(self):
         from datetime import date
