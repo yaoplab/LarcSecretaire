@@ -70,7 +70,8 @@ class _SectionPage(QWidget):
         self._table.setColumnCount(3)
         self._table.setHorizontalHeaderLabels(["Date", "Titre", "Description"])
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self._table.setColumnWidth(1, 120)
         self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -85,8 +86,23 @@ class _SectionPage(QWidget):
         self._table.itemSelectionChanged.connect(self._on_select)
         left_col.addWidget(self._table)
 
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(6)
+        top.addLayout(left_col, 5)
+
+        # --- Colonne droite : Édition ---
+        right_col = QVBoxLayout()
+        right_col.setSpacing(sp)
+
+        title_row = QHBoxLayout()
+        title_row.setSpacing(6)
+        self._title = QLineEdit()
+        self._title.setPlaceholderText("Titre")
+        self._title.setStyleSheet(
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
+            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
+        self._title.textChanged.connect(self._save_current)
+        title_row.addWidget(self._title, 1)
         add_btn = QPushButton("+")
         add_btn.setFixedSize(24, 24)
         add_btn.setStyleSheet(
@@ -95,7 +111,7 @@ class _SectionPage(QWidget):
             f"QPushButton:hover {{ background: {p.active}; }}"
         )
         add_btn.clicked.connect(self._add_entry)
-        btn_row.addWidget(add_btn)
+        title_row.addWidget(add_btn)
         del_btn = QPushButton("−")
         del_btn.setFixedSize(24, 24)
         del_btn.setStyleSheet(
@@ -105,25 +121,8 @@ class _SectionPage(QWidget):
             f"QPushButton:hover {{ background: {p.error_container}; }}"
         )
         del_btn.clicked.connect(self._delete_entry)
-        btn_row.addWidget(del_btn)
-        btn_row.addStretch()
-        left_col.addLayout(btn_row)
-
-        top.addLayout(left_col, 5)
-
-        # --- Colonne droite : Édition ---
-        right_col = QVBoxLayout()
-        right_col.setSpacing(sp)
-
-        self._title = QLineEdit()
-        self._title.setPlaceholderText("Titre")
-        self._title.setStyleSheet(
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
-            f"background: {p.surface}; color: {p.text_strong};"
-        )
-        self._title.textChanged.connect(self._save_current)
-        right_col.addWidget(self._title)
+        title_row.addWidget(del_btn)
+        right_col.addLayout(title_row)
 
         self._date = QDateEdit()
         self._date.setDisplayFormat("yyyy-MM-dd")
