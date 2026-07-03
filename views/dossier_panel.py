@@ -205,6 +205,7 @@ class _SectionPage(QWidget):
             self._table.selectRow(0)
 
     def _on_select(self):
+        self._save_current()
         rows = self._table.selectionModel().selectedRows()
         if not rows:
             return
