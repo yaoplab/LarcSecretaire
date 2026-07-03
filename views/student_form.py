@@ -888,7 +888,7 @@ class StudentEditDialog(QDialog):
         p2_layout.setContentsMargins(0, 0, 0, 0)
         from LarcSecretaire.views.dossier_panel import DossierPanel
 
-        self._dossier_panel = DossierPanel()
+        self._dossier_panel = DossierPanel(self._sid)
         p2_layout.addWidget(self._dossier_panel, 1)
         self._nav_pages.append(p2)
 
