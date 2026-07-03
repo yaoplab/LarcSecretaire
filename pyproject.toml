@@ -20,15 +20,15 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 120
+line-length = 160
 target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
-ignore = ["E741"]
+ignore = ["E741", "E701", "E702"]
 
 [tool.black]
-line-length = 120
+line-length = 160
 target-version = ["py310"]
 
 [tool.pytest.ini_options]

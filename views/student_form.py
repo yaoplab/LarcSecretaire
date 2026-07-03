@@ -12,40 +12,60 @@ Dépendances :
   - LarcSecretaire.common.session   (session)
 """
 
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QFrame, QGridLayout, QMessageBox,
-    QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView,
-    QComboBox, QDialog, QTextEdit,
-    QListWidget, QSizePolicy, QCheckBox, QTabWidget,
-    QFileDialog, QDateEdit, QDialogButtonBox, QInputDialog,
-)
-from PySide6.QtCore import Qt, QEvent, QDate
-from PySide6.QtGui import (
-    QPixmap, QPainter, QColor, QFont, QTextCursor, QTextDocument,
-)
-from PySide6.QtPrintSupport import QPrinter
-
-import os
 import json
+import os
 
+from LarcSecretaire.common.audit import audit
 from LarcSecretaire.common.database import db
+from LarcSecretaire.common.logger import log
+from LarcSecretaire.common.photos import get_photo_path
 from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
-from LarcSecretaire.common.logger import log
-from LarcSecretaire.common.audit import audit
 from LarcSecretaire.views.notes_panel import NotesPanel
-from LarcSecretaire.views.supervisor_panel import _event_icon, _event_color, _event_label
-from LarcSecretaire.common.photos import get_photo_path
+from LarcSecretaire.views.supervisor_panel import _event_color, _event_label
+from PySide6.QtCore import QDate, QEvent, Qt
+from PySide6.QtGui import (
+    QColor,
+    QPainter,
+    QPixmap,
+    QTextDocument,
+)
+from PySide6.QtPrintSupport import QPrinter
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDateEdit,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 # ──────────────────────────────────────────────
 #   Classe utilitaire : cercle avatar initiales
 # ──────────────────────────────────────────────
 
+
 def _make_avatar(last_name: str, first_name: str, size: int = 120) -> QPixmap:
     """Génère un avatar rond avec les initiales."""
-    initials = (last_name[:1] + first_name[:1]).upper() or '?'
-    colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+    initials = (last_name[:1] + first_name[:1]).upper() or "?"
+    colors = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6", "#1abc9c"]
     bg = colors[hash(last_name + first_name) % len(colors)]
     px = QPixmap(size, size)
     px.fill(Qt.transparent)
@@ -54,7 +74,7 @@ def _make_avatar(last_name: str, first_name: str, size: int = 120) -> QPixmap:
     p.setBrush(QColor(bg))
     p.setPen(Qt.NoPen)
     p.drawEllipse(0, 0, size, size)
-    p.setPen(QColor('#fff'))
+    p.setPen(QColor("#fff"))
     f = p.font()
     f.setPixelSize(size // 3)
     f.setBold(True)
@@ -67,6 +87,7 @@ def _make_avatar(last_name: str, first_name: str, size: int = 120) -> QPixmap:
 # ──────────────────────────────────────────────
 #   StudentForm — widget principal
 # ──────────────────────────────────────────────
+
 
 class StudentForm(QWidget):
     """
@@ -81,8 +102,8 @@ class StudentForm(QWidget):
         super().__init__()
         # Données internes
         self._current_student: dict | None = None  # Élève actuellement affiché
-        self._results: list[dict] = []            # Résultats de recherche
-        self._dirty: bool = False                 # Modifications non sauvegardées
+        self._results: list[dict] = []  # Résultats de recherche
+        self._dirty: bool = False  # Modifications non sauvegardées
 
         # UI
         self._init_ui()
@@ -110,7 +131,8 @@ class StudentForm(QWidget):
         self._add_student_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; font-size: {s(20)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}")
+            f"QPushButton:hover {{ background: {p.success}; }}"
+        )
         self._add_student_btn.clicked.connect(self._open_create_dialog)
         title_row.addWidget(self._add_student_btn)
         layout.addLayout(title_row)
@@ -121,7 +143,8 @@ class StudentForm(QWidget):
         self._search_input.setPlaceholderText("Rechercher par nom, prénom, email, ID ou classe...")
         self._search_input.setStyleSheet(
             f"padding: {d.label_pad_v}px {d.btn_sm_pad_v}px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
+            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         self._search_input.returnPressed.connect(self._on_search)
         search_row.addWidget(self._search_input, 1)
 
@@ -129,7 +152,8 @@ class StudentForm(QWidget):
         self._search_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-weight: bold; font-size: {s(10)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}")
+            f"QPushButton:hover {{ background: {p.active}; }}"
+        )
         self._search_btn.clicked.connect(self._on_search)
         search_row.addWidget(self._search_btn)
         layout.addLayout(search_row)
@@ -141,15 +165,12 @@ class StudentForm(QWidget):
         # ── Panneau résultats (gauche) ──
         self._results_panel = QFrame()
         self._results_panel.setObjectName("panel")
-        self._results_panel.setStyleSheet(
-            f"QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; }}")
+        self._results_panel.setStyleSheet(f"QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: {d.radius}px; }}")
         rp_layout = QVBoxLayout(self._results_panel)
         rp_layout.setContentsMargins(d.radius, d.radius, d.radius, d.radius)
 
         self._results_label = QLabel("Résultats (0)")
-        self._results_label.setStyleSheet(
-            f"font-weight: bold; font-size: {s(10)}px; color: {p.text_soft}; padding: {d.radius}px;")
+        self._results_label.setStyleSheet(f"font-weight: bold; font-size: {s(10)}px; color: {p.text_soft}; padding: {d.radius}px;")
         rp_layout.addWidget(self._results_label)
 
         # Tableau des résultats
@@ -168,9 +189,7 @@ class StudentForm(QWidget):
         # ── Panneau détail (droite) — vignette info ──
         self._detail_panel = QFrame()
         self._detail_panel.setObjectName("panel")
-        self._detail_panel.setStyleSheet(
-            f"QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; }}")
+        self._detail_panel.setStyleSheet(f"QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: {d.radius}px; }}")
         dp_layout = QVBoxLayout(self._detail_panel)
         dp_layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
         dp_layout.setSpacing(d.spacing + 2)
@@ -178,28 +197,24 @@ class StudentForm(QWidget):
 
         self._detail_photo = QLabel()
         self._detail_photo.setFixedSize(160, 160)
-        self._detail_photo.setStyleSheet(
-            f"background: {p.primary_container}; border-radius: {d.radius_xl + 2}px;")
+        self._detail_photo.setStyleSheet(f"background: {p.primary_container}; border-radius: {d.radius_xl + 2}px;")
         self._detail_photo.setAlignment(Qt.AlignCenter)
         self._detail_photo.setCursor(Qt.PointingHandCursor)
         self._detail_photo.installEventFilter(self)
         dp_layout.addWidget(self._detail_photo, 0, Qt.AlignCenter)
 
         self._detail_nom_label = QLabel("—")
-        self._detail_nom_label.setStyleSheet(
-            f"font-size: {s(18)}px; font-weight: bold; color: {p.text_strong};")
+        self._detail_nom_label.setStyleSheet(f"font-size: {s(18)}px; font-weight: bold; color: {p.text_strong};")
         self._detail_nom_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_nom_label, 0, Qt.AlignCenter)
 
         self._detail_classe_label = QLabel("")
-        self._detail_classe_label.setStyleSheet(
-            f"font-size: {s(13)}px; color: {p.text_soft};")
+        self._detail_classe_label.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
         self._detail_classe_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_classe_label)
 
         self._detail_id_label = QLabel("")
-        self._detail_id_label.setStyleSheet(
-            f"font-size: {s(13)}px; color: {p.text_soft};")
+        self._detail_id_label.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
         self._detail_id_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_id_label)
 
@@ -209,7 +224,8 @@ class StudentForm(QWidget):
         self._open_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius_lg}px; padding: {d.btn_pad_v + 5}px {d.btn_pad_h + 5}px; font-size: {s(14)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}")
+            f"QPushButton:hover {{ background: {p.active}; }}"
+        )
         self._open_btn.clicked.connect(self._open_edit_dialog)
         self._open_btn.setMinimumWidth(144)
         dp_layout.addWidget(self._open_btn, 0, Qt.AlignCenter)
@@ -232,8 +248,7 @@ class StudentForm(QWidget):
         """
         query = self._search_input.text().strip()
         if not query:
-            QMessageBox.information(self, "Recherche",
-                "Tapez un nom, prénom, email ou classe dans la barre de recherche.")
+            QMessageBox.information(self, "Recherche", "Tapez un nom, prénom, email ou classe dans la barre de recherche.")
             return
         self.search(query)
 
@@ -249,11 +264,13 @@ class StudentForm(QWidget):
             return
 
         from psycopg2 import errors as pg_errors
+
         try:
             cur = conn.cursor()
             like = f"%{query}%"
             try:
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT
                         s.aecuser_ptr_id AS id,
                         aec.last_name, aec.first_name,
@@ -275,9 +292,17 @@ class StudentForm(QWidget):
                         OR aec.email ILIKE %s OR c.label ILIKE %s)
                     ORDER BY aec.last_name, aec.first_name
                     LIMIT 200
-                """, (like, like, like, like,))
+                """,
+                    (
+                        like,
+                        like,
+                        like,
+                        like,
+                    ),
+                )
             except pg_errors.UndefinedColumn:
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT
                         s.aecuser_ptr_id AS id,
                         aec.last_name, aec.first_name,
@@ -299,7 +324,14 @@ class StudentForm(QWidget):
                         OR aec.email ILIKE %s OR c.label ILIKE %s)
                     ORDER BY aec.last_name, aec.first_name
                     LIMIT 200
-                """, (like, like, like, like,))
+                """,
+                    (
+                        like,
+                        like,
+                        like,
+                        like,
+                    ),
+                )
 
             cols = [desc[0] for desc in cur.description]
             self._results = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -316,9 +348,9 @@ class StudentForm(QWidget):
             row = self._results_table.rowCount()
             self._results_table.insertRow(row)
             self._results_table.setItem(row, 0, QTableWidgetItem(f"{r['last_name']} {r['first_name']}"))
-            self._results_table.setItem(row, 1, QTableWidgetItem(r.get('classroom', '')))
-            self._results_table.setItem(row, 2, QTableWidgetItem(r.get('email', '')))
-            self._results_table.setItem(row, 3, QTableWidgetItem(str(r['id'])))
+            self._results_table.setItem(row, 1, QTableWidgetItem(r.get("classroom", "")))
+            self._results_table.setItem(row, 2, QTableWidgetItem(r.get("email", "")))
+            self._results_table.setItem(row, 3, QTableWidgetItem(str(r["id"])))
 
         self._results_table.resizeColumnsToContents()
         count = len(self._results)
@@ -326,8 +358,7 @@ class StudentForm(QWidget):
 
         if count == 0:
             self._detail_panel.hide()
-            QMessageBox.information(self, "Recherche",
-                "Aucun élève trouvé. Vérifiez l'orthographe ou essayez un autre terme.")
+            QMessageBox.information(self, "Recherche", "Aucun élève trouvé. Vérifiez l'orthographe ou essayez un autre terme.")
         elif count == 1:
             # Sélection automatique si un seul résultat
             self._results_table.selectRow(0)
@@ -346,15 +377,17 @@ class StudentForm(QWidget):
         """Ouvre la popup d'édition pour un élève."""
         data = None
         if not force_refresh:
-            data = next((r for r in self._results if r['id'] == student_id), None)
+            data = next((r for r in self._results if r["id"] == student_id), None)
         conn = db.server_conn
         if not conn:
             return
         from psycopg2 import errors as pg_errors
+
         try:
             cur = conn.cursor()
             try:
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT
                         s.aecuser_ptr_id AS id,
                         aec.last_name, aec.first_name, aec.email,
@@ -371,9 +404,12 @@ class StudentForm(QWidget):
                     JOIN larcauth_classroom c ON c.id = s.s_classroom_id
                     LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
                     WHERE s.aecuser_ptr_id = %s
-                """, (student_id,))
+                """,
+                    (student_id,),
+                )
             except pg_errors.UndefinedColumn:
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT
                         s.aecuser_ptr_id AS id,
                         aec.last_name, aec.first_name, aec.email,
@@ -390,7 +426,9 @@ class StudentForm(QWidget):
                     JOIN larcauth_classroom c ON c.id = s.s_classroom_id
                     LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
                     WHERE s.aecuser_ptr_id = %s
-                """, (student_id,))
+                """,
+                    (student_id,),
+                )
             cols = [desc[0] for desc in cur.description]
             row = cur.fetchone()
             if not row:
@@ -406,10 +444,10 @@ class StudentForm(QWidget):
 
     def _update_info_card(self, data: dict):
         """Met à jour la vignette info."""
-        sid = data['id']
+        sid = data["id"]
         px = QPixmap(get_photo_path(sid))
         if px.isNull():
-            px = _make_avatar(data['last_name'], data['first_name'], 160)
+            px = _make_avatar(data["last_name"], data["first_name"], 160)
         else:
             px = px.scaled(160, 160, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self._detail_photo.setPixmap(px)
@@ -424,7 +462,7 @@ class StudentForm(QWidget):
         dlg = StudentEditDialog(self._current_student, self)
         if dlg.exec():
             self.search(self._search_input.text().strip())
-            self._open_student_dialog(self._current_student['id'], force_refresh=True)
+            self._open_student_dialog(self._current_student["id"], force_refresh=True)
 
     def _open_create_dialog(self):
         dlg = StudentCreateDialog(self)
@@ -441,15 +479,17 @@ class StudentForm(QWidget):
 #   StudentEditDialog — Modification d'un élève (popup)
 # ──────────────────────────────────────────────
 
+
 class StudentEditDialog(QDialog):
     """Popup d'édition d'élève — grand formulaire comme la création."""
 
     def __init__(self, data: dict, parent=None):
         super().__init__(parent)
-        self._sid = data['id']
+        self._sid = data["id"]
         self._data = self._fetch_fresh_data() or data
         self.setWindowTitle(f"Modifier — {self._data.get('last_name', '?')} {self._data.get('first_name', '?')}")
         self.setMinimumSize(987, 610)
+        self.showMaximized()
         self._init_ui()
         self._load_data()
 
@@ -459,7 +499,8 @@ class StudentEditDialog(QDialog):
             return None
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT
                     s.aecuser_ptr_id AS id,
                     aec.last_name, aec.first_name, aec.email,
@@ -476,7 +517,9 @@ class StudentEditDialog(QDialog):
                 JOIN larcauth_classroom c ON c.id = s.s_classroom_id
                 LEFT JOIN foyer f ON f.id = aec.fk_foyer_id
                 WHERE s.aecuser_ptr_id = %s
-            """, (self._sid,))
+            """,
+                (self._sid,),
+            )
             row = cur.fetchone()
             if not row:
                 return None
@@ -490,18 +533,22 @@ class StudentEditDialog(QDialog):
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
-        fs = 10
+        fs = 13
+        sp = 13
+
         layout = QVBoxLayout(self)
-        layout.setSpacing(d.spacing + 2)
+        layout.setSpacing(sp)
         layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
 
         title = QLabel("Modifier l'élève")
-        title.setStyleSheet(f"font-size: {s(15)}px; font-weight: bold; color: {p.text_strong};")
+        title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         layout.addWidget(title)
 
         field_style = (
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
+            f"border-radius: {d.radius}px; font-size: {s(fs)}px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
         label_style = f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold; padding: {d.label_pad_v}px {d.label_pad_h}px;"
 
         def _lbl(t):
@@ -510,34 +557,37 @@ class StudentEditDialog(QDialog):
             lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
             return lbl
 
-        # Photo + identité + boutons (toujours visibles)
+        # Photo + identité + boutons
         photo_row = QHBoxLayout()
+        photo_row.setSpacing(sp)
         self._photo = QLabel()
-        self._photo.setFixedSize(120, 120)
+        self._photo.setFixedSize(144, 144)
         self._photo.setStyleSheet(f"background: {p.primary_container}; border-radius: {d.radius_xl}px;")
         self._photo.setAlignment(Qt.AlignCenter)
         photo_row.addWidget(self._photo)
 
         id_col = QVBoxLayout()
+        id_col.setSpacing(sp // 2)
         self._id_name = QLabel("")
-        self._id_name.setStyleSheet(f"font-size: {s(17)}px; font-weight: bold; color: {p.text_strong};")
+        self._id_name.setStyleSheet(f"font-size: {s(34)}px; font-weight: bold; color: {p.text_strong};")
         id_col.addWidget(self._id_name)
         self._id_info = QLabel("")
-        self._id_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
+        self._id_info.setStyleSheet(f"font-size: {s(21)}px; color: {p.text_soft};")
         id_col.addWidget(self._id_info)
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
 
-        # Boutons d'action verticaux à droite
+        # Boutons d'action
         btn_col = QVBoxLayout()
-        btn_col.setSpacing(d.spacing)
+        btn_col.setSpacing(sp)
 
         save_btn = QPushButton("Enregistrer")
         save_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h}px; "
             f"font-size: {s(fs)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}")
+            f"QPushButton:hover {{ background: {p.success}; }}"
+        )
         save_btn.clicked.connect(self._save)
         save_btn.setMinimumWidth(89)
         btn_col.addWidget(save_btn)
@@ -547,7 +597,8 @@ class StudentEditDialog(QDialog):
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; "
             f"font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}")
+            f"QPushButton:hover {{ background: {p.active}; }}"
+        )
         pdf_btn.clicked.connect(self._export_pdf)
         pdf_btn.setMinimumWidth(89)
         btn_col.addWidget(pdf_btn)
@@ -557,7 +608,8 @@ class StudentEditDialog(QDialog):
             f"QPushButton {{ background: {p.tertiary}; color: {p.on_tertiary}; border: none; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; "
             f"font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.primary_container}; }}")
+            f"QPushButton:hover {{ background: {p.primary_container}; }}"
+        )
         word_btn.clicked.connect(self._export_word)
         word_btn.setMinimumWidth(89)
         btn_col.addWidget(word_btn)
@@ -567,7 +619,8 @@ class StudentEditDialog(QDialog):
             f"QPushButton {{ background: transparent; color: {p.text_soft}; "
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}")
+            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+        )
         cancel_btn.clicked.connect(self.reject)
         cancel_btn.setMinimumWidth(89)
         btn_col.addWidget(cancel_btn)
@@ -576,14 +629,21 @@ class StudentEditDialog(QDialog):
         photo_row.addLayout(btn_col)
 
         layout.addLayout(photo_row)
+        layout.addSpacing(sp)
 
-        # Champs (créés avant les onglets)
-        self._inp_nom = QLineEdit(); self._inp_nom.setStyleSheet(field_style)
-        self._inp_prenom = QLineEdit(); self._inp_prenom.setStyleSheet(field_style)
-        self._inp_email = QLineEdit(); self._inp_email.setStyleSheet(field_style)
-        self._inp_emailperso = QLineEdit(); self._inp_emailperso.setStyleSheet(field_style)
-        self._inp_tel = QLineEdit(); self._inp_tel.setStyleSheet(field_style)
-        self._inp_tel2 = QLineEdit(); self._inp_tel2.setStyleSheet(field_style)
+        # Champs
+        self._inp_nom = QLineEdit()
+        self._inp_nom.setStyleSheet(field_style)
+        self._inp_prenom = QLineEdit()
+        self._inp_prenom.setStyleSheet(field_style)
+        self._inp_email = QLineEdit()
+        self._inp_email.setStyleSheet(field_style)
+        self._inp_emailperso = QLineEdit()
+        self._inp_emailperso.setStyleSheet(field_style)
+        self._inp_tel = QLineEdit()
+        self._inp_tel.setStyleSheet(field_style)
+        self._inp_tel2 = QLineEdit()
+        self._inp_tel2.setStyleSheet(field_style)
         self._inp_date_joined = QDateEdit()
         self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
         self._inp_date_joined.setCalendarPopup(True)
@@ -597,7 +657,7 @@ class StudentEditDialog(QDialog):
         self._inp_date.setDate(QDate())
         self._inp_date.setStyleSheet(field_style)
         self._inp_genre = QComboBox()
-        self._inp_genre.setStyleSheet(field_style + f" min-width: 180px;")
+        self._inp_genre.setStyleSheet(field_style + " min-width: 180px;")
         self._load_genders()
         self._inp_birthdate = QDateEdit()
         self._inp_birthdate.setDisplayFormat("yyyy-MM-dd")
@@ -606,184 +666,218 @@ class StudentEditDialog(QDialog):
         self._inp_birthdate.setDate(QDate())
         self._inp_birthdate.setStyleSheet(field_style)
         self._inp_addr1 = QTextEdit()
-        self._inp_addr1.setStyleSheet(field_style.replace("QLineEdit", "QTextEdit"))
-        self._inp_addr1.setFixedHeight(89)
+        addr_field_style = field_style.replace("QLineEdit", "QTextEdit")
+        self._inp_addr1.setStyleSheet(addr_field_style)
+        self._inp_addr1.setFixedHeight(144)
         self._inp_addr1.setPlaceholderText("Rue, quartier, BP, ...")
-        self._inp_addr2 = QLineEdit(); self._inp_addr2.setStyleSheet(field_style)
-        self._inp_cp = QLineEdit(); self._inp_cp.setStyleSheet(field_style)
-        self._inp_ville = QLineEdit(); self._inp_ville.setStyleSheet(field_style)
-        self._inp_pays = QLineEdit("Togo"); self._inp_pays.setStyleSheet(field_style)
+        self._inp_addr2 = QLineEdit()
+        self._inp_addr2.setStyleSheet(field_style)
+        self._inp_cp = QLineEdit()
+        self._inp_cp.setStyleSheet(field_style)
+        self._inp_ville = QLineEdit()
+        self._inp_ville.setStyleSheet(field_style)
+        self._inp_pays = QLineEdit("Togo")
+        self._inp_pays.setStyleSheet(field_style)
 
         # Onglets
         tabs = QTabWidget()
         tabs.setDocumentMode(True)
+        tabs.setStyleSheet(f"QTabWidget::pane {{ padding: {sp}px; }}")
 
-        # --- Tab 1 : Identité ---
+        # --- Tab 1 : Notes (le plus important) ---
         tab1 = QWidget()
         tab1_layout = QVBoxLayout(tab1)
-        tab1_layout.setSpacing(d.spacing)
-        g1 = QGridLayout()
-        g1.setSpacing(d.spacing)
-        g1.addWidget(_lbl("Nom *"), 0, 0); g1.addWidget(_lbl("Prénom *"), 0, 1)
-        g1.addWidget(self._inp_nom, 1, 0); g1.addWidget(self._inp_prenom, 1, 1)
-        g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
-        g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
-        g1.addWidget(_lbl("Date d'entrée"), 4, 0); g1.addWidget(_lbl("Genre"), 4, 1)
-        g1.addWidget(self._inp_date, 5, 0); g1.addWidget(self._inp_genre, 5, 1)
-        g1.addWidget(_lbl("Date de naissance"), 6, 0)
-        g1.addWidget(self._inp_birthdate, 7, 0)
-        tab1_layout.addLayout(g1)
-        tab1_layout.addStretch()
-        tabs.addTab(tab1, "Identité")
+        tab1_layout.setContentsMargins(0, 0, 0, 0)
+        self._notes_panel = NotesPanel()
+        tab1_layout.addWidget(self._notes_panel, 1)
+        tabs.addTab(tab1, "📝 Notes")
 
-        # --- Tab 2 : Contact ---
+        # --- Tab 2 : Identité ---
         tab2 = QWidget()
         tab2_layout = QVBoxLayout(tab2)
-        tab2_layout.setSpacing(d.spacing)
-        g2 = QGridLayout()
-        g2.setSpacing(d.spacing)
-        g2.addWidget(_lbl("Email"), 0, 0); g2.addWidget(_lbl("Email personnel"), 0, 1)
-        g2.addWidget(self._inp_email, 1, 0); g2.addWidget(self._inp_emailperso, 1, 1)
-        g2.addWidget(_lbl("Téléphone portable"), 2, 0); g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
-        g2.addWidget(self._inp_tel, 3, 0); g2.addWidget(self._inp_tel2, 3, 1)
-        tab2_layout.addLayout(g2)
+        tab2_layout.setSpacing(sp)
+        g1 = QGridLayout()
+        g1.setSpacing(sp)
+        g1.addWidget(_lbl("Nom *"), 0, 0)
+        g1.addWidget(_lbl("Prénom *"), 0, 1)
+        g1.addWidget(self._inp_nom, 1, 0)
+        g1.addWidget(self._inp_prenom, 1, 1)
+        g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
+        g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
+        g1.addWidget(_lbl("Date d'entrée"), 4, 0)
+        g1.addWidget(_lbl("Genre"), 4, 1)
+        g1.addWidget(self._inp_date, 5, 0)
+        g1.addWidget(self._inp_genre, 5, 1)
+        g1.addWidget(_lbl("Date de naissance"), 6, 0)
+        g1.addWidget(self._inp_birthdate, 7, 0)
+        tab2_layout.addLayout(g1)
         tab2_layout.addStretch()
-        tabs.addTab(tab2, "Contact")
+        tabs.addTab(tab2, "👤 Identité")
 
-        # --- Tab 3 : Adresse & Parents ---
+        # --- Tab 3 : Contact ---
         tab3 = QWidget()
         tab3_layout = QVBoxLayout(tab3)
-        tab3_layout.setSpacing(d.spacing)
-        addr_scroll = QScrollArea()
-        addr_scroll.setWidgetResizable(True)
-        addr_scroll.setFrameShape(QFrame.NoFrame)
-        addr_inner = QWidget()
-        addr_inner_layout = QVBoxLayout(addr_inner)
-        addr_inner_layout.setSpacing(d.spacing)
-        addr_inner_layout.addWidget(_lbl("Adresse de l'élève"))
-        addr_inner_layout.addWidget(self._inp_addr1)
-        addr_inner_layout.addWidget(_lbl("Complément d'adresse"))
-        addr_inner_layout.addWidget(self._inp_addr2)
-        g3 = QGridLayout()
-        g3.setSpacing(d.spacing)
-        g3.addWidget(_lbl("Code postal"), 0, 0); g3.addWidget(_lbl("Ville"), 0, 1)
-        g3.addWidget(self._inp_cp, 1, 0); g3.addWidget(self._inp_ville, 1, 1)
-        g3.addWidget(_lbl("Pays"), 2, 0)
-        g3.addWidget(self._inp_pays, 3, 0, 1, 2)
-        addr_inner_layout.addLayout(g3)
+        tab3_layout.setSpacing(sp)
+        g2 = QGridLayout()
+        g2.setSpacing(sp)
+        g2.addWidget(_lbl("Email"), 0, 0)
+        g2.addWidget(_lbl("Email personnel"), 0, 1)
+        g2.addWidget(self._inp_email, 1, 0)
+        g2.addWidget(self._inp_emailperso, 1, 1)
+        g2.addWidget(_lbl("Téléphone portable"), 2, 0)
+        g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
+        g2.addWidget(self._inp_tel, 3, 0)
+        g2.addWidget(self._inp_tel2, 3, 1)
+        tab3_layout.addLayout(g2)
+        tab3_layout.addStretch()
+        tabs.addTab(tab3, "📞 Contact")
 
-        parents_title = QLabel("Parents / tuteurs")
-        parents_title.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_strong}; font-weight: bold; margin-top: 8px;")
-        addr_inner_layout.addWidget(parents_title)
+        # --- Tab 4 : Adresse & Parents ---
+        tab4 = QWidget()
+        tab4_layout = QVBoxLayout(tab4)
+        tab4_layout.setSpacing(sp)
+
+        # Carte adresse — comme une vraie lettre
+        addr_card = QFrame()
+        addr_card.setStyleSheet(f"QFrame {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; padding: {sp}px; }}")
+        addr_card_layout = QVBoxLayout(addr_card)
+        addr_card_layout.setSpacing(d.spacing)
+
+        addr_title = QLabel("📍 Adresse")
+        addr_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
+        addr_card_layout.addWidget(addr_title)
+
+        self._inp_addr1.setFixedHeight(144)
+        addr_card_layout.addWidget(self._inp_addr1)
+        addr_card_layout.addWidget(self._inp_addr2)
+
+        addr_grid = QGridLayout()
+        addr_grid.setSpacing(d.spacing)
+        addr_grid.addWidget(_lbl("Code postal"), 0, 0)
+        addr_grid.addWidget(_lbl("Ville"), 0, 1)
+        addr_grid.addWidget(self._inp_cp, 1, 0)
+        addr_grid.addWidget(self._inp_ville, 1, 1)
+        addr_grid.addWidget(_lbl("Pays"), 2, 0)
+        addr_grid.addWidget(self._inp_pays, 3, 0, 1, 2)
+        addr_card_layout.addLayout(addr_grid)
+        tab4_layout.addWidget(addr_card)
+
+        # Parents
+        parents_title = QLabel("👪 Parents / tuteurs")
+        parents_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong}; margin-top: {sp}px;")
+        tab4_layout.addWidget(parents_title)
+
         self._parents_table = QTableWidget()
         self._parents_table.setColumnCount(4)
         self._parents_table.setHorizontalHeaderLabels(["Nom", "Nature", "Email", "Téléphone"])
         self._parents_table.horizontalHeader().setStretchLastSection(True)
         self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._parents_table.setMaximumHeight(89)
+        self._parents_table.setMaximumHeight(144)
         self._parents_table.setStyleSheet(
-            f"QTableWidget {{ border: 1px solid {p.border}; gridline-color: {p.border_light}; "
-            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong}; }}"
-            f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
-            f"font-weight: bold; padding: 2px; border: none; }}")
-        addr_inner_layout.addWidget(self._parents_table)
+            f"QTableWidget {{ border: 1px solid {p.border}; "
+            f"gridline-color: {p.border_light}; font-size: {s(fs)}px; "
+            f"background: {p.surface}; color: {p.text_strong}; }}"
+            f"QHeaderView::section {{ background: {p.surface_variant}; "
+            f"color: {p.text_strong}; font-weight: bold; padding: 2px; border: none; }}"
+        )
+        tab4_layout.addWidget(self._parents_table)
 
         parent_tools = QHBoxLayout()
         parent_tools.setSpacing(d.spacing)
+
+        def _btn_style(bg, fg, hover_bg=None):
+            hbg = hover_bg or bg
+            return (
+                f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
+                f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; "
+                f"font-size: {s(fs)}px; }}"
+                f"QPushButton:hover {{ background: {hbg}; }}"
+            )
+
         add_par_btn = QPushButton("+ Ajouter un parent")
-        add_par_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}")
+        add_par_btn.setStyleSheet(_btn_style(p.button_success, "white", p.success))
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
+
         edit_par_btn = QPushButton("✎ Nature")
-        edit_par_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}")
+        edit_par_btn.setStyleSheet(_btn_style(p.primary, p.on_primary, p.active))
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
+
         remove_par_btn = QPushButton("− Retirer")
         remove_par_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
             f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}")
+            f"padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.error_container}; }}"
+        )
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
-        parent_tools.addStretch()
+
         copy_btn = QPushButton("Copier l'adresse")
-        copy_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.primary}; }}")
+        copy_btn.setStyleSheet(_btn_style(p.primary_container, p.on_primary, p.primary))
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
-        addr_inner_layout.addLayout(parent_tools)
-        addr_inner_layout.addStretch()
-        addr_scroll.setWidget(addr_inner)
-        tab3_layout.addWidget(addr_scroll, 1)
-        tabs.addTab(tab3, "Adresse & Parents")
 
-        # --- Tab 4 : Notes structurées (JSON) ---
-        tab4 = QWidget()
-        tab4_layout = QVBoxLayout(tab4)
-        tab4_layout.setContentsMargins(0, 0, 0, 0)
-        self._notes_panel = NotesPanel()
-        tab4_layout.addWidget(self._notes_panel, 1)
-        tabs.addTab(tab4, "Notes")
+        parent_tools.addStretch()
+        tab4_layout.addLayout(parent_tools)
+        tab4_layout.addStretch()
+        tabs.addTab(tab4, "🏠 Adresse & Parents")
 
         # --- Tab 5 : Fichiers ---
         tab5 = QWidget()
         tab5_layout = QVBoxLayout(tab5)
-        tab5_layout.setSpacing(d.spacing)
-        files_label = QLabel("Fichiers joints :")
-        files_label.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold;")
+        tab5_layout.setSpacing(sp)
+        files_label = QLabel("📎 Fichiers joints")
+        files_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         tab5_layout.addWidget(files_label)
         self._file_list = QListWidget()
         self._file_list.setStyleSheet(
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         self._file_list.setMaximumHeight(233)
         self._file_list.itemDoubleClicked.connect(self._open_file)
         tab5_layout.addWidget(self._file_list)
+
         file_btn_row = QHBoxLayout()
+        file_btn_row.setSpacing(d.spacing)
+
         self._btn_add_file = QPushButton("Ajouter un fichier")
-        self._btn_add_file.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}")
+        self._btn_add_file.setStyleSheet(_btn_style(p.primary, p.on_primary, p.active))
         self._btn_add_file.clicked.connect(self._add_file)
         file_btn_row.addWidget(self._btn_add_file)
+
         self._btn_open_folder = QPushButton("Ouvrir le dossier")
         self._btn_open_folder.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; "
-            f"font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}")
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+        )
         self._btn_open_folder.clicked.connect(self._open_folder)
         file_btn_row.addWidget(self._btn_open_folder)
+
         self._btn_del_file = QPushButton("Supprimer")
         self._btn_del_file.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
-            f"border: 1px solid {p.error}; border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; "
-            f"font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}")
+            f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
+            f"padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
+            f"QPushButton:hover {{ background: {p.error_container}; }}"
+        )
         self._btn_del_file.clicked.connect(self._delete_file)
         file_btn_row.addWidget(self._btn_del_file)
         file_btn_row.addStretch()
         tab5_layout.addLayout(file_btn_row)
         tab5_layout.addStretch()
-        tabs.addTab(tab5, "Fichiers")
+        tabs.addTab(tab5, "📁 Fichiers")
 
-        # --- Tab 6 : Événements (lecture seule) ---
+        # --- Tab 6 : Événements ---
         tab6 = QWidget()
         tab6_layout = QVBoxLayout(tab6)
-        tab6_layout.setSpacing(d.spacing)
-        evt_label = QLabel("Événements (consultation seule)")
-        evt_label.setStyleSheet(f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong};")
+        tab6_layout.setSpacing(sp)
+        evt_label = QLabel("📋 Événements (consultation seule)")
+        evt_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         tab6_layout.addWidget(evt_label)
         self._evt_table = QTableWidget()
         self._evt_table.setColumnCount(5)
@@ -811,12 +905,15 @@ class StudentEditDialog(QDialog):
             return None
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT l.fk_language_id
                 FROM larcauth_classroom c
                 JOIN larcauth_level l ON l.id = c.fk_level_id
                 WHERE c.id = %s
-            """, (classroom_id,))
+            """,
+                (classroom_id,),
+            )
             row = cur.fetchone()
             return row[0] if row else None
         except Exception as e:
@@ -851,12 +948,12 @@ class StudentEditDialog(QDialog):
     def _load_data(self):
         """Pré-remplit le formulaire avec les données existantes."""
         d = self._data
-        sid = d['id']
+        sid = d["id"]
 
         # Photo
         px = QPixmap(get_photo_path(sid))
         if px.isNull():
-            px = _make_avatar(d['last_name'], d['first_name'], 120)
+            px = _make_avatar(d["last_name"], d["first_name"], 120)
         else:
             px = px.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self._photo.setPixmap(px)
@@ -866,30 +963,30 @@ class StudentEditDialog(QDialog):
         self._id_info.setText(f"ID : {sid}  |  Classe : {d.get('classroom', '—')}")
 
         # Champs
-        self._inp_nom.setText(d.get('last_name', ''))
-        self._inp_prenom.setText(d.get('first_name', ''))
-        self._inp_email.setText(d.get('email', ''))
-        self._inp_emailperso.setText(d.get('emailperso', '') or '')
-        self._inp_tel.setText(d.get('tel_smartphone_1', '') or '')
-        self._inp_tel2.setText(d.get('tel_maison', '') or '')
-        raw_joined = d.get('date_joined', '')
+        self._inp_nom.setText(d.get("last_name", ""))
+        self._inp_prenom.setText(d.get("first_name", ""))
+        self._inp_email.setText(d.get("email", ""))
+        self._inp_emailperso.setText(d.get("emailperso", "") or "")
+        self._inp_tel.setText(d.get("tel_smartphone_1", "") or "")
+        self._inp_tel2.setText(d.get("tel_maison", "") or "")
+        raw_joined = d.get("date_joined", "")
         if raw_joined:
             self._inp_date_joined.setDate(QDate.fromString(str(raw_joined), "yyyy-MM-dd"))
         else:
             self._inp_date_joined.setDate(QDate())
-        raw_date = d.get('date_entree', '')
+        raw_date = d.get("date_entree", "")
         if raw_date:
             self._inp_date.setDate(QDate.fromString(str(raw_date), "yyyy-MM-dd"))
         else:
             self._inp_date.setDate(QDate())
-        raw_birth = d.get('date_of_birth', '')
+        raw_birth = d.get("date_of_birth", "")
         if raw_birth:
             self._inp_birthdate.setDate(QDate.fromString(str(raw_birth), "yyyy-MM-dd"))
         else:
             self._inp_birthdate.setDate(QDate())
         # Recharger les genres selon la langue de la classe
-        classroom_id = d.get('s_classroom_id')
-        current_gid = d.get('fk_gender_id')
+        classroom_id = d.get("s_classroom_id")
+        current_gid = d.get("fk_gender_id")
         if classroom_id:
             lang_id = self._get_class_language(classroom_id)
             self._load_genders(lang_id, include_gid=current_gid)
@@ -897,17 +994,17 @@ class StudentEditDialog(QDialog):
         idx = self._inp_genre.findData(gid)
         if idx >= 0:
             self._inp_genre.setCurrentIndex(idx)
-        self._inp_addr1.setPlainText(d.get('address_line1', '') or '')
-        self._inp_addr2.setText(d.get('address_line2', '') or '')
-        self._inp_cp.setText(d.get('postal_code', '') or '')
-        self._inp_ville.setText(d.get('city', '') or '')
-        self._inp_pays.setText(d.get('country', '') or 'Togo')
-        self._notes_panel.set_student_name(
-            f"{d.get('last_name', '')} {d.get('first_name', '')}".strip() or "Élève")
-        raw_notes_json = d.get('notes_json') or None
+        self._inp_addr1.setPlainText(d.get("address_line1", "") or "")
+        self._inp_addr2.setText(d.get("address_line2", "") or "")
+        self._inp_cp.setText(d.get("postal_code", "") or "")
+        self._inp_ville.setText(d.get("city", "") or "")
+        self._inp_pays.setText(d.get("country", "") or "Togo")
+        self._notes_panel.set_student_name(f"{d.get('last_name', '')} {d.get('first_name', '')}".strip() or "Élève")
+        raw_notes_json = d.get("notes_json") or None
         if raw_notes_json:
             if isinstance(raw_notes_json, str):
                 import json
+
                 try:
                     raw_notes_json = json.loads(raw_notes_json)
                 except json.JSONDecodeError:
@@ -916,16 +1013,21 @@ class StudentEditDialog(QDialog):
             self._notes_panel.set_json(raw_notes_json)
         else:
             # Fallback : importer les anciennes notes TEXT dans la section Autre
-            old_notes = d.get('notes', '') or ''
+            old_notes = d.get("notes", "") or ""
             if old_notes:
                 import json
+
                 old_data = {
                     "autre": {
                         "intro": "<p>Notes importées de l'ancien système.</p>",
                         "entries": [
-                            {"no": 1, "date": "", "titre": "Anciennes notes",
-                             "doc": old_notes[:500] + ('…' if len(old_notes) > 500 else '')}
-                        ]
+                            {
+                                "no": 1,
+                                "date": "",
+                                "titre": "Anciennes notes",
+                                "doc": old_notes[:500] + ("…" if len(old_notes) > 500 else ""),
+                            }
+                        ],
                     }
                 }
                 self._notes_panel.set_json(old_data)
@@ -943,7 +1045,8 @@ class StudentEditDialog(QDialog):
             return
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT sp.parent_id,
                        aec.last_name || ' ' || aec.first_name AS name,
                        COALESCE(sp.nature, par.nature, 'parent'),
@@ -954,16 +1057,18 @@ class StudentEditDialog(QDialog):
                 LEFT JOIN larcauth_parent par ON par.aecuser_ptr_id = aec.id
                 WHERE sp.student_id = %s
                 ORDER BY aec.last_name
-            """, (self._sid,))
+            """,
+                (self._sid,),
+            )
             rows = list(cur.fetchall())
             self._parent_ids = []
             self._parents_table.setRowCount(len(rows))
             for i, (pid, name, nat, em, tel) in enumerate(rows):
                 self._parent_ids.append(pid)
                 self._parents_table.setItem(i, 0, QTableWidgetItem(name))
-                self._parents_table.setItem(i, 1, QTableWidgetItem(nat or ''))
-                self._parents_table.setItem(i, 2, QTableWidgetItem(em or ''))
-                self._parents_table.setItem(i, 3, QTableWidgetItem(tel or ''))
+                self._parents_table.setItem(i, 1, QTableWidgetItem(nat or ""))
+                self._parents_table.setItem(i, 2, QTableWidgetItem(em or ""))
+                self._parents_table.setItem(i, 3, QTableWidgetItem(tel or ""))
             self._parents_table.resizeColumnsToContents()
             self._parents_table.selectRow(0)
         except Exception as e:
@@ -975,7 +1080,8 @@ class StudentEditDialog(QDialog):
             return
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT se.event_at, se.event_type, se.note,
                        aec.last_name || ' ' || aec.first_name AS author,
                        CASE WHEN se.validated_by IS NOT NULL THEN '✓' ELSE '—' END
@@ -983,7 +1089,9 @@ class StudentEditDialog(QDialog):
                 JOIN larcauth_aecuser aec ON aec.id = se.created_by
                 WHERE se.student_id = %s
                 ORDER BY se.event_at DESC LIMIT 100
-            """, (self._sid,))
+            """,
+                (self._sid,),
+            )
             rows = cur.fetchall()
             self._evt_table.setRowCount(len(rows))
             for i, (evt_at, etype, note, author, validated) in enumerate(rows):
@@ -991,7 +1099,7 @@ class StudentEditDialog(QDialog):
                 it = QTableWidgetItem(_event_label(etype))
                 it.setForeground(QColor(_event_color(etype)))
                 self._evt_table.setItem(i, 1, it)
-                self._evt_table.setItem(i, 2, QTableWidgetItem(note or ''))
+                self._evt_table.setItem(i, 2, QTableWidgetItem(note or ""))
                 self._evt_table.setItem(i, 3, QTableWidgetItem(author))
                 self._evt_table.setItem(i, 4, QTableWidgetItem(validated))
             self._evt_table.resizeColumnsToContents()
@@ -1006,47 +1114,60 @@ class StudentEditDialog(QDialog):
         try:
             cur = conn.cursor()
             from datetime import datetime
+
             now = datetime.now().isoformat()
 
             aec = {
-                'last_name': self._inp_nom.text().strip(),
-                'first_name': self._inp_prenom.text().strip(),
-                'email': self._inp_email.text().strip() or '',
-                'emailperso': self._inp_emailperso.text().strip() or None,
-                'tel_smartphone_1': self._inp_tel.text().strip() or None,
-                'tel_maison': self._inp_tel2.text().strip() or None,
-                'date_joined': self._inp_date_joined.date().toString("yyyy-MM-dd") if self._inp_date_joined.date().isValid() and not self._inp_date_joined.date().isNull() else None,
-                'date_entree': self._inp_date.date().toString("yyyy-MM-dd") if self._inp_date.date().isValid() and not self._inp_date.date().isNull() else None,
-                'date_of_birth': self._inp_birthdate.date().toString("yyyy-MM-dd") if self._inp_birthdate.date().isValid() and not self._inp_birthdate.date().isNull() else None,
-                'fk_gender_id': self._inp_genre.currentData() or None,
-                'updated': now,
+                "last_name": self._inp_nom.text().strip(),
+                "first_name": self._inp_prenom.text().strip(),
+                "email": self._inp_email.text().strip() or "",
+                "emailperso": self._inp_emailperso.text().strip() or None,
+                "tel_smartphone_1": self._inp_tel.text().strip() or None,
+                "tel_maison": self._inp_tel2.text().strip() or None,
+                "date_joined": (
+                    self._inp_date_joined.date().toString("yyyy-MM-dd")
+                    if self._inp_date_joined.date().isValid() and not self._inp_date_joined.date().isNull()
+                    else None
+                ),
+                "date_entree": (
+                    self._inp_date.date().toString("yyyy-MM-dd") if self._inp_date.date().isValid() and not self._inp_date.date().isNull() else None
+                ),
+                "date_of_birth": (
+                    self._inp_birthdate.date().toString("yyyy-MM-dd")
+                    if self._inp_birthdate.date().isValid() and not self._inp_birthdate.date().isNull()
+                    else None
+                ),
+                "fk_gender_id": self._inp_genre.currentData() or None,
+                "updated": now,
             }
             cur.execute(
-                "UPDATE larcauth_aecuser SET " +
-                ", ".join(f"{k}=%s" for k in aec) + " WHERE id=%s",
-                list(aec.values()) + [self._sid])
+                "UPDATE larcauth_aecuser SET " + ", ".join(f"{k}=%s" for k in aec) + " WHERE id=%s",
+                list(aec.values()) + [self._sid],
+            )
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun enregistrement trouve pour l'ID {self._sid}")
 
             addr = {
-                'address_line1': self._inp_addr1.toPlainText().strip() or None,
-                'address_line2': self._inp_addr2.text().strip() or None,
-                'postal_code': self._inp_cp.text().strip() or None,
-                'city': self._inp_ville.text().strip() or None,
-                'country': self._inp_pays.text().strip() or None,
+                "address_line1": self._inp_addr1.toPlainText().strip() or None,
+                "address_line2": self._inp_addr2.text().strip() or None,
+                "postal_code": self._inp_cp.text().strip() or None,
+                "city": self._inp_ville.text().strip() or None,
+                "country": self._inp_pays.text().strip() or None,
             }
-            fid = self._data.get('fk_foyer_id') or self._sid
+            fid = self._data.get("fk_foyer_id") or self._sid
             cols = list(addr.keys())
             vals = list(addr.values())
             cur.execute(
-                "INSERT INTO foyer (id, " + ", ".join(cols) +
-                ") VALUES (%s, " + ", ".join("%s" for _ in cols) +
-                ") ON CONFLICT (id) DO UPDATE SET " +
-                ", ".join(f"{k}=EXCLUDED.{k}" for k in cols),
-                [fid] + vals)
+                "INSERT INTO foyer (id, "
+                + ", ".join(cols)
+                + ") VALUES (%s, "
+                + ", ".join("%s" for _ in cols)
+                + ") ON CONFLICT (id) DO UPDATE SET "
+                + ", ".join(f"{k}=EXCLUDED.{k}" for k in cols),
+                [fid] + vals,
+            )
             notes_json = json.dumps(self._notes_panel.get_json())
-            cur.execute("UPDATE larcauth_student SET notes_json = %s WHERE aecuser_ptr_id = %s",
-                        (notes_json, self._sid))
+            cur.execute("UPDATE larcauth_student SET notes_json = %s WHERE aecuser_ptr_id = %s", (notes_json, self._sid))
             if cur.rowcount == 0:
                 raise ValueError(f"Aucun etudiant trouve pour l'ID {self._sid}")
 
@@ -1054,8 +1175,8 @@ class StudentEditDialog(QDialog):
             cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
             changes = []
             for k in aec:
-                old_v = str(self._data.get(k, ''))
-                new_v = str(aec[k] or '')
+                old_v = str(self._data.get(k, ""))
+                new_v = str(aec[k] or "")
                 if old_v != new_v:
                     changes.append(k)
             if changes:
@@ -1078,7 +1199,7 @@ class StudentEditDialog(QDialog):
     # ── Fichiers élèves ──
 
     def _student_dir(self) -> str:
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'students')
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "students")
         d = os.path.join(base, str(self._sid))
         os.makedirs(d, exist_ok=True)
         return d
@@ -1093,14 +1214,14 @@ class StudentEditDialog(QDialog):
             pass
 
     def _add_file(self):
-        paths, _ = QFileDialog.getOpenFileNames(self, "Ajouter des fichiers", "",
-                                                 "Tous les fichiers (*)")
+        paths, _ = QFileDialog.getOpenFileNames(self, "Ajouter des fichiers", "", "Tous les fichiers (*)")
         if not paths:
             return
         d = self._student_dir()
         for p in paths:
             name = os.path.basename(p)
             import shutil
+
             shutil.copy2(p, os.path.join(d, name))
         self._refresh_files()
 
@@ -1109,9 +1230,7 @@ class StudentEditDialog(QDialog):
         if not item:
             return
         name = item.text()
-        r = QMessageBox.question(self, "Confirmation",
-                                  f"Supprimer {name} ?",
-                                  QMessageBox.Yes | QMessageBox.No)
+        r = QMessageBox.question(self, "Confirmation", f"Supprimer {name} ?", QMessageBox.Yes | QMessageBox.No)
         if r != QMessageBox.Yes:
             return
         path = os.path.join(self._student_dir(), name)
@@ -1124,17 +1243,18 @@ class StudentEditDialog(QDialog):
     def _open_file(self, item):
         path = os.path.join(self._student_dir(), item.text())
         import subprocess
-        subprocess.Popen(['explorer', path])
+
+        subprocess.Popen(["explorer", path])
 
     def _open_folder(self):
         import subprocess
-        subprocess.Popen(['explorer', self._student_dir()])
+
+        subprocess.Popen(["explorer", self._student_dir()])
 
     def _copy_parent_address(self):
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Copie adresse",
-                "Sélectionnez d'abord un parent dans la liste.")
+            QMessageBox.warning(self, "Copie adresse", "Sélectionnez d'abord un parent dans la liste.")
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
@@ -1145,23 +1265,25 @@ class StudentEditDialog(QDialog):
             return
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT address_line1, address_line2, postal_code, city, country
                 FROM foyer WHERE id = %s
-            """, (pid,))
+            """,
+                (pid,),
+            )
             row = cur.fetchone()
             if row and any(row):
                 addr1, addr2, cp, ville, pays = row
-                self._inp_addr1.setPlainText(addr1 or '')
-                self._inp_addr2.setText(addr2 or '')
-                self._inp_cp.setText(cp or '')
-                self._inp_ville.setText(ville or '')
+                self._inp_addr1.setPlainText(addr1 or "")
+                self._inp_addr2.setText(addr2 or "")
+                self._inp_cp.setText(cp or "")
+                self._inp_ville.setText(ville or "")
                 if pays:
                     self._inp_pays.setText(pays)
                 log(f"Copied address from parent #{pid} to student #{self._sid}")
             else:
-                QMessageBox.information(self, "Copie adresse",
-                    "Ce parent n'a pas d'adresse enregistrée.")
+                QMessageBox.information(self, "Copie adresse", "Ce parent n'a pas d'adresse enregistrée.")
         except Exception as e:
             log(f"_copy_parent_address: {e}")
             QMessageBox.critical(self, "Erreur", str(e))
@@ -1179,13 +1301,13 @@ class StudentEditDialog(QDialog):
         search_inp = QLineEdit()
         search_inp.setPlaceholderText("Taper au moins 3 caractères...")
         search_inp.setStyleSheet(
-            f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
+            f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         layout.addWidget(search_inp)
         result_list = QListWidget()
         result_list.setStyleSheet(
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         layout.addWidget(result_list, 1)
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(dlg.accept)
@@ -1202,7 +1324,8 @@ class StudentEditDialog(QDialog):
             try:
                 cur = conn.cursor()
                 q = "%" + text.strip() + "%"
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT id, last_name, first_name, email
                     FROM larcauth_aecuser
                     WHERE type_parentutor = TRUE
@@ -1213,7 +1336,9 @@ class StudentEditDialog(QDialog):
                            SELECT parent_id FROM student_parent WHERE student_id = %s)
                     ORDER BY last_name, first_name
                     LIMIT 50
-                """, (q, q, q, self._sid))
+                """,
+                    (q, q, q, self._sid),
+                )
                 result_list.clear()
                 self._search_parents_data = []
                 for pid, ln, fn, em in cur.fetchall():
@@ -1236,10 +1361,12 @@ class StudentEditDialog(QDialog):
                 return
             try:
                 cur = conn.cursor()
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO student_parent (student_id, parent_id) VALUES (%s, %s)
                     ON CONFLICT DO NOTHING""",
-                    (self._sid, pid))
+                    (self._sid, pid),
+                )
                 log(f"Linked parent #{pid} to student #{self._sid}")
             except Exception as e:
                 log(f"_add_parent_link insert: {e}")
@@ -1255,8 +1382,7 @@ class StudentEditDialog(QDialog):
         if row >= len(self._parent_ids):
             return
         pid = self._parent_ids[row]
-        nature, ok = QInputDialog.getText(self, "Nature du lien",
-            "Nature (ex: père, mère, tuteur légal...):")
+        nature, ok = QInputDialog.getText(self, "Nature du lien", "Nature (ex: père, mère, tuteur légal...):")
         if not ok:
             return
         conn = db.server_conn
@@ -1266,7 +1392,8 @@ class StudentEditDialog(QDialog):
             cur = conn.cursor()
             cur.execute(
                 "UPDATE student_parent SET nature = %s WHERE student_id = %s AND parent_id = %s",
-                (nature.strip(), self._sid, pid))
+                (nature.strip(), self._sid, pid),
+            )
             log(f"Updated nature for parent #{pid} of student #{self._sid}: {nature.strip()}")
             self._load_parents()
         except Exception as e:
@@ -1282,9 +1409,12 @@ class StudentEditDialog(QDialog):
         if row >= len(self._parent_ids):
             return
         pid = self._parent_ids[row]
-        confirm = QMessageBox.question(self, "Confirmation",
+        confirm = QMessageBox.question(
+            self,
+            "Confirmation",
             "Retirer ce parent de l'élève ?\n(L'élève n'aura plus accès à ce parent)",
-            QMessageBox.Yes | QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+        )
         if confirm != QMessageBox.Yes:
             return
         conn = db.server_conn
@@ -1292,9 +1422,7 @@ class StudentEditDialog(QDialog):
             return
         try:
             cur = conn.cursor()
-            cur.execute(
-                "DELETE FROM student_parent WHERE student_id = %s AND parent_id = %s",
-                (self._sid, pid))
+            cur.execute("DELETE FROM student_parent WHERE student_id = %s AND parent_id = %s", (self._sid, pid))
             log(f"Removed parent #{pid} from student #{self._sid}")
             self._load_parents()
         except Exception as e:
@@ -1303,22 +1431,27 @@ class StudentEditDialog(QDialog):
 
     def _build_full_html(self) -> str:
         d = self._data
-        parts = [f"<html><head><meta charset='utf-8'></head><body>"]
+        parts = ["<html><head><meta charset='utf-8'></head><body>"]
+
         def esc(s):
             import html
-            return html.escape(str(s or ''))
+
+            return html.escape(str(s or ""))
 
         # En-tête
-        parts.append(f"<h1>{esc(d.get('last_name',''))} {esc(d.get('first_name',''))}</h1>")
+        parts.append(f"<h1>{esc(d.get('last_name', ''))} {esc(d.get('first_name', ''))}</h1>")
         parts.append("<table cellpadding='3' cellspacing='0' style='margin-bottom:12px;'>")
-        parts.append(f"<tr><td><b>ID</b></td><td>{esc(d.get('id',''))}</td>"
-                     f"<td style='padding-left:24px;'><b>Classe</b></td><td>{esc(d.get('classroom',''))}</td></tr>")
-        parts.append(f"<tr><td><b>Date naissance</b></td><td>{esc(d.get('date_of_birth',''))}</td>"
-                     f"<td style='padding-left:24px;'><b>Date entrée</b></td><td>{esc(d.get('date_entree',''))}</td></tr>")
+        parts.append(
+            f"<tr><td><b>ID</b></td><td>{esc(d.get('id', ''))}</td><td style='padding-left:24px;'><b>Classe</b></td><td>{esc(d.get('classroom', ''))}</td></tr>"
+        )
+        parts.append(
+            f"<tr><td><b>Date naissance</b></td><td>{esc(d.get('date_of_birth', ''))}</td>"
+            f"<td style='padding-left:24px;'><b>Date entrée</b></td><td>{esc(d.get('date_entree', ''))}</td></tr>"
+        )
 
         # Genre — requêter le label depuis la DB
-        gid = d.get('fk_gender_id')
-        gender_label = ''
+        gid = d.get("fk_gender_id")
+        gender_label = ""
         if gid:
             try:
                 cur = db.server_conn.cursor()
@@ -1328,38 +1461,42 @@ class StudentEditDialog(QDialog):
                     gender_label = row[0]
             except Exception:
                 pass
-        parts.append(f"<tr><td><b>Genre</b></td><td>{esc(gender_label)}</td>"
-                     f"<td style='padding-left:24px;'><b>ID Foyer</b></td><td>{esc(d.get('fk_foyer_id',''))}</td></tr>")
+        parts.append(
+            f"<tr><td><b>Genre</b></td><td>{esc(gender_label)}</td>"
+            f"<td style='padding-left:24px;'><b>ID Foyer</b></td><td>{esc(d.get('fk_foyer_id', ''))}</td></tr>"
+        )
         parts.append("</table>")
 
         # Contact
         parts.append("<h2>Contact</h2>")
         parts.append("<table cellpadding='3' cellspacing='0' style='margin-bottom:12px;'>")
-        parts.append(f"<tr><td><b>Email</b></td><td>{esc(d.get('email',''))}</td></tr>")
-        parts.append(f"<tr><td><b>Email personnel</b></td><td>{esc(d.get('emailperso',''))}</td></tr>")
-        parts.append(f"<tr><td><b>Téléphone portable</b></td><td>{esc(d.get('tel_smartphone_1',''))}</td></tr>")
-        parts.append(f"<tr><td><b>Téléphone fixe</b></td><td>{esc(d.get('tel_maison',''))}</td></tr>")
+        parts.append(f"<tr><td><b>Email</b></td><td>{esc(d.get('email', ''))}</td></tr>")
+        parts.append(f"<tr><td><b>Email personnel</b></td><td>{esc(d.get('emailperso', ''))}</td></tr>")
+        parts.append(f"<tr><td><b>Téléphone portable</b></td><td>{esc(d.get('tel_smartphone_1', ''))}</td></tr>")
+        parts.append(f"<tr><td><b>Téléphone fixe</b></td><td>{esc(d.get('tel_maison', ''))}</td></tr>")
         parts.append("</table>")
 
         # Adresse
         parts.append("<h2>Adresse</h2>")
-        parts.append(f"<p>{esc(d.get('address_line1',''))}<br>"
-                     f"{esc(d.get('address_line2',''))}<br>"
-                     f"{esc(d.get('postal_code',''))} {esc(d.get('city',''))}<br>"
-                     f"{esc(d.get('country',''))}</p>")
+        parts.append(
+            f"<p>{esc(d.get('address_line1', ''))}<br>"
+            f"{esc(d.get('address_line2', ''))}<br>"
+            f"{esc(d.get('postal_code', ''))} {esc(d.get('city', ''))}<br>"
+            f"{esc(d.get('country', ''))}</p>"
+        )
 
         # Parents
         parts.append("<h2>Parents / Tuteurs</h2>")
         if self._parents_table.rowCount() > 0:
-            parts.append("<table border='1' cellpadding='4' cellspacing='0' "
-                         "style='border-collapse:collapse;width:100%;margin-bottom:12px;'>")
+            parts.append("<table border='1' cellpadding='4' cellspacing='0' style='border-collapse:collapse;width:100%;margin-bottom:12px;'>")
             parts.append("<tr><th>Nom</th><th>Nature</th><th>Email</th><th>Téléphone</th></tr>")
             for i in range(self._parents_table.rowCount()):
+
                 def _cell(col):
                     item = self._parents_table.item(i, col)
-                    return esc(item.text()) if item and item.text() else ''
-                parts.append(f"<tr><td>{_cell(0)}</td><td>{_cell(1)}</td>"
-                             f"<td>{_cell(2)}</td><td>{_cell(3)}</td></tr>")
+                    return esc(item.text()) if item and item.text() else ""
+
+                parts.append(f"<tr><td>{_cell(0)}</td><td>{_cell(1)}</td><td>{_cell(2)}</td><td>{_cell(3)}</td></tr>")
             parts.append("</table>")
         else:
             parts.append("<p><i>Aucun parent/tuteur enregistré.</i></p>")
@@ -1367,31 +1504,35 @@ class StudentEditDialog(QDialog):
         # Notes structurées
         parts.append("<h2>Notes</h2>")
         section_labels = {
-            "confidentielle": "Confidentielle", "medicale": "Médicale",
-            "pedagogique": "Pédagogique", "administrative": "Administrative",
-            "communication": "Communication", "orientation": "Orientation",
+            "confidentielle": "Confidentielle",
+            "medicale": "Médicale",
+            "pedagogique": "Pédagogique",
+            "administrative": "Administrative",
+            "communication": "Communication",
+            "orientation": "Orientation",
             "autre": "Autre",
         }
         notes_data = self._notes_panel.get_json()
         has_notes = False
         for key, label in section_labels.items():
             sec = notes_data.get(key, {})
-            raw_intro = (sec.get('intro') or '').strip()
-            entries = sec.get('entries', [])
-            if not raw_intro and not any(e.get('titre') or e.get('doc') for e in entries):
+            raw_intro = (sec.get("intro") or "").strip()
+            entries = sec.get("entries", [])
+            if not raw_intro and not any(e.get("titre") or e.get("doc") for e in entries):
                 continue
             has_notes = True
             parts.append(f"<h3>{esc(label)}</h3>")
             if raw_intro:
                 parts.append(f"<div>{raw_intro}</div>")
             if entries:
-                parts.append("<table border='1' cellpadding='4' cellspacing='0' "
-                             "style='border-collapse:collapse;width:100%;margin-bottom:8px;'>")
+                parts.append("<table border='1' cellpadding='4' cellspacing='0' style='border-collapse:collapse;width:100%;margin-bottom:8px;'>")
                 parts.append("<tr><th>N°</th><th>Date</th><th>Titre</th><th>Document / Note</th></tr>")
                 for e in entries:
-                    if e.get('titre') or e.get('doc') or e.get('date'):
-                        parts.append(f"<tr><td>{esc(e.get('no',''))}</td><td>{esc(e.get('date',''))}</td>"
-                                     f"<td>{esc(e.get('titre',''))}</td><td>{esc(e.get('doc',''))}</td></tr>")
+                    if e.get("titre") or e.get("doc") or e.get("date"):
+                        parts.append(
+                            f"<tr><td>{esc(e.get('no', ''))}</td><td>{esc(e.get('date', ''))}</td>"
+                            f"<td>{esc(e.get('titre', ''))}</td><td>{esc(e.get('doc', ''))}</td></tr>"
+                        )
                 parts.append("</table>")
         if not has_notes:
             parts.append("<p><i>Aucune note.</i></p>")
@@ -1399,15 +1540,15 @@ class StudentEditDialog(QDialog):
         # Événements
         parts.append("<h2>Événements</h2>")
         if self._evt_table.rowCount() > 0:
-            parts.append("<table border='1' cellpadding='4' cellspacing='0' "
-                         "style='border-collapse:collapse;width:100%;margin-bottom:12px;'>")
+            parts.append("<table border='1' cellpadding='4' cellspacing='0' style='border-collapse:collapse;width:100%;margin-bottom:12px;'>")
             parts.append("<tr><th>Date/Heure</th><th>Type</th><th>Note</th><th>Par</th><th>Validé</th></tr>")
             for i in range(self._evt_table.rowCount()):
+
                 def _ecell(col):
                     item = self._evt_table.item(i, col)
-                    return esc(item.text()) if item and item.text() else ''
-                parts.append(f"<tr><td>{_ecell(0)}</td><td>{_ecell(1)}</td>"
-                             f"<td>{_ecell(2)}</td><td>{_ecell(3)}</td><td>{_ecell(4)}</td></tr>")
+                    return esc(item.text()) if item and item.text() else ""
+
+                parts.append(f"<tr><td>{_ecell(0)}</td><td>{_ecell(1)}</td><td>{_ecell(2)}</td><td>{_ecell(3)}</td><td>{_ecell(4)}</td></tr>")
             parts.append("</table>")
         else:
             parts.append("<p><i>Aucun événement.</i></p>")
@@ -1418,9 +1559,8 @@ class StudentEditDialog(QDialog):
     def _export_pdf(self):
         html = self._build_full_html()
         d = self._data
-        default_name = f"{d.get('last_name','')}_{d.get('first_name','')} — Fiche élève".strip()
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Exporter en PDF", default_name, "Fichier PDF (*.pdf)")
+        default_name = f"{d.get('last_name', '')}_{d.get('first_name', '')} — Fiche élève".strip()
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter en PDF", default_name, "Fichier PDF (*.pdf)")
         if not path:
             return
         try:
@@ -1432,8 +1572,7 @@ class StudentEditDialog(QDialog):
             printer.setPageSize(QPrinter.A4)
             doc.print_(printer)
             log(f"Export PDF #{d['id']}: {path}")
-            QMessageBox.information(self, "Export PDF",
-                f"Fiche exportée vers :\n{path}")
+            QMessageBox.information(self, "Export PDF", f"Fiche exportée vers :\n{path}")
         except Exception as e:
             log(f"Export PDF error: {e}")
             QMessageBox.critical(self, "Erreur export PDF", str(e))
@@ -1441,18 +1580,15 @@ class StudentEditDialog(QDialog):
     def _export_word(self):
         html = self._build_full_html()
         d = self._data
-        default_name = f"{d.get('last_name','')}_{d.get('first_name','')} — Fiche élève".strip()
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Exporter en Word", default_name, "Document HTML (*.html *.htm)")
+        default_name = f"{d.get('last_name', '')}_{d.get('first_name', '')} — Fiche élève".strip()
+        path, _ = QFileDialog.getSaveFileName(self, "Exporter en Word", default_name, "Document HTML (*.html *.htm)")
         if not path:
             return
         try:
-            with open(path, 'w', encoding='utf-8') as f:
+            with open(path, "w", encoding="utf-8") as f:
                 f.write(html)
             log(f"Export Word #{d['id']}: {path}")
-            QMessageBox.information(self, "Export Word",
-                f"Fiche exportée vers :\n{path}\n\n"
-                "Ouvrir dans Word pour modifier.")
+            QMessageBox.information(self, "Export Word", f"Fiche exportée vers :\n{path}\n\nOuvrir dans Word pour modifier.")
         except Exception as e:
             log(f"Export Word error: {e}")
             QMessageBox.critical(self, "Erreur export Word", str(e))
@@ -1461,6 +1597,7 @@ class StudentEditDialog(QDialog):
 # ──────────────────────────────────────────────
 #   StudentCreateDialog — Création d'un élève
 # ──────────────────────────────────────────────
+
 
 class StudentCreateDialog(QDialog):
     """
@@ -1541,7 +1678,8 @@ class StudentCreateDialog(QDialog):
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: {s(fs)}px; font-weight: bold; }}"
             f"QPushButton:hover {{ background: {p.success}; }}"
-            f"QPushButton:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}")
+            f"QPushButton:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}"
+        )
         self._create_btn.setEnabled(False)
         self._create_btn.clicked.connect(self._on_create)
         self._create_btn.setMinimumWidth(89)
@@ -1551,7 +1689,8 @@ class StudentCreateDialog(QDialog):
         self._cancel_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.text_soft}; border: 1px solid {p.border}; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}")
+            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+        )
         self._cancel_btn.clicked.connect(self.reject)
         self._cancel_btn.setMinimumWidth(89)
         btn_col.addWidget(self._cancel_btn)
@@ -1563,7 +1702,8 @@ class StudentCreateDialog(QDialog):
 
         field_style = (
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
+            f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         label_style = f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold; padding: {d.label_pad_v}px {d.label_pad_h}px;"
 
         def _lbl(t):
@@ -1573,17 +1713,23 @@ class StudentCreateDialog(QDialog):
             return lbl
 
         # Champs (créés avant les onglets)
-        self._inp_nom = QLineEdit(); self._inp_nom.setStyleSheet(field_style)
+        self._inp_nom = QLineEdit()
+        self._inp_nom.setStyleSheet(field_style)
         self._inp_nom.setPlaceholderText("Nom de famille")
-        self._inp_prenom = QLineEdit(); self._inp_prenom.setStyleSheet(field_style)
+        self._inp_prenom = QLineEdit()
+        self._inp_prenom.setStyleSheet(field_style)
         self._inp_prenom.setPlaceholderText("Prénom")
-        self._inp_email = QLineEdit(); self._inp_email.setStyleSheet(field_style)
+        self._inp_email = QLineEdit()
+        self._inp_email.setStyleSheet(field_style)
         self._inp_email.setPlaceholderText("email@ecole.org")
-        self._inp_emailperso = QLineEdit(); self._inp_emailperso.setStyleSheet(field_style)
+        self._inp_emailperso = QLineEdit()
+        self._inp_emailperso.setStyleSheet(field_style)
         self._inp_emailperso.setPlaceholderText("email.perso@exemple.com")
-        self._inp_tel = QLineEdit(); self._inp_tel.setStyleSheet(field_style)
+        self._inp_tel = QLineEdit()
+        self._inp_tel.setStyleSheet(field_style)
         self._inp_tel.setPlaceholderText("+228 XX XX XX XX")
-        self._inp_tel2 = QLineEdit(); self._inp_tel2.setStyleSheet(field_style)
+        self._inp_tel2 = QLineEdit()
+        self._inp_tel2.setStyleSheet(field_style)
         self._inp_tel2.setPlaceholderText("+228 XX XX XX XX")
         self._inp_date_joined = QDateEdit()
         self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
@@ -1597,7 +1743,8 @@ class StudentCreateDialog(QDialog):
         self._inp_date.setSpecialValueText(" ")
         self._inp_date.setDate(QDate())
         self._inp_date.setStyleSheet(field_style)
-        self._inp_genre = QComboBox(); self._inp_genre.setStyleSheet(field_style + " min-width: 180px;")
+        self._inp_genre = QComboBox()
+        self._inp_genre.setStyleSheet(field_style + " min-width: 180px;")
         self._load_genders()
         self._inp_birthdate = QDateEdit()
         self._inp_birthdate.setDisplayFormat("yyyy-MM-dd")
@@ -1609,13 +1756,17 @@ class StudentCreateDialog(QDialog):
         self._inp_addr1.setStyleSheet(field_style)
         self._inp_addr1.setFixedHeight(89)
         self._inp_addr1.setPlaceholderText("Rue, quartier, BP, ...")
-        self._inp_addr2 = QLineEdit(); self._inp_addr2.setStyleSheet(field_style)
+        self._inp_addr2 = QLineEdit()
+        self._inp_addr2.setStyleSheet(field_style)
         self._inp_addr2.setPlaceholderText("Appartement, bâtiment...")
-        self._inp_cp = QLineEdit(); self._inp_cp.setStyleSheet(field_style)
+        self._inp_cp = QLineEdit()
+        self._inp_cp.setStyleSheet(field_style)
         self._inp_cp.setPlaceholderText("75001")
-        self._inp_ville = QLineEdit(); self._inp_ville.setStyleSheet(field_style)
+        self._inp_ville = QLineEdit()
+        self._inp_ville.setStyleSheet(field_style)
         self._inp_ville.setPlaceholderText("Lomé")
-        self._inp_pays = QLineEdit("Togo"); self._inp_pays.setStyleSheet(field_style)
+        self._inp_pays = QLineEdit("Togo")
+        self._inp_pays.setStyleSheet(field_style)
 
         # Onglets (même structure que EditDialog)
         tabs = QTabWidget()
@@ -1627,12 +1778,16 @@ class StudentCreateDialog(QDialog):
         tab1_layout.setSpacing(d.spacing)
         g1 = QGridLayout()
         g1.setSpacing(d.spacing)
-        g1.addWidget(_lbl("Nom *"), 0, 0); g1.addWidget(_lbl("Prénom *"), 0, 1)
-        g1.addWidget(self._inp_nom, 1, 0); g1.addWidget(self._inp_prenom, 1, 1)
+        g1.addWidget(_lbl("Nom *"), 0, 0)
+        g1.addWidget(_lbl("Prénom *"), 0, 1)
+        g1.addWidget(self._inp_nom, 1, 0)
+        g1.addWidget(self._inp_prenom, 1, 1)
         g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
         g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
-        g1.addWidget(_lbl("Date d'entrée"), 4, 0); g1.addWidget(_lbl("Genre"), 4, 1)
-        g1.addWidget(self._inp_date, 5, 0); g1.addWidget(self._inp_genre, 5, 1)
+        g1.addWidget(_lbl("Date d'entrée"), 4, 0)
+        g1.addWidget(_lbl("Genre"), 4, 1)
+        g1.addWidget(self._inp_date, 5, 0)
+        g1.addWidget(self._inp_genre, 5, 1)
         g1.addWidget(_lbl("Date de naissance"), 6, 0)
         g1.addWidget(self._inp_birthdate, 7, 0)
         tab1_layout.addLayout(g1)
@@ -1645,10 +1800,14 @@ class StudentCreateDialog(QDialog):
         tab2_layout.setSpacing(d.spacing)
         g2 = QGridLayout()
         g2.setSpacing(d.spacing)
-        g2.addWidget(_lbl("Email"), 0, 0); g2.addWidget(_lbl("Email personnel"), 0, 1)
-        g2.addWidget(self._inp_email, 1, 0); g2.addWidget(self._inp_emailperso, 1, 1)
-        g2.addWidget(_lbl("Téléphone portable"), 2, 0); g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
-        g2.addWidget(self._inp_tel, 3, 0); g2.addWidget(self._inp_tel2, 3, 1)
+        g2.addWidget(_lbl("Email"), 0, 0)
+        g2.addWidget(_lbl("Email personnel"), 0, 1)
+        g2.addWidget(self._inp_email, 1, 0)
+        g2.addWidget(self._inp_emailperso, 1, 1)
+        g2.addWidget(_lbl("Téléphone portable"), 2, 0)
+        g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
+        g2.addWidget(self._inp_tel, 3, 0)
+        g2.addWidget(self._inp_tel2, 3, 1)
         tab2_layout.addLayout(g2)
         tab2_layout.addStretch()
         tabs.addTab(tab2, "Contact")
@@ -1672,8 +1831,10 @@ class StudentCreateDialog(QDialog):
         addr_inner_layout.addWidget(self._inp_addr2)
         g3 = QGridLayout()
         g3.setSpacing(d.spacing)
-        g3.addWidget(_lbl("Code postal"), 0, 0); g3.addWidget(_lbl("Ville"), 0, 1)
-        g3.addWidget(self._inp_cp, 1, 0); g3.addWidget(self._inp_ville, 1, 1)
+        g3.addWidget(_lbl("Code postal"), 0, 0)
+        g3.addWidget(_lbl("Ville"), 0, 1)
+        g3.addWidget(self._inp_cp, 1, 0)
+        g3.addWidget(self._inp_ville, 1, 1)
         g3.addWidget(_lbl("Pays"), 2, 0)
         g3.addWidget(self._inp_pays, 3, 0, 1, 2)
         addr_inner_layout.addLayout(g3)
@@ -1705,7 +1866,8 @@ class StudentCreateDialog(QDialog):
         add_par_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}")
+            f"QPushButton:hover {{ background: {p.success}; }}"
+        )
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
 
@@ -1713,7 +1875,8 @@ class StudentCreateDialog(QDialog):
         edit_par_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}")
+            f"QPushButton:hover {{ background: {p.active}; }}"
+        )
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
 
@@ -1722,7 +1885,8 @@ class StudentCreateDialog(QDialog):
             f"QPushButton {{ background: transparent; color: {p.error}; "
             f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
             f"padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}")
+            f"QPushButton:hover {{ background: {p.error_container}; }}"
+        )
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
 
@@ -1732,7 +1896,8 @@ class StudentCreateDialog(QDialog):
         copy_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.primary}; }}")
+            f"QPushButton:hover {{ background: {p.primary}; }}"
+        )
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
 
@@ -1750,10 +1915,12 @@ class StudentCreateDialog(QDialog):
         self._notes_panel = NotesPanel()
         tab4_layout.addWidget(self._notes_panel, 1)
         tabs.addTab(tab4, "Notes")
-        self._inp_nom.textChanged.connect(lambda: self._notes_panel.set_student_name(
-            f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève"))
-        self._inp_prenom.textChanged.connect(lambda: self._notes_panel.set_student_name(
-            f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève"))
+        self._inp_nom.textChanged.connect(
+            lambda: self._notes_panel.set_student_name(f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève")
+        )
+        self._inp_prenom.textChanged.connect(
+            lambda: self._notes_panel.set_student_name(f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève")
+        )
 
         # --- Tab 5 : Fichiers ---
         tab5 = QWidget()
@@ -1781,11 +1948,8 @@ class StudentCreateDialog(QDialog):
 
         # Infos slot
         self._slot_info = QLabel("Sélectionnez une classe")
-        self._slot_info.setStyleSheet(
-            f"font-size: {s(11)}px; color: {p.text_soft}; padding: {d.radius}px; font-style: italic;")
+        self._slot_info.setStyleSheet(f"font-size: {s(11)}px; color: {p.text_soft}; padding: {d.radius}px; font-style: italic;")
         layout.addWidget(self._slot_info)
-
-
 
     def _load_classes(self):
         conn = db.server_conn
@@ -1795,15 +1959,17 @@ class StudentCreateDialog(QDialog):
             cur = conn.cursor()
             if self._preselected_class:
                 # Mode classe connue : pas de grille, juste le label
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT c.label
                     FROM larcauth_classroom c
                     WHERE c.id = %s
-                """, (self._preselected_class,))
+                """,
+                    (self._preselected_class,),
+                )
                 row = cur.fetchone()
                 if row:
-                    self._class_info.setText(
-                        f"Nouvel élève dans la classe : {row[0]}")
+                    self._class_info.setText(f"Nouvel élève dans la classe : {row[0]}")
                 self._on_class_changed(self._preselected_class)
             else:
                 # Mode libre : grille de boutons
@@ -1822,27 +1988,27 @@ class StudentCreateDialog(QDialog):
             log(f"StudentCreateDialog._load_classes: {e}")
 
     def _build_class_buttons(self):
-        if not hasattr(self, '_class_grid_layout') or not self._class_grid:
+        if not hasattr(self, "_class_grid_layout") or not self._class_grid:
             return
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
 
         prog_style = {
-            'PEI':  (p.primary, p.primary_container, p.on_primary),
-            'MYP':  (p.secondary, p.secondary_container, p.on_secondary),
-            'DPFr': (p.error, p.error_container, p.on_error),
-            'DPEn': (p.tertiary, p.tertiary_container, p.on_tertiary),
+            "PEI": (p.primary, p.primary_container, p.on_primary),
+            "MYP": (p.secondary, p.secondary_container, p.on_secondary),
+            "DPFr": (p.error, p.error_container, p.on_error),
+            "DPEn": (p.tertiary, p.tertiary_container, p.on_tertiary),
         }
 
-        groups = {k: [] for k in ['PEI', 'MYP', 'DPEn', 'DPFr']}
+        groups = {k: [] for k in ["PEI", "MYP", "DPEn", "DPFr"]}
         for cid, label, pid, sigle in self._classes:
             if sigle in groups:
                 groups[sigle].append((cid, label))
 
         sections = [
-            ('Collège', [('PEI', 'PEI'), ('MYP', 'MYP')]),
-            ('Lycée',   [('DP', 'DPFr'), ('DPEn', 'DPEn')]),
+            ("Collège", [("PEI", "PEI"), ("MYP", "MYP")]),
+            ("Lycée", [("DP", "DPFr"), ("DPEn", "DPEn")]),
         ]
 
         # Vider le layout
@@ -1852,8 +2018,8 @@ class StudentCreateDialog(QDialog):
         for sec_name, columns in sections:
             sec_hdr = QLabel(sec_name)
             sec_hdr.setStyleSheet(
-                f"font-weight: bold; font-size: {s(11)}px; color: {p.text_strong}; "
-                f"border-bottom: 2px solid {p.outline_variant}; padding: 2px 0;")
+                f"font-weight: bold; font-size: {s(11)}px; color: {p.text_strong}; border-bottom: 2px solid {p.outline_variant}; padding: 2px 0;"
+            )
             self._class_grid_layout.addWidget(sec_hdr)
 
             grd = QGridLayout()
@@ -1866,9 +2032,7 @@ class StudentCreateDialog(QDialog):
                 items = groups[prog_key]
 
                 col_hdr = QLabel(hdr_text)
-                col_hdr.setStyleSheet(
-                    f"background: {fg}; color: {on_fg}; border-radius: {d.radius}px; "
-                    f"font-weight: bold; font-size: {s(10)}px; padding: 3px;")
+                col_hdr.setStyleSheet(f"background: {fg}; color: {on_fg}; border-radius: {d.radius}px; font-weight: bold; font-size: {s(10)}px; padding: 3px;")
                 col_hdr.setAlignment(Qt.AlignCenter)
                 col_hdr.setFixedHeight(21)
                 grd.addWidget(col_hdr, 0, col_idx)
@@ -1879,7 +2043,8 @@ class StudentCreateDialog(QDialog):
                     btn.setStyleSheet(
                         f"QPushButton {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
                         f"border-radius: {d.radius}px; font-size: {s(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}")
+                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                    )
                     btn.clicked.connect(lambda checked, c=cid: self._on_class_changed(c))
                     self._class_btns[cid] = btn
                     grd.addWidget(btn, i + 1, col_idx)
@@ -1920,22 +2085,24 @@ class StudentCreateDialog(QDialog):
                 p = theme_manager.palette
                 _, _, _, sigle = next((c for c in self._classes if c[0] == cid), (None, None, None, None))
                 prog_map = {
-                    'PEI': (p.primary, p.primary_container, p.on_primary),
-                    'MYP': (p.secondary, p.secondary_container, p.on_secondary),
-                    'DPFr': (p.error, p.error_container, p.on_error),
-                    'DPEn': (p.tertiary, p.tertiary_container, p.on_tertiary),
+                    "PEI": (p.primary, p.primary_container, p.on_primary),
+                    "MYP": (p.secondary, p.secondary_container, p.on_secondary),
+                    "DPFr": (p.error, p.error_container, p.on_error),
+                    "DPEn": (p.tertiary, p.tertiary_container, p.on_tertiary),
                 }
                 fg, bg, on_fg = prog_map.get(sigle, (p.text_strong, p.surface_variant, p.text_strong))
                 if cid == class_id:
                     btn.setStyleSheet(
                         f"QPushButton {{ background: {fg}; color: {bg}; border: 2px solid {fg}; "
                         f"border-radius: {theme_manager.design.radius}px; font-size: {theme_manager.font_size(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}")
+                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                    )
                 else:
                     btn.setStyleSheet(
                         f"QPushButton {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
                         f"border-radius: {theme_manager.design.radius}px; font-size: {theme_manager.font_size(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}")
+                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                    )
 
         # Filtrer les genres selon la langue de la classe
         lang_id = self._get_class_language(class_id)
@@ -1947,20 +2114,23 @@ class StudentCreateDialog(QDialog):
 
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT s.aecuser_ptr_id, aec.last_name, s.enabled
                 FROM larcauth_student s
                 JOIN larcauth_aecuser aec ON aec.id = s.aecuser_ptr_id
                 WHERE s.s_classroom_id = %s
                 ORDER BY s.aecuser_ptr_id
-            """, (self._class_id,))
+            """,
+                (self._class_id,),
+            )
             all_rows = list(cur.fetchall())
 
             # Prochain slot libre (01→40) : enabled=FALSE et nom placeholder
             free = None
             for rid, ln, en in all_rows:
                 slot = rid % 100
-                if 1 <= slot <= 40 and not en and ('Name of' in (ln or '')):
+                if 1 <= slot <= 40 and not en and ("Name of" in (ln or "")):
                     free = slot
                     break
 
@@ -1976,13 +2146,11 @@ class StudentCreateDialog(QDialog):
             d = theme_manager.design
             if free:
                 self._slot_info.setText(f"Slot libre : N°{free:02d} (ID = {self._class_id * 100 + free})")
-                self._slot_info.setStyleSheet(
-                    f"font-size: {s(13)}px; color: {p.success}; padding: {d.radius}px; font-weight: bold;")
+                self._slot_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.success}; padding: {d.radius}px; font-weight: bold;")
                 self._create_btn.setEnabled(True)
             else:
                 self._slot_info.setText("Aucun slot libre dans cette classe")
-                self._slot_info.setStyleSheet(
-                    f"font-size: {s(13)}px; color: {p.error}; padding: {d.radius}px;")
+                self._slot_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.error}; padding: {d.radius}px;")
                 self._create_btn.setEnabled(False)
         except Exception as e:
             log(f"StudentCreateDialog._on_class_changed: {e}")
@@ -1993,12 +2161,15 @@ class StudentCreateDialog(QDialog):
             return None
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT l.fk_language_id
                 FROM larcauth_classroom c
                 JOIN larcauth_level l ON l.id = c.fk_level_id
                 WHERE c.id = %s
-            """, (classroom_id,))
+            """,
+                (classroom_id,),
+            )
             row = cur.fetchone()
             return row[0] if row else None
         except Exception as e:
@@ -2033,7 +2204,7 @@ class StudentCreateDialog(QDialog):
     # ── Notes (formatage HTML) — supprimé, remplacé par NotesPanel JSON
 
     def _student_dir(self) -> str:
-        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'students')
+        base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "students")
         d = os.path.join(base, str(self._sid))
         os.makedirs(d, exist_ok=True)
         return d
@@ -2059,29 +2230,55 @@ class StudentCreateDialog(QDialog):
         try:
             cur = conn.cursor()
             from datetime import datetime
+
             now = datetime.now().isoformat()
-            birth_str = self._inp_birthdate.date().toString("yyyy-MM-dd") if self._inp_birthdate.date().isValid() and not self._inp_birthdate.date().isNull() else None
+            birth_str = (
+                self._inp_birthdate.date().toString("yyyy-MM-dd") if self._inp_birthdate.date().isValid() and not self._inp_birthdate.date().isNull() else None
+            )
             username = email or f"student.{nom.lower()}.{prenom.lower()}"
 
-            joined_str = self._inp_date_joined.date().toString("yyyy-MM-dd") if self._inp_date_joined.date().isValid() and not self._inp_date_joined.date().isNull() else None
-            cur.execute("""
+            joined_str = (
+                self._inp_date_joined.date().toString("yyyy-MM-dd")
+                if self._inp_date_joined.date().isValid() and not self._inp_date_joined.date().isNull()
+                else None
+            )
+            cur.execute(
+                """
                 UPDATE larcauth_aecuser SET
                     first_name = %s, last_name = %s, email = %s,
                     username = %s, is_active = TRUE, updated = %s,
                     emailperso = %s, tel_smartphone_1 = %s, tel_maison = %s,
                     date_joined = %s, date_entree = %s, date_of_birth = %s, fk_gender_id = %s
                 WHERE id = %s
-            """, (prenom, nom, email or '', username, now,
-                  emailperso, tel, tel2, joined_str, date_str, birth_str,
-                  self._inp_genre.currentData() or None, student_id))
+            """,
+                (
+                    prenom,
+                    nom,
+                    email or "",
+                    username,
+                    now,
+                    emailperso,
+                    tel,
+                    tel2,
+                    joined_str,
+                    date_str,
+                    birth_str,
+                    self._inp_genre.currentData() or None,
+                    student_id,
+                ),
+            )
 
             notes_json = json.dumps(self._notes_panel.get_json())
-            cur.execute("""
+            cur.execute(
+                """
                 UPDATE larcauth_student SET enabled = TRUE, updated_s = %s, notes_json = %s
                 WHERE aecuser_ptr_id = %s
-            """, (now, notes_json, student_id))
+            """,
+                (now, notes_json, student_id),
+            )
 
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO foyer (id, enabled, address_line1, address_line2,
                                    postal_code, city, country)
                 VALUES (%s, TRUE, %s, %s, %s, %s, %s)
@@ -2091,36 +2288,46 @@ class StudentCreateDialog(QDialog):
                     postal_code = EXCLUDED.postal_code,
                     city = EXCLUDED.city,
                     country = EXCLUDED.country
-            """, (student_id,
-                  self._inp_addr1.toPlainText().strip() or None,
-                  self._inp_addr2.text().strip() or None,
-                  self._inp_cp.text().strip() or None,
-                  self._inp_ville.text().strip() or None,
-                  self._inp_pays.text().strip() or None))
-            cur.execute("UPDATE larcauth_aecuser SET fk_foyer_id = %s WHERE id = %s",
-                       (student_id, student_id))
+            """,
+                (
+                    student_id,
+                    self._inp_addr1.toPlainText().strip() or None,
+                    self._inp_addr2.text().strip() or None,
+                    self._inp_cp.text().strip() or None,
+                    self._inp_ville.text().strip() or None,
+                    self._inp_pays.text().strip() or None,
+                ),
+            )
+            cur.execute("UPDATE larcauth_aecuser SET fk_foyer_id = %s WHERE id = %s", (student_id, student_id))
 
             cur.execute("SET LOCAL app.sync_source = 'intranet'")
             cur.execute(f"SET LOCAL app.modified_by = {session.user_id}")
             audit.create_student(student_id, f"Création {prenom} {nom}")
 
             conn.commit()
-            self._result_data = {'id': student_id, 'last_name': nom, 'first_name': prenom}
+            self._result_data = {"id": student_id, "last_name": nom, "first_name": prenom}
             self._sid = student_id
             log(f"StudentCreateDialog: activated #{student_id} (slot {slot:02d})")
 
             # Charger les parents maintenant que l'élève existe
             self._load_parents()
 
-            QMessageBox.information(self, "Succès",
-                f"Élève créé : {prenom} {nom}\n"
-                f"ID : {student_id}  |  Classe : slot N°{slot:02d}")
+            QMessageBox.information(self, "Succès", f"Élève créé : {prenom} {nom}\nID : {student_id}  |  Classe : slot N°{slot:02d}")
 
             # Réinitialiser le formulaire pour une autre saisie
-            for w in [self._inp_nom, self._inp_prenom, self._inp_email,
-                      self._inp_emailperso, self._inp_tel, self._inp_tel2,
-                      self._inp_date, self._inp_addr1, self._inp_addr2,
-                      self._inp_cp, self._inp_ville]:
+            for w in [
+                self._inp_nom,
+                self._inp_prenom,
+                self._inp_email,
+                self._inp_emailperso,
+                self._inp_tel,
+                self._inp_tel2,
+                self._inp_date,
+                self._inp_addr1,
+                self._inp_addr2,
+                self._inp_cp,
+                self._inp_ville,
+            ]:
                 w.clear()
             self._notes_panel.clear()
             self._inp_pays.setText("Togo")
@@ -2142,13 +2349,16 @@ class StudentCreateDialog(QDialog):
             return
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT aec.id, aec.last_name || ' ' || aec.first_name, sp.nature, aec.email, aec.tel_smartphone_1
                 FROM student_parent sp
                 JOIN larcauth_aecuser aec ON aec.id = sp.parent_id
                 WHERE sp.student_id = %s
                 ORDER BY aec.last_name, aec.first_name
-            """, (self._sid,))
+            """,
+                (self._sid,),
+            )
             rows = cur.fetchall()
             self._parent_ids = []
             self._parents_table.setRowCount(len(rows))
@@ -2157,8 +2367,8 @@ class StudentCreateDialog(QDialog):
                 self._parents_table.setItem(i, 0, QTableWidgetItem(name))
                 if nat:
                     self._parents_table.setItem(i, 1, QTableWidgetItem(nat))
-                self._parents_table.setItem(i, 2, QTableWidgetItem(em or ''))
-                self._parents_table.setItem(i, 3, QTableWidgetItem(tel or ''))
+                self._parents_table.setItem(i, 2, QTableWidgetItem(em or ""))
+                self._parents_table.setItem(i, 3, QTableWidgetItem(tel or ""))
             self._parents_table.resizeColumnsToContents()
             if rows:
                 self._parents_table.selectRow(0)
@@ -2182,17 +2392,20 @@ class StudentCreateDialog(QDialog):
             return
         try:
             cur = conn.cursor()
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT address_line1, address_line2, postal_code, city, country
                 FROM foyer WHERE id = %s
-            """, (pid,))
+            """,
+                (pid,),
+            )
             row = cur.fetchone()
             if row and any(row):
                 addr1, addr2, cp, ville, pays = row
-                self._inp_addr1.setPlainText(addr1 or '')
-                self._inp_addr2.setText(addr2 or '')
-                self._inp_cp.setText(cp or '')
-                self._inp_ville.setText(ville or '')
+                self._inp_addr1.setPlainText(addr1 or "")
+                self._inp_addr2.setText(addr2 or "")
+                self._inp_cp.setText(cp or "")
+                self._inp_ville.setText(ville or "")
                 if pays:
                     self._inp_pays.setText(pays)
         except Exception as e:
@@ -2205,19 +2418,21 @@ class StudentCreateDialog(QDialog):
         dlg = QDialog(self)
         dlg.setWindowTitle("Ajouter un parent")
         dlg.setMinimumSize(377, 377)
-        p = theme_manager.palette; d = theme_manager.design; s = theme_manager.font_size
+        p = theme_manager.palette
+        d = theme_manager.design
+        s = theme_manager.font_size
         dlg.setStyleSheet(f"background: {p.surface}; color: {p.text_strong};")
         layout = QVBoxLayout(dlg)
         search_inp = QLineEdit()
         search_inp.setPlaceholderText("Taper au moins 3 caractères...")
         search_inp.setStyleSheet(
-            f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
+            f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         layout.addWidget(search_inp)
         result_list = QListWidget()
         result_list.setStyleSheet(
-            f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};"
+        )
         layout.addWidget(result_list, 1)
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(dlg.accept)
@@ -2229,18 +2444,22 @@ class StudentCreateDialog(QDialog):
                 result_list.clear()
                 return
             conn = db.server_conn
-            if not conn: return
+            if not conn:
+                return
             try:
                 cur = conn.cursor()
                 q = "%" + text.strip() + "%"
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT id, last_name, first_name, email
                     FROM larcauth_aecuser
                     WHERE type_parentutor = TRUE
                       AND (LOWER(last_name) LIKE LOWER(%s) OR LOWER(first_name) LIKE LOWER(%s) OR LOWER(email) LIKE LOWER(%s))
                       AND id NOT IN (SELECT parent_id FROM student_parent WHERE student_id = %s)
                     ORDER BY last_name, first_name LIMIT 50
-                """, (q, q, q, self._sid))
+                """,
+                    (q, q, q, self._sid),
+                )
                 result_list.clear()
                 self._search_parents_data = []
                 for pid, ln, fn, em in cur.fetchall():
@@ -2254,13 +2473,18 @@ class StudentCreateDialog(QDialog):
 
         if dlg.exec() == QDialog.Accepted:
             cur_sel = result_list.currentRow()
-            if cur_sel < 0 or cur_sel >= len(self._search_parents_data): return
+            if cur_sel < 0 or cur_sel >= len(self._search_parents_data):
+                return
             pid = self._search_parents_data[cur_sel]
             conn = db.server_conn
-            if not conn: return
+            if not conn:
+                return
             try:
                 cur = conn.cursor()
-                cur.execute("INSERT INTO student_parent (student_id, parent_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (self._sid, pid))
+                cur.execute(
+                    "INSERT INTO student_parent (student_id, parent_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (self._sid, pid),
+                )
             except Exception as e:
                 log(f"_add_parent_link insert: {e}")
                 QMessageBox.critical(self, "Erreur", str(e))
@@ -2275,16 +2499,23 @@ class StudentCreateDialog(QDialog):
             QMessageBox.warning(self, "Nature", "Sélectionnez d'abord un parent.")
             return
         row = sel[0].row()
-        if row >= len(self._parent_ids): return
+        if row >= len(self._parent_ids):
+            return
         pid = self._parent_ids[row]
         from PySide6.QtWidgets import QInputDialog
+
         nature, ok = QInputDialog.getText(self, "Nature du lien", "Nature (ex: père, mère, tuteur légal...):")
-        if not ok: return
+        if not ok:
+            return
         conn = db.server_conn
-        if not conn: return
+        if not conn:
+            return
         try:
             cur = conn.cursor()
-            cur.execute("UPDATE student_parent SET nature = %s WHERE student_id = %s AND parent_id = %s", (nature.strip(), self._sid, pid))
+            cur.execute(
+                "UPDATE student_parent SET nature = %s WHERE student_id = %s AND parent_id = %s",
+                (nature.strip(), self._sid, pid),
+            )
             self._load_parents()
         except Exception as e:
             log(f"_edit_parent_nature: {e}")
@@ -2298,13 +2529,15 @@ class StudentCreateDialog(QDialog):
             QMessageBox.warning(self, "Retirer", "Sélectionnez d'abord un parent.")
             return
         row = sel[0].row()
-        if row >= len(self._parent_ids): return
+        if row >= len(self._parent_ids):
+            return
         pid = self._parent_ids[row]
-        confirm = QMessageBox.question(self, "Confirmation",
-            "Retirer ce parent de l'élève ?", QMessageBox.Yes | QMessageBox.No)
-        if confirm != QMessageBox.Yes: return
+        confirm = QMessageBox.question(self, "Confirmation", "Retirer ce parent de l'élève ?", QMessageBox.Yes | QMessageBox.No)
+        if confirm != QMessageBox.Yes:
+            return
         conn = db.server_conn
-        if not conn: return
+        if not conn:
+            return
         try:
             cur = conn.cursor()
             cur.execute("DELETE FROM student_parent WHERE student_id = %s AND parent_id = %s", (self._sid, pid))
