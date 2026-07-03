@@ -5,15 +5,15 @@ from PySide6.QtWidgets import (
     QButtonGroup, QTextEdit, QStackedWidget, QTabWidget, QCheckBox,
 )
 import os
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPixmap, QPainter
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPixmap
 
 from LarcSecretaire.common.database import db
 from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
+from larccommon.widgets import StudentCard, DEFAULT_CONFIG
 from LarcSecretaire.common.logger import log
 from LarcSecretaire.common.audit import audit
-from LarcSecretaire.common.photos import get_photo_path
 
 EVENT_TYPES = [
     ('arrival', '▲ Arrivée'), ('departure', '▼ Départ'), ('exit', '→ Sortie'),
@@ -72,108 +72,6 @@ def _event_label(event_type: str) -> str:
     return f"{_event_icon(event_type)} {event_type}"
 
 
-class StudentCard(QFrame):
-    clicked = Signal(int)
-
-    def __init__(self, student_id: int, last_name: str, first_name: str):
-        super().__init__()
-        self._sid = student_id
-        self._last_name = last_name
-        self._first_name = first_name
-        self.setFrameShape(QFrame.StyledPanel)
-        p = theme_manager.palette
-        s = theme_manager.font_size
-        d = theme_manager.design
-        self._style_idle = (
-            f"StudentCard {{ background: {p.surface}; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius_lg}px; padding: 8px; }}"
-            f"StudentCard:hover {{ background: {p.surface_variant}; border-color: {p.outline}; }}"
-        )
-        self._style_absent = (
-            f"StudentCard {{ background: {p.error_container}; border: 2px solid {p.error}; "
-            f"border-radius: {d.radius_lg}px; padding: 8px; }}"
-            f"StudentCard:hover {{ background: #FFC9C0; border-color: {p.error}; }}"
-        )
-        self.setStyleSheet(self._style_idle)
-        self.setFixedSize(160, 200)
-        self.setCursor(Qt.PointingHandCursor)
-        self._build_ui()
-
-    def _build_ui(self):
-        p = theme_manager.palette
-        s = theme_manager.font_size
-        layout = QVBoxLayout(self)
-        layout.setSpacing(4)
-        layout.setContentsMargins(6, 6, 6, 6)
-        d = theme_manager.design
-
-        self._name_label = QLabel()
-        self._name_label.setTextFormat(Qt.RichText)
-        self._name_label.setAlignment(Qt.AlignCenter)
-        self._name_label.setText(
-            f"<b style='font-size:{s(13)}px'>{self._last_name}</b><br>"
-            f"<span style='font-size:{s(12)}px; color:{p.text_soft}'>{self._first_name}</span>"
-        )
-        layout.addWidget(self._name_label)
-        layout.addStretch()
-
-        badge = QFrame()
-        badge.setFixedSize(110, 110)
-        badge.setStyleSheet(f"background: {p.primary_container}; border-radius: 12px;")
-        bl = QVBoxLayout(badge)
-        bl.setAlignment(Qt.AlignCenter)
-        bl.setContentsMargins(0, 0, 0, 0)
-        self._photo = QLabel()
-        self._photo.setFixedSize(100, 100)
-        self._photo.setAlignment(Qt.AlignCenter)
-        px = QPixmap(get_photo_path(self._sid))
-        if px.isNull():
-            px = self._make_avatar()
-        else:
-            px = px.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self._photo.setPixmap(px)
-        bl.addWidget(self._photo)
-        layout.addWidget(badge, 0, Qt.AlignCenter)
-        layout.addSpacing(10)
-
-        self._status_label = QLabel()
-        self._status_label.setAlignment(Qt.AlignCenter)
-        self._status_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold;")
-        layout.addWidget(self._status_label)
-
-    def _make_avatar(self) -> QPixmap:
-        initials = (self._last_name[:1] + self._first_name[:1]).upper() or '?'
-        colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
-        c = colors[hash(self._last_name + self._first_name) % len(colors)]
-        px = QPixmap(100, 100)
-        px.fill(Qt.transparent)
-        p = QPainter(px)
-        p.setRenderHint(QPainter.Antialiasing)
-        p.setBrush(QColor(c))
-        p.setPen(Qt.NoPen)
-        p.drawEllipse(0, 0, 100, 100)
-        p.setPen(QColor('#fff'))
-        f = p.font()
-        f.setPixelSize(36)
-        f.setBold(True)
-        p.setFont(f)
-        p.drawText(px.rect(), Qt.AlignCenter, initials)
-        p.end()
-        return px
-
-    def mousePressEvent(self, event):
-        self.clicked.emit(self._sid)
-        super().mousePressEvent(event)
-
-    def set_status(self, text: str, color: str):
-        self._status_label.setText(text)
-        self._status_label.setStyleSheet(
-            f"font-size: {theme_manager.font_size(10)}px; font-weight: bold; color: {color};")
-
-    def set_absent(self, absent: bool):
-        self.setStyleSheet(self._style_absent if absent else self._style_idle)
-
-
 class EventDialog(QDialog):
     def __init__(self, student_id: int, student_name: str, parent=None, class_id: int | None = None):
         super().__init__(parent)
@@ -186,7 +84,7 @@ class EventDialog(QDialog):
         self._selected_subject_label = ''
         self._selected_teacher_id = None
         self.setWindowTitle(f"Événement — {student_name}")
-        self.setMinimumWidth(580)
+        self.setMinimumWidth(610)
         self._init_ui()
 
     def _init_ui(self):
@@ -202,7 +100,7 @@ class EventDialog(QDialog):
         layout.addWidget(info)
 
         combo_style = (
-            f"padding: 4px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"padding: 3px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
 
         # Lieu
@@ -231,7 +129,7 @@ class EventDialog(QDialog):
         layout.addWidget(QLabel("<b>Type d'événement :</b>"))
         type_group = QButtonGroup(self)
         type_layout = QHBoxLayout()
-        type_layout.setSpacing(4)
+        type_layout.setSpacing(3)
         for value, label in EVENT_TYPES:
             rb = QRadioButton(label)
             rb.toggled.connect(lambda checked, v=value: setattr(self, '_selected_type', v) if checked else None)
@@ -242,7 +140,7 @@ class EventDialog(QDialog):
         # Note
         self._note = QTextEdit()
         self._note.setPlaceholderText("Note optionnelle (200 caractères max)")
-        self._note.setMaximumHeight(80)
+        self._note.setMaximumHeight(89)
         layout.addWidget(QLabel("<b>Note :</b>"))
         layout.addWidget(self._note)
 
@@ -345,7 +243,7 @@ class SupervisorPanel(QWidget):
 
         # Header avec titre + boutons liste / +
         hdr_row = QHBoxLayout()
-        hdr_row.setContentsMargins(0, 4, 0, 4)
+        hdr_row.setContentsMargins(0, 3, 0, 3)
         self._header = QLabel("Sélectionnez une classe dans la sidebar")
         self._header.setStyleSheet(
             f"padding: 8px; font-size: {s(13)}px; font-weight: bold; color: {p.text_strong};")
@@ -353,18 +251,18 @@ class SupervisorPanel(QWidget):
 
         hdr_row.addSpacing(8)
         self._list_btn = QPushButton("📋 Liste")
-        self._list_btn.setFixedHeight(36)
+        self._list_btn.setFixedHeight(34)
         self._list_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_primary}; color: white; border: none; "
-            f"border-radius: {d.radius}px; font-size: {s(11)}px; font-weight: bold; padding: 0 12px; }}"
+            f"border-radius: {d.radius}px; font-size: {s(11)}px; font-weight: bold; padding: 0 13px; }}"
             f"QPushButton:hover {{ background: {p.primary}; }}")
         self._list_btn.clicked.connect(self._on_class_list)
         self._list_btn.hide()
         hdr_row.addWidget(self._list_btn)
 
-        hdr_row.addSpacing(6)
+        hdr_row.addSpacing(5)
         self._add_btn = QPushButton("+")
-        self._add_btn.setFixedSize(36, 36)
+        self._add_btn.setFixedSize(34, 34)
         self._add_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; font-size: {s(20)}px; font-weight: bold; }}"
@@ -372,7 +270,7 @@ class SupervisorPanel(QWidget):
         self._add_btn.clicked.connect(self._on_add_student)
         self._add_btn.hide()
         hdr_row.addWidget(self._add_btn)
-        hdr_row.addSpacing(4)
+        hdr_row.addSpacing(3)
         layout.addLayout(hdr_row)
 
         self._stack = QStackedWidget()
@@ -383,7 +281,7 @@ class SupervisorPanel(QWidget):
         scroll.setFrameShape(QFrame.NoFrame)
         self._cards_widget = QWidget()
         self._cards_grid = QGridLayout(self._cards_widget)
-        self._cards_grid.setSpacing(6)
+        self._cards_grid.setSpacing(5)
         scroll.setWidget(self._cards_widget)
         self._stack.addWidget(scroll)
 
@@ -398,13 +296,13 @@ class SupervisorPanel(QWidget):
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        layout.setSpacing(5)
         d = theme_manager.design
 
         back = QPushButton("← Retour à la classe")
         back.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.primary}; border: none; "
-            f"font-weight: bold; font-size: {s(10)}px; padding: 2px 6px; }}"
+            f"font-weight: bold; font-size: {s(10)}px; padding: 2px 5px; }}"
             f"QPushButton:hover {{ color: {p.active}; }}")
         back.setCursor(Qt.PointingHandCursor)
         back.clicked.connect(lambda: self._stack.setCurrentIndex(0))
@@ -426,7 +324,7 @@ class SupervisorPanel(QWidget):
         # Tab 2: Événements
         evt_w = QWidget()
         evt_layout = QVBoxLayout(evt_w)
-        evt_layout.setContentsMargins(4, 4, 4, 4)
+        evt_layout.setContentsMargins(3, 3, 3, 3)
 
         self._sd_events = QTableWidget()
         self._sd_events.setColumnCount(7)
@@ -434,8 +332,8 @@ class SupervisorPanel(QWidget):
         hh_evt = self._sd_events.horizontalHeader()
         hh_evt.setSectionResizeMode(0, QHeaderView.Interactive); self._sd_events.setColumnWidth(0, 150)
         hh_evt.setSectionResizeMode(1, QHeaderView.Interactive); self._sd_events.setColumnWidth(1, 110)
-        hh_evt.setSectionResizeMode(2, QHeaderView.Interactive); self._sd_events.setColumnWidth(2, 100)
-        hh_evt.setSectionResizeMode(3, QHeaderView.Interactive); self._sd_events.setColumnWidth(3, 100)
+        hh_evt.setSectionResizeMode(2, QHeaderView.Interactive); self._sd_events.setColumnWidth(2, 89)
+        hh_evt.setSectionResizeMode(3, QHeaderView.Interactive); self._sd_events.setColumnWidth(3, 89)
         hh_evt.setSectionResizeMode(4, QHeaderView.Stretch)
         hh_evt.setSectionResizeMode(5, QHeaderView.Interactive); self._sd_events.setColumnWidth(5, 120)
         hh_evt.setSectionResizeMode(6, QHeaderView.Interactive); self._sd_events.setColumnWidth(6, 55)
@@ -445,7 +343,7 @@ class SupervisorPanel(QWidget):
         evt_layout.addWidget(self._sd_events, 1)
 
         self._sd_add_btn = QPushButton("➕ Ajouter un événement")
-        self._sd_add_btn.setMinimumHeight(40)
+        self._sd_add_btn.setMinimumHeight(34)
         self._sd_add_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; font-weight: bold; font-size: {s(12)}px; }}"
@@ -507,7 +405,8 @@ class SupervisorPanel(QWidget):
             if w:
                 w.deleteLater()
         self._cards = []
-        cols = max(1, self.width() // 175)
+        card_w = DEFAULT_CONFIG.card_w
+        cols = max(1, self.width() // (card_w + 10))
         for i, s in enumerate(self._students):
             card = StudentCard(s['id'], s['last_name'], s['first_name'])
             card.clicked.connect(self._on_student_clicked)
@@ -693,7 +592,7 @@ class ClassListDialog(QDialog):
         super().__init__(parent)
         self._class_id = class_id
         self.setWindowTitle(f"Liste — {class_label}")
-        self.setMinimumSize(500, 400)
+        self.setMinimumSize(610, 377)
         self._init_ui()
         self._load()
 
@@ -705,14 +604,14 @@ class ClassListDialog(QDialog):
         layout.setSpacing(d.spacing)
 
         hdr = QLabel(f"Liste des élèves — {self.windowTitle().replace('Liste — ', '')}")
-        hdr.setStyleSheet(f"font-size: {s(13)}px; font-weight: bold; padding: 4px 0; color: {p.text_strong};")
+        hdr.setStyleSheet(f"font-size: {s(13)}px; font-weight: bold; padding: 3px 0; color: {p.text_strong};")
         layout.addWidget(hdr)
 
         self._table = QTableWidget()
         self._table.setColumnCount(4)
         self._table.setHorizontalHeaderLabels(["", "N°", "Nom", "Prénom"])
         self._table.horizontalHeader().setStretchLastSection(True)
-        self._table.setColumnWidth(0, 30)
+        self._table.setColumnWidth(0, 34)
         self._table.setColumnWidth(1, 36)
         self._table.setColumnWidth(2, 180)
         self._table.verticalHeader().hide()
@@ -720,9 +619,9 @@ class ClassListDialog(QDialog):
         self._table.setStyleSheet(
             f"QTableWidget {{ border: 1px solid {p.border}; gridline-color: {p.border_light}; "
             f"font-size: {s(11)}px; }}"
-            f"QTableWidget::item {{ padding: 4px; }}"
+            f"QTableWidget::item {{ padding: 3px; }}"
             f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
-            f"font-weight: bold; padding: 4px; border: none; }}")
+            f"font-weight: bold; padding: 3px; border: none; }}")
         layout.addWidget(self._table)
 
         btn_row = QHBoxLayout()
@@ -756,7 +655,7 @@ class ClassListDialog(QDialog):
                 cb = QCheckBox()
                 cw = QWidget()
                 cl = QHBoxLayout(cw)
-                cl.setContentsMargins(4, 0, 0, 0)
+                cl.setContentsMargins(3, 0, 0, 0)
                 cl.addWidget(cb)
                 self._table.setCellWidget(i, 0, cw)
                 _, slot = divmod(sid, 100)

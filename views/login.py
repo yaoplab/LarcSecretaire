@@ -1,7 +1,9 @@
+import os
 from typing import Optional, Tuple
 
 import time
 
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QFormLayout,
     QTabWidget, QLabel, QLineEdit, QPushButton,
@@ -61,26 +63,27 @@ class LoginWindow(QMainWindow):
     def _style(self) -> str:
         p = theme_manager.palette
         d = theme_manager.design
+        s = theme_manager.font_size
         return f"""
             QMainWindow  {{ background: {p.background}; }}
             QWidget#root {{ background: {p.background}; }}
             QTabWidget::pane {{
                 border: 1px solid {p.border}; background: {p.surface}; border-radius: {d.radius}px;
             }}
-            QTabBar::tab          {{ padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: 11px; }}
+            QTabBar::tab          {{ padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: {s(11)}px; }}
             QTabBar::tab:selected {{
                 background: {p.surface}; border-bottom: 2px solid {p.primary};
                 color: {p.text_strong}; font-weight: bold;
             }}
             QTabBar::tab:!selected {{ background: {p.border_light}; color: {p.text_soft}; }}
             QLineEdit {{
-                padding: 7px 10px; border: 1px solid {p.border};
-                border-radius: {d.radius}px; font-size: 12px; background: {p.surface};
+                padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border};
+                border-radius: {d.radius}px; font-size: {s(12)}px; background: {p.surface};
             }}
             QLineEdit:focus {{ border-color: {p.primary}; }}
             QPushButton {{
-                padding: 9px 20px; border: none; border-radius: {d.radius}px;
-                font-size: 12px; font-weight: bold; color: white;
+                padding: {d.btn_pad_v}px {d.btn_pad_h}px; border: none; border-radius: {d.radius}px;
+                font-size: {s(12)}px; font-weight: bold; color: white;
             }}
             QPushButton#btnIntra  {{ background: {p.button_primary}; }}
             QPushButton#btnIntra:hover  {{ background: {p.primary}; }}
@@ -88,10 +91,10 @@ class LoginWindow(QMainWindow):
             QPushButton#btnGoogle {{ background: {p.button_danger}; }}
             QPushButton#btnGoogle:hover {{ background: {p.danger}; }}
             QPushButton#btnGoogle:disabled {{ background: {p.inactive}; }}
-            QLabel#errLabel {{ color: {p.danger}; font-size: 11px; }}
-            QLabel#hdrTitle {{ color: {p.text_strong}; font-size: 22px; font-weight: bold; }}
-            QLabel#hdrSub   {{ color: {p.text_soft}; font-size: 11px; }}
-            QLabel#infoLbl  {{ color: {p.text_secondary}; font-size: 11px; }}
+            QLabel#errLabel {{ color: {p.danger}; font-size: {s(11)}px; }}
+            QLabel#hdrTitle {{ color: {p.text_strong}; font-size: {s(22)}px; font-weight: bold; }}
+            QLabel#hdrSub   {{ color: {p.text_soft}; font-size: {s(11)}px; }}
+            QLabel#infoLbl  {{ color: {p.text_secondary}; font-size: {s(11)}px; }}
         """
 
     def __init__(self):
@@ -117,8 +120,8 @@ class LoginWindow(QMainWindow):
         self._network_timer.start()
 
         self.setWindowTitle("LarcSecrétariat — Connexion")
-        self.setMinimumSize(520, 480)
-        self.setMaximumSize(580, 620)
+        self.setMinimumSize(377, 377)
+        self.setMaximumSize(610, 610)
 
     def _setup_ui(self):
         self.setStyleSheet(self._style())
@@ -126,7 +129,22 @@ class LoginWindow(QMainWindow):
         central.setObjectName("root")
         self.setCentralWidget(central)
         outer = QVBoxLayout(central)
-        outer.setContentsMargins(40, 30, 40, 20)
+        outer.setContentsMargins(34, 21, 34, 13)
+
+        # Logo
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'img', 'logoAEC.png')
+        self._logo_label = QLabel()
+        if os.path.exists(logo_path):
+            pix = QPixmap(logo_path)
+            self._logo_pixmap = pix.scaledToHeight(89, Qt.SmoothTransformation)
+            self._logo_label.setPixmap(self._logo_pixmap)
+        else:
+            self._logo_pixmap = None
+            self._logo_label.setText("[Logo]")
+        self._logo_label.setAlignment(Qt.AlignCenter)
+        self._logo_label.setCursor(Qt.PointingHandCursor)
+        outer.addWidget(self._logo_label)
+        outer.addSpacing(21)
 
         # En-tête
         hdr = QLabel("LarcSecrétariat")
@@ -138,14 +156,14 @@ class LoginWindow(QMainWindow):
         sub.setObjectName("hdrSub")
         sub.setAlignment(Qt.AlignCenter)
         outer.addWidget(sub)
-        outer.addSpacing(10)
+        outer.addSpacing(8)
 
         # Indicateur réseau
         self._net_label = QLabel()
         self._net_label.setAlignment(Qt.AlignCenter)
         self._net_label.setObjectName("infoLbl")
         outer.addWidget(self._net_label)
-        outer.addSpacing(10)
+        outer.addSpacing(8)
 
         # Onglets
         tabs = QTabWidget()
@@ -189,7 +207,7 @@ class LoginWindow(QMainWindow):
 
         btn = QPushButton("Connexion Intranet")
         btn.setObjectName("btnIntra")
-        btn.setMinimumHeight(44)
+        btn.setMinimumHeight(34)
         btn.clicked.connect(self._on_intranet)
         layout.addWidget(btn)
 
@@ -210,11 +228,11 @@ class LoginWindow(QMainWindow):
         info.setObjectName("infoLbl")
         info.setAlignment(Qt.AlignCenter)
         layout.addWidget(info)
-        layout.addSpacing(10)
+        layout.addSpacing(8)
 
         btn = QPushButton("Connexion Google")
         btn.setObjectName("btnGoogle")
-        btn.setMinimumHeight(44)
+        btn.setMinimumHeight(34)
         btn.clicked.connect(self._on_cloud)
         layout.addWidget(btn)
 

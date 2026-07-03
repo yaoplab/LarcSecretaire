@@ -12,7 +12,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Tuple
 
 from .session import AuthResult, UserRole
-from .database import db, DBMode, _find_cfg
+from .database import db, DBMode
+from larccommon.config_loader import find_cfg
 from .logger import log
 
 
@@ -20,10 +21,12 @@ def _sha256_hex(s: str) -> str:
     return hashlib.sha256(s.encode('utf-8')).hexdigest()
 
 
-def _deduce_role(is_adm: bool, is_coordonator: bool, is_secretary: bool) -> UserRole:
+def _deduce_role(is_adm: bool, is_coordonator: bool, is_secretary: bool,
+                 is_sup: bool = False) -> UserRole:
     if is_adm: return UserRole.ADMIN
     if is_coordonator: return UserRole.COORD
     if is_secretary: return UserRole.SECR
+    if is_sup: return UserRole.SUPERVISEUR
     return UserRole.PROF
 
 
@@ -71,16 +74,16 @@ class AuthManager:
 
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT is_adm, is_coordonator, is_secretary "
-                    "FROM larcauth_teachadm WHERE aecuser_ptr_id = %s",
+                    "SELECT type_director, type_coordonator, type_secretary, "
+                    "type_supervisor FROM larcauth_aecuser WHERE id = %s",
                     (user_id,)
                 )
-                tadm = cur.fetchone()
+                roles = cur.fetchone()
+                if roles is None or not any(roles):
+                    return False, AuthResult(), 'Aucun rôle trouvé'
 
-            if tadm is None:
-                return False, AuthResult(), 'Aucun profil enseignant/admin trouvé'
-
-            role = _deduce_role(*tadm)
+            role = _deduce_role(is_adm=bool(roles[0]), is_coordonator=bool(roles[1]),
+                                is_secretary=bool(roles[2]), is_sup=bool(roles[3]))
 
             with conn.cursor() as cur:
                 term_id, term_label = _load_active_term(cur)
@@ -144,7 +147,7 @@ class OAuth2Manager:
     @classmethod
     def authenticate(cls) -> Tuple[bool, AuthResult, str]:
         cfg = configparser.ConfigParser()
-        cfg.read(_find_cfg())
+        cfg.read(find_cfg())
         client_id     = cfg.get('OAuth2', 'ClientID',     fallback='')
         client_secret = cfg.get('OAuth2', 'ClientSecret', fallback='')
         if not client_id:
@@ -243,15 +246,17 @@ class OAuth2Manager:
 
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT is_adm, is_coordonator, is_secretary "
-                    "FROM larcauth_teachadm WHERE aecuser_ptr_id = %s",
+                    "SELECT type_director, type_coordonator, type_secretary, "
+                    "type_supervisor FROM larcauth_aecuser WHERE id = %s",
                     (user_id,)
                 )
-                tadm = cur.fetchone()
-            if tadm is None:
-                return False, AuthResult(), 'Aucun profil enseignant/admin trouvé'
+                roles = cur.fetchone()
+                if roles is None or not any(roles):
+                    return False, AuthResult(), 'Aucun rôle trouvé'
 
-            role = _deduce_role(*tadm)
+            role = _deduce_role(is_adm=bool(roles[0]), is_coordonator=bool(roles[1]),
+                                is_secretary=bool(roles[2]), is_sup=bool(roles[3]))
+
             with conn.cursor() as cur:
                 term_id, term_label = _load_active_term(cur)
 

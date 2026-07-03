@@ -12,20 +12,7 @@ except ImportError:
 
 
 from .logger import log as _log
-
-def _find_cfg() -> str:
-    here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
-        os.path.join(here, '..', 'config.ini'),
-        os.path.join(here, '..', '..', 'eLarcProfPy', 'config.ini'),
-    ]
-    for p in candidates:
-        p = os.path.normpath(p)
-        if os.path.isfile(p):
-            return p
-    # Aucun fichier trouvé, retourner le premier candidat (qui n'existe pas)
-    _log("AVERTISSEMENT : config.ini introuvable. Utilisation des valeurs par défaut.")
-    return os.path.normpath(candidates[0])
+from larccommon.config_loader import find_cfg
 
 
 class DBMode(Enum):
@@ -41,12 +28,11 @@ class Database:
         self._cloud:    Optional[object] = None
         self._sqlite:   Optional[sqlite3.Connection] = None
         self._mode = DBMode.NONE
-        self._server_mode = DBMode.NONE  # suit la connexion serveur (indépendant de SQLite)
+        self._server_mode = DBMode.NONE
 
     def _pg_params(self, section: str) -> dict:
         cfg = configparser.ConfigParser()
-        cfg.read(_find_cfg())
-        # Pour la section IntranetDatabase, utiliser NewLarcDB comme base par défaut
+        cfg.read(find_cfg())
         default_db = 'NewLarcDB' if section == 'IntranetDatabase' else 'postgres'
         return {
             'host':             cfg.get(section, 'Host', fallback='127.0.0.1'),
@@ -126,11 +112,13 @@ class Database:
 
     @property
     def server_conn(self):
-        if self._server_mode == DBMode.INTRANET:
-            return self._intranet
-        if self._server_mode == DBMode.CLOUD:
-            return self._cloud
-        return None
+        if self._server_mode != DBMode.NONE:
+            if self._server_mode == DBMode.INTRANET:
+                return self._intranet
+            if self._server_mode == DBMode.CLOUD:
+                return self._cloud
+        from larccommon.database import db as _larc_db
+        return _larc_db.server_conn
 
     @property
     def local_conn(self) -> Optional[sqlite3.Connection]:

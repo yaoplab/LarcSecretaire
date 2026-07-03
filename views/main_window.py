@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QGridLayout, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QStackedWidget, QTabWidget, QDialog,
-    QApplication,
+    QApplication, QMenu,
 )
 from PySide6.QtCore import Qt, QTimer, QMargins, QEvent
 from PySide6.QtGui import QColor, QPainter, QFont, QBrush
@@ -14,7 +14,7 @@ from PySide6.QtCharts import (
 
 from LarcSecretaire.common.database import db
 from LarcSecretaire.common.session import session
-from LarcSecretaire.common.theme import theme_manager
+from LarcSecretaire.common.theme import theme_manager, QssHelper
 from LarcSecretaire.common.network import detect_network, NetworkMode
 from LarcSecretaire.common.logger import log
 from LarcSecretaire.common.audit import audit
@@ -32,7 +32,7 @@ class MainWindow(QWidget):
         self._stats: dict = {}
 
         self.setWindowTitle(f"LarcSecrétariat — {session.full_name}")
-        self.setMinimumSize(1100, 700)
+        self.setMinimumSize(987, 610)
         self._setup_ui()
         self._load_initial_data()
 
@@ -52,14 +52,14 @@ class MainWindow(QWidget):
     def _style(self) -> str:
         p = theme_manager.palette
         d = theme_manager.design
+        s = theme_manager.font_size
         return f"""
-            QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: {d.radius}px; }}
+            {QssHelper.top_bar(p, d)}
+            {QssHelper.panel(p, d)}
+            {QssHelper.table(p, d, s)}
+            QPushButton:pressed {{ background: {p.primary}; color: {p.on_primary}; }}
             QFrame#kpi {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; }}
-            QFrame#sidebar {{ background: {p.surface}; border-right: 1px solid {p.border}; }}
-            QLabel#panel_title {{ color: {p.text_strong}; font-size: {theme_manager.font_size(13)}px; font-weight: bold; }}
-            QTableWidget {{ background: {p.surface}; color: {p.text_strong}; }}
-            QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; }}
-            QTableWidget::item {{ color: {p.text_strong}; }}
+            {QssHelper.panel_title(p, s, 13)}
         """
 
     def eventFilter(self, obj, event):
@@ -84,15 +84,15 @@ class MainWindow(QWidget):
         d = theme_manager.design
         self.setStyleSheet(self._style())
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
+        outer.setContentsMargins(6, 6, 6, 6)
+        outer.setSpacing(6)
 
-        # Top bar
+        # Top bar (style LarcSuperviseur)
         top = QFrame()
-        top.setObjectName("panel")
-        top.setFixedHeight(48)
+        top.setObjectName("top_bar")
         top_layout = QHBoxLayout(top)
-        top_layout.setContentsMargins(12, 4, 12, 4)
+        top_layout.setContentsMargins(10, 6, 10, 6)
+        top_layout.setSpacing(6)
 
         self._title = QLabel(f"📋 LarcSecrétariat — {session.full_name}")
         self._title.setObjectName("panel_title")
@@ -100,36 +100,55 @@ class MainWindow(QWidget):
         top_layout.addStretch()
 
         self._date_label = QLabel()
-        self._date_label.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px;")
+        self._date_label.setStyleSheet(
+            f"font-size: {theme_manager.font_size(13)}px; color: {theme_manager.palette.text_soft};")
         top_layout.addWidget(self._date_label)
 
         self._network_label = QLabel()
-        self._network_label.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px;")
+        self._network_label.setStyleSheet(
+            f"font-size: {theme_manager.font_size(12)}px; font-weight: bold;")
         top_layout.addWidget(self._network_label)
 
         self._theme_btn = QPushButton("🎨")
-        self._theme_btn.setFixedSize(36, 32)
+        self._theme_btn.setFixedSize(34, 34)
+        self._theme_btn.setCursor(Qt.PointingHandCursor)
         self._theme_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {theme_manager.palette.border}; "
-            f"border-radius: {d.radius}px; font-size: 16px; }}"
+            f"QPushButton {{ background: transparent; border: 1px solid {theme_manager.palette.outline_variant}; "
+            f"border-radius: {d.radius}px; font-size: 13px; }}"
             f"QPushButton:hover {{ background: {theme_manager.palette.surface_variant}; }}")
-        self._theme_btn.clicked.connect(        self._cycle_theme)
+        self._theme_btn.clicked.connect(self._cycle_theme)
         top_layout.addWidget(self._theme_btn)
+
+        # Profil button (comme LarcSuperviseur)
+        initials = ''.join(w[0].upper() for w in session.full_name.split() if w)[:2] or '?'
+        self._profile_btn = QPushButton(initials)
+        self._profile_btn.setFixedSize(34, 34)
+        self._profile_btn.setCursor(Qt.PointingHandCursor)
+        self._profile_btn.setStyleSheet(
+            f"QPushButton {{ background: {theme_manager.palette.primary}; "
+            f"color: {theme_manager.palette.on_primary}; font-weight: bold; "
+            f"font-size: 13px; border: none; border-radius: 17px; }}"
+            f"QPushButton:hover {{ background: {theme_manager.palette.active}; }}")
+        self._profile_menu = QMenu(self)
+        logout_action = self._profile_menu.addAction("Déconnexion")
+        logout_action.triggered.connect(self._on_logout)
+        self._profile_btn.setMenu(self._profile_menu)
+        top_layout.addWidget(self._profile_btn)
 
         outer.addWidget(top)
 
         # Main layout: sidebar + content
         main_h = QHBoxLayout()
         main_h.setContentsMargins(0, 0, 0, 0)
-        main_h.setSpacing(0)
+        main_h.setSpacing(6)
 
         # Sidebar
         self._sidebar = QFrame()
-        self._sidebar.setObjectName("sidebar")
-        self._sidebar.setFixedWidth(220)
+        self._sidebar.setObjectName("panel")
+        self._sidebar.setFixedWidth(233)
         self._sidebar_layout = QVBoxLayout(self._sidebar)
-        self._sidebar_layout.setContentsMargins(8, 8, 8, 8)
-        self._sidebar_layout.setSpacing(4)
+        self._sidebar_layout.setContentsMargins(6, 6, 6, 6)
+        self._sidebar_layout.setSpacing(2)
 
         self._build_sidebar()
         main_h.addWidget(self._sidebar)
@@ -158,11 +177,11 @@ class MainWindow(QWidget):
 
         # Status bar
         self._status_bar = QLabel()
-        self._status_bar.setFixedHeight(24)
+        self._status_bar.setFixedHeight(21)
         self._status_bar.setStyleSheet(
             f"background: {theme_manager.palette.surface_variant}; "
             f"color: {theme_manager.palette.text_soft}; "
-            f"font-size: {theme_manager.font_size(10)}px; padding: 2px 12px;")
+            f"font-size: {theme_manager.font_size(10)}px; padding: 2px 13px;")
         outer.addWidget(self._status_bar)
 
         self._update_datetime()
@@ -175,25 +194,27 @@ class MainWindow(QWidget):
 
         self._clear_layout(self._sidebar_layout)
 
-        def _make_btn(ss, min_h=32):
+        def _make_btn(ss, min_h=34):
             b = QPushButton()
             b.setMinimumHeight(min_h)
             b.setStyleSheet(ss)
             b.setCursor(Qt.PointingHandCursor)
             return b
 
+        self._selected_btn = None
+
         # Titre Navigation
         title = QLabel("Navigation")
-        title.setStyleSheet(f"font-size: {s(11)}px; font-weight: bold; color: {p.text_strong}; padding: 4px;")
+        title.setStyleSheet(f"font-size: {s(11)}px; font-weight: bold; color: {p.text_strong}; padding: 3px;")
         self._sidebar_layout.addWidget(title)
 
         # Tableau de bord
         btn = _make_btn(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
             f"border: none; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; padding: 4px 8px; text-align: left; }}"
+            f"font-size: {s(10)}px; padding: 3px 8px; text-align: left; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}",
-            min_h=36
+            min_h=34
         )
         btn.setText("📊 Tableau de bord")
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(0))
@@ -203,15 +224,15 @@ class MainWindow(QWidget):
         sec_title = QLabel("Inscriptions")
         sec_title.setStyleSheet(
             f"font-size: {s(9)}px; font-weight: bold; color: {p.text_disabled}; "
-            f"padding: 8px 4px 2px 4px; text-transform: uppercase;")
+            f"padding: 8px 3px 2px 3px; text-transform: uppercase;")
         self._sidebar_layout.addWidget(sec_title)
 
         btn = _make_btn(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
             f"border: none; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; padding: 4px 8px; text-align: left; }}"
+            f"font-size: {s(10)}px; padding: 3px 8px; text-align: left; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}",
-            min_h=36
+            min_h=34
         )
         btn.setText("🔍 Rechercher un élève")
         btn.setObjectName("nav_search")
@@ -221,15 +242,15 @@ class MainWindow(QWidget):
         btn = _make_btn(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
             f"border: none; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; padding: 4px 8px; text-align: left; }}"
+            f"font-size: {s(10)}px; padding: 3px 8px; text-align: left; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}",
-            min_h=36
+            min_h=34
         )
         btn.setText("👪 Gestion parents")
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(2))
         self._sidebar_layout.addWidget(btn)
 
-        self._sidebar_layout.addSpacing(4)
+        self._sidebar_layout.addSpacing(d.spacing)
 
         # ---- Sections classes (style LarcSuperviseur) ----
         prog_style = {
@@ -253,15 +274,15 @@ class MainWindow(QWidget):
             sec_hdr = _make_btn(
                 f"QPushButton {{ background: transparent; color: {p.text_strong}; "
                 f"border: none; border-bottom: 2px solid {p.outline_variant}; "
-                f"font-weight: bold; font-size: {s(12)}px; text-align: left; padding: 4px 2px; }}"
+                f"font-weight: bold; font-size: {s(13)}px; text-align: left; padding: 4px 2px; }}"
                 f"QPushButton:hover {{ color: {p.primary}; border-bottom: 2px solid {p.primary}; }}",
-                min_h=28
+                min_h=34
             )
             sec_hdr.setText(sec_name)
             self._sidebar_layout.addWidget(sec_hdr)
 
             grd = QGridLayout()
-            grd.setSpacing(2)
+            grd.setSpacing(d.spacing)
 
             for col_idx, (hdr_text, prog_key) in enumerate(columns):
                 fg, bg, on_fg, _ = prog_style[prog_key]
@@ -269,9 +290,9 @@ class MainWindow(QWidget):
 
                 col_hdr = _make_btn(
                     f"QPushButton {{ background: {fg}; color: {on_fg}; border: none; "
-                    f"border-radius: {d.radius}px; font-weight: bold; font-size: {s(10)}px; padding: 3px; }}"
+                    f"border-radius: {d.radius}px; font-weight: bold; font-size: {s(13)}px; padding: 3px; }}"
                     f"QPushButton:hover {{ opacity: 0.8; }}",
-                    min_h=26
+                    min_h=21
                 )
                 col_hdr.setText(hdr_text)
                 grd.addWidget(col_hdr, 0, col_idx)
@@ -279,24 +300,27 @@ class MainWindow(QWidget):
                 for i, (cid, label) in enumerate(items):
                     btn = _make_btn(
                         f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
-                        f"border-radius: {d.radius}px; font-size: {s(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}",
-                        min_h=32
+                        f"border-radius: {d.radius}px; font-size: {s(13)}px; padding: 2px; }}"
+                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                        f"QPushButton:checked {{ background: {fg}; color: {bg}; "
+                        f"border: 2px solid {fg}; }}",
+                        min_h=34
                     )
+                    btn.setCheckable(True)
                     btn.setText(label)
-                    btn.clicked.connect(lambda checked, c=cid: self._on_class_clicked(c))
+                    btn.clicked.connect(lambda checked, c=cid, b=btn: self._on_class_clicked(c, b))
                     grd.addWidget(btn, i + 1, col_idx)
 
             self._sidebar_layout.addLayout(grd)
-            self._sidebar_layout.addSpacing(4)
+            self._sidebar_layout.addSpacing(d.spacing)
 
         # Enseignants (placeholder)
         ens_hdr = _make_btn(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
             f"border: none; border-bottom: 2px solid {p.outline_variant}; "
-            f"font-weight: bold; font-size: {s(12)}px; text-align: left; padding: 4px 2px; }}"
+            f"font-weight: bold; font-size: {s(13)}px; text-align: left; padding: 4px 2px; }}"
             f"QPushButton:hover {{ color: {p.primary}; border-bottom: 2px solid {p.primary}; }}",
-            min_h=28
+            min_h=34
         )
         ens_hdr.setText("Enseignants")
         self._sidebar_layout.addWidget(ens_hdr)
@@ -305,22 +329,22 @@ class MainWindow(QWidget):
         staff_hdr = _make_btn(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
             f"border: none; border-bottom: 2px solid {p.outline_variant}; "
-            f"font-weight: bold; font-size: {s(12)}px; text-align: left; padding: 4px 2px; }}"
+            f"font-weight: bold; font-size: {s(13)}px; text-align: left; padding: 4px 2px; }}"
             f"QPushButton:hover {{ color: {p.primary}; border-bottom: 2px solid {p.primary}; }}",
-            min_h=28
+            min_h=34
         )
         staff_hdr.setText("Staff non enseignant")
         self._sidebar_layout.addWidget(staff_hdr)
 
-        self._sidebar_layout.addSpacing(8)
+        self._sidebar_layout.addSpacing(d.spacing)
 
         sup_btn = QPushButton("Lancer LarcSuperviseur")
-        sup_btn.setMinimumHeight(56)
+        sup_btn.setMinimumHeight(55)
         sup_btn.setCursor(Qt.PointingHandCursor)
         sup_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.tertiary_container}; color: {p.on_tertiary}; border: none; "
+            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; font-size: {s(11)}px; font-weight: bold; padding: 8px; }}"
-            f"QPushButton:hover {{ background: {p.tertiary}; color: {p.on_tertiary}; }}")
+            f"QPushButton:hover {{ background: {p.active}; }}")
         sup_btn.clicked.connect(self._launch_superviseur)
         self._sidebar_layout.addWidget(sup_btn)
 
@@ -328,9 +352,10 @@ class MainWindow(QWidget):
 
         # État réseau en bas
         self._sidebar_status = QLabel()
-        self._sidebar_status.setStyleSheet(f"font-size: {s(9)}px; padding: 4px;")
+        self._sidebar_status.setStyleSheet(f"font-size: {s(9)}px; padding: 3px;")
         self._sidebar_status.setAlignment(Qt.AlignCenter)
         self._sidebar_layout.addWidget(self._sidebar_status)
+        self._selected_btn = None
 
     def _build_dashboard(self) -> QWidget:
         p = theme_manager.palette
@@ -343,8 +368,8 @@ class MainWindow(QWidget):
 
         inner = QWidget()
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(13, 13, 13, 13)
+        layout.setSpacing(13)
 
         # KPIs
         kpi_row = QHBoxLayout()
@@ -359,11 +384,11 @@ class MainWindow(QWidget):
         ]:
             f = QFrame()
             f.setObjectName("kpi")
-            f.setMinimumHeight(100)
+            f.setMinimumHeight(89)
             fl = QVBoxLayout(f)
             fl.setAlignment(Qt.AlignCenter)
             v = QLabel("—")
-            v.setStyleSheet(f"font-size: {s(28)}px; font-weight: bold; color: {p.primary};")
+            v.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.primary};")
             v.setAlignment(Qt.AlignCenter)
             l = QLabel(label)
             l.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft};")
@@ -377,7 +402,7 @@ class MainWindow(QWidget):
 
         # Corps : tables à gauche, graphiques à droite
         body_row = QHBoxLayout()
-        body_row.setSpacing(12)
+        body_row.setSpacing(13)
 
         left_col = QVBoxLayout()
         left_col.setSpacing(8)
@@ -395,7 +420,7 @@ class MainWindow(QWidget):
         hdr = self._dashboard_table.horizontalHeader()
         for i in range(7):
             hdr.setSectionResizeMode(i, QHeaderView.Stretch)
-        self._dashboard_table.setMaximumHeight(240)
+        self._dashboard_table.setMaximumHeight(233)
         self._dashboard_table.setAlternatingRowColors(True)
         self._dashboard_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._dashboard_table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
@@ -413,7 +438,7 @@ class MainWindow(QWidget):
         thdr = self._teacher_table.horizontalHeader()
         thdr.setSectionResizeMode(0, QHeaderView.Stretch)
         thdr.setSectionResizeMode(1, QHeaderView.Stretch)
-        self._teacher_table.setMaximumHeight(200)
+        self._teacher_table.setMaximumHeight(144)
         self._teacher_table.setAlternatingRowColors(True)
         self._teacher_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._teacher_table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
@@ -427,7 +452,7 @@ class MainWindow(QWidget):
 
         self._niveau_chart_view = QChartView()
         self._niveau_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self._niveau_chart_view.setMinimumHeight(400)
+        self._niveau_chart_view.setMinimumHeight(377)
         right_col.addWidget(self._niveau_chart_view, 1)
 
         body_row.addLayout(right_col, 2)
@@ -435,11 +460,11 @@ class MainWindow(QWidget):
 
         # Ratio filles / garçons (élèves uniquement)
         gender_row = QHBoxLayout()
-        gender_row.setSpacing(4)
+        gender_row.setSpacing(3)
         gender_row.setAlignment(Qt.AlignCenter)
         self._gender_ratio_label = QLabel()
         self._gender_ratio_label.setStyleSheet(
-            f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong}; padding: 6px;")
+            f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong}; padding: 5px;")
         gender_row.addWidget(self._gender_ratio_label)
         layout.addLayout(gender_row)
 
@@ -582,16 +607,16 @@ class MainWindow(QWidget):
             # Tableau enseignants
             cur.execute("""
                 SELECT 'Enseignants',
-                       COUNT(*) FILTER (WHERE t.is_teacher = TRUE) FROM larcauth_teachadm t WHERE t.enabled = TRUE
+                       COUNT(*) FILTER (WHERE type_teacher = TRUE) FROM larcauth_aecuser WHERE is_active = TRUE
                 UNION ALL
                 SELECT 'Admins',
-                       COUNT(*) FILTER (WHERE t.is_adm = TRUE) FROM larcauth_teachadm t WHERE t.enabled = TRUE
+                       COUNT(*) FILTER (WHERE type_director = TRUE) FROM larcauth_aecuser WHERE is_active = TRUE
                 UNION ALL
                 SELECT 'Coordinateurs',
-                       COUNT(*) FILTER (WHERE t.is_coordonator = TRUE) FROM larcauth_teachadm t WHERE t.enabled = TRUE
+                       COUNT(*) FILTER (WHERE type_coordonator = TRUE) FROM larcauth_aecuser WHERE is_active = TRUE
                 UNION ALL
                 SELECT 'Secrétaires',
-                       COUNT(*) FILTER (WHERE t.is_secretary = TRUE) FROM larcauth_teachadm t WHERE t.enabled = TRUE
+                       COUNT(*) FILTER (WHERE type_secretary = TRUE) FROM larcauth_aecuser WHERE is_active = TRUE
             """)
             t_rows = cur.fetchall()
             self._teacher_table.setRowCount(len(t_rows))
@@ -654,14 +679,28 @@ class MainWindow(QWidget):
             log(f"_load_initial_data: {e}")
             self._status_bar.setText(f"Erreur de chargement : {e}")
 
-    def _on_class_clicked(self, class_id: int):
+    def _on_class_clicked(self, class_id: int, btn=None):
         label = next((c[1] for c in self._classes if c[0] == class_id), str(class_id))
+        self._select_btn(btn)
         self._content_stack.setCurrentIndex(1)
         self._supervisor_panel.load_class(class_id, label)
         self._status_bar.setText(f"Supervision — {label}")
 
+    def _select_btn(self, btn):
+        if self._selected_btn is not None:
+            try:
+                self._selected_btn.setChecked(False)
+            except RuntimeError:
+                pass
+        self._selected_btn = btn
+        if btn is not None:
+            try:
+                btn.setChecked(True)
+            except RuntimeError:
+                pass
+
     def _cycle_theme(self):
-        themes = ['material_light', 'material_dark', 'material_contrast']
+        themes = ['blue', 'dark', 'sobre', 'contrast']
         current = theme_manager._active
         idx = (themes.index(current) + 1) % len(themes) if current in themes else 0
         theme_manager.set_active(themes[idx])
@@ -691,6 +730,11 @@ class MainWindow(QWidget):
                 "Le dossier LarcSuperviseur n'est pas trouvé à côté de LarcSecretaire.\n"
                 f"Chemin attendu : {sup_path}")
 
+    def _on_logout(self):
+        from larccommon.database import db as _larc_db
+        _larc_db.disconnect_all()
+        QApplication.quit()
+
     def _restyle_all(self):
         p = theme_manager.palette
         s = theme_manager.font_size
@@ -701,27 +745,36 @@ class MainWindow(QWidget):
 
         # Top bar
         self._theme_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; font-size: 16px; }}"
+            f"QPushButton {{ background: transparent; border: 1px solid {p.outline_variant}; "
+            f"border-radius: {d.radius}px; font-size: 13px; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}")
-        self._date_label.setStyleSheet(f"font-size: {s(11)}px;")
+        self._date_label.setStyleSheet(
+            f"font-size: {s(13)}px; color: {p.text_soft};")
+        self._network_label.setStyleSheet(
+            f"font-size: {s(12)}px; font-weight: bold;")
+        self._title.setStyleSheet(
+            f"color: {p.text_strong}; font-size: {s(13)}px; font-weight: bold;")
+        self._profile_btn.setStyleSheet(
+            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; "
+            f"font-weight: bold; font-size: 13px; border: none; border-radius: 17px; }}"
+            f"QPushButton:hover {{ background: {p.active}; }}")
 
         # Dashboard
         for v in self._kpi_widgets.values():
-            v.setStyleSheet(f"font-size: {s(28)}px; font-weight: bold; color: {p.primary};")
+            v.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.primary};")
         for l in self._kpi_labels.values():
             l.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft};")
         self._dashboard_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
         self._teacher_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
         self._gender_ratio_label.setStyleSheet(
-            f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong}; padding: 6px;")
+            f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong}; padding: 5px;")
         self._alert_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
         self._alert_label.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft}; padding: 8px;")
 
         # Status bar
         self._status_bar.setStyleSheet(
             f"background: {p.surface_variant}; color: {p.text_soft}; "
-            f"font-size: {s(10)}px; padding: 2px 12px;")
+            f"font-size: {s(10)}px; padding: 2px 13px;")
 
     def _update_datetime(self):
         from datetime import datetime
@@ -731,6 +784,7 @@ class MainWindow(QWidget):
     def _update_status_bar(self):
         net = detect_network()
         p = theme_manager.palette
+        s = theme_manager.font_size
         if net == NetworkMode.INTRANET:
             txt, color = "Intranet ●", p.success
         elif net == NetworkMode.INTERNET:
@@ -738,6 +792,8 @@ class MainWindow(QWidget):
         else:
             txt, color = "Hors ligne", p.text_disabled
         self._network_label.setText(txt)
+        self._network_label.setStyleSheet(
+            f"font-size: {s(12)}px; font-weight: bold; color: {color};")
         self._network_label.setStyleSheet(f"color: {color}; font-weight: bold; font-size: {theme_manager.font_size(11)}px;")
         self._sidebar_status.setText(txt)
         self._sidebar_status.setStyleSheet(f"font-size: {theme_manager.font_size(9)}px; color: {color};")

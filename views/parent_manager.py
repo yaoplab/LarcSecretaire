@@ -39,7 +39,7 @@ class ParentManager(QWidget):
         p = theme_manager.palette
         s = theme_manager.font_size
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setContentsMargins(13, 13, 13, 13)
         layout.setSpacing(8)
         d = theme_manager.design
 
@@ -73,7 +73,7 @@ class ParentManager(QWidget):
         left = QFrame()
         left.setObjectName("panel")
         left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(4, 4, 4, 4)
+        left_layout.setContentsMargins(3, 3, 3, 3)
 
         lbl = QLabel("Parents / tuteurs")
         lbl.setStyleSheet(f"font-weight: bold; font-size: {s(11)}px; color: {p.text_strong};")
@@ -95,7 +95,7 @@ class ParentManager(QWidget):
         right = QFrame()
         right.setObjectName("panel")
         right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(4, 4, 4, 4)
+        right_layout.setContentsMargins(3, 3, 3, 3)
 
         self._right_header = QLabel("Sélectionnez un parent")
         self._right_header.setStyleSheet(
@@ -104,7 +104,7 @@ class ParentManager(QWidget):
 
         self._foyer_info = QLabel()
         self._foyer_info.setWordWrap(True)
-        self._foyer_info.setStyleSheet(f"font-size: {s(9)}px; color: {p.text_soft}; padding: 4px;")
+        self._foyer_info.setStyleSheet(f"font-size: {s(9)}px; color: {p.text_soft}; padding: 3px;")
         self._foyer_info.hide()
         right_layout.addWidget(self._foyer_info)
 
@@ -113,7 +113,7 @@ class ParentManager(QWidget):
         self._edit_foyer_btn = QPushButton("✏️ Modifier l'adresse")
         self._edit_foyer_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.primary}; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(9)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(9)}px; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}")
         self._edit_foyer_btn.clicked.connect(self._on_edit_foyer)
         self._edit_foyer_btn.hide()
@@ -122,7 +122,7 @@ class ParentManager(QWidget):
         self._share_foyer_btn = QPushButton("🔗 Partager l'adresse")
         self._share_foyer_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.primary}; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(9)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(9)}px; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}")
         self._share_foyer_btn.clicked.connect(self._on_share_foyer)
         self._share_foyer_btn.hide()
@@ -142,9 +142,9 @@ class ParentManager(QWidget):
         # Link/unlink row
         link_row = QHBoxLayout()
         self._link_student_combo = QComboBox()
-        self._link_student_combo.setMinimumWidth(200)
+        self._link_student_combo.setMinimumWidth(144)
         self._link_student_combo.setStyleSheet(
-            f"padding: 4px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"padding: 3px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
         link_row.addWidget(QLabel("Lier à :"))
         link_row.addWidget(self._link_student_combo, 1)
@@ -152,7 +152,7 @@ class ParentManager(QWidget):
         self._nature_combo = QComboBox()
         self._nature_combo.addItems(["", "père", "mère", "tuteur", "grand-parent", "autre"])
         self._nature_combo.setStyleSheet(
-            f"padding: 4px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"padding: 3px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
         link_row.addWidget(QLabel("Nature :"))
         link_row.addWidget(self._nature_combo)
@@ -574,7 +574,7 @@ class ParentEditDialog(QDialog):
 
         self.setWindowTitle(
             "Modifier le parent" if parent_id else "Nouveau parent")
-        self.setMinimumWidth(500)
+        self.setMinimumWidth(610)
         self._init_ui()
 
         if parent_id:
@@ -600,12 +600,12 @@ class ParentEditDialog(QDialog):
         id_group.setStyleSheet(
             f"QGroupBox {{ font-weight: bold; font-size: {s(10)}px; "
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"margin-top: 8px; padding-top: 16px; }}"
+            f"margin-top: 8px; padding-top: 13px; }}"
             f"QGroupBox::title {{ subcontrol-origin: margin; left: 8px; }}")
         form = QFormLayout(id_group)
-        form.setSpacing(4)
+        form.setSpacing(3)
         field_style = (
-            f"padding: 4px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"padding: 3px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
 
         self._dlg_nom = QLineEdit()
@@ -639,7 +639,7 @@ class ParentEditDialog(QDialog):
         addr_group = QGroupBox("Adresse (foyer)")
         addr_group.setStyleSheet(id_group.styleSheet())
         addr_form = QFormLayout(addr_group)
-        addr_form.setSpacing(4)
+        addr_form.setSpacing(3)
 
         self._dlg_addr1 = QLineEdit()
         self._dlg_addr1.setStyleSheet(field_style)

@@ -88,7 +88,7 @@ class _MultilineDelegate(QStyledItemDelegate):
         editor.setStyleSheet(
             f"border: 1px solid {p.primary}; border-radius: {d.radius}px; "
             f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};")
-        editor.setMinimumHeight(60)
+        editor.setMinimumHeight(89)
         return editor
 
     def setEditorData(self, editor, index):
@@ -150,7 +150,7 @@ class _SectionTab(QWidget):
         hh.setStretchLastSection(True)
         self._table.setWordWrap(True)
         self._table.verticalHeader().setSectionsMovable(False)
-        self._table.verticalHeader().setMinimumSectionSize(20)
+        self._table.verticalHeader().setMinimumSectionSize(21)
         self._table.setStyleSheet(
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
@@ -166,8 +166,8 @@ class _SectionTab(QWidget):
         add_btn = QPushButton("+ Ligne")
         add_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 12px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}")
+            f"border-radius: {d.radius}px; padding: 3px 13px; font-size: {s(fs)}px; }}"
+        f"QPushButton:hover {{ background: {p.success}; }}")
         add_btn.clicked.connect(self._add_row)
         btn_row.addWidget(add_btn)
 
@@ -175,7 +175,7 @@ class _SectionTab(QWidget):
         remove_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
             f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: 4px 12px; font-size: {s(fs)}px; }}"
+            f"padding: 3px 13px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.error_container}; }}")
         remove_btn.clicked.connect(self._remove_selected)
         btn_row.addWidget(remove_btn)
@@ -187,7 +187,7 @@ class _SectionTab(QWidget):
             bg = getattr(p, color_key, p.primary)
             b.setStyleSheet(
                 f"QPushButton {{ background: {bg}; color: white; border: none; "
-                f"border-radius: {d.radius}px; padding: 4px 8px; font-size: {s(fs - 1)}px; }}"
+                f"border-radius: {d.radius}px; padding: 3px 8px; font-size: {s(fs - 1)}px; }}"
                 f"QPushButton:hover {{ background: {p.primary_container}; }}")
             b.setToolTip(tip)
             return b
@@ -235,7 +235,7 @@ class _SectionTab(QWidget):
         self._table.setItem(row, 1, QTableWidgetItem(""))
         self._table.setItem(row, 2, QTableWidgetItem(""))
         self._table.setItem(row, 3, QTableWidgetItem(""))
-        self._table.setRowHeight(row, 40)
+        self._table.setRowHeight(row, 34)
 
     def _remove_selected(self):
         rows = set()

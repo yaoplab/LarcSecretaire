@@ -106,7 +106,7 @@ class StudentForm(QWidget):
         title_row.addStretch()
 
         self._add_student_btn = QPushButton("+")
-        self._add_student_btn.setFixedSize(36, 36)
+        self._add_student_btn.setFixedSize(34, 34)
         self._add_student_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; font-size: {s(20)}px; font-weight: bold; }}"
@@ -203,15 +203,15 @@ class StudentForm(QWidget):
         self._detail_id_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_id_label)
 
-        dp_layout.addSpacing(12)
+        dp_layout.addSpacing(13)
 
         self._open_btn = QPushButton("Ouvrir la fiche")
         self._open_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius_lg}px; padding: {d.btn_pad_v + 4}px {d.btn_pad_h + 4}px; font-size: {s(14)}px; font-weight: bold; }}"
+            f"border-radius: {d.radius_lg}px; padding: {d.btn_pad_v + 5}px {d.btn_pad_h + 5}px; font-size: {s(14)}px; font-weight: bold; }}"
             f"QPushButton:hover {{ background: {p.active}; }}")
         self._open_btn.clicked.connect(self._open_edit_dialog)
-        self._open_btn.setMinimumWidth(180)
+        self._open_btn.setMinimumWidth(144)
         dp_layout.addWidget(self._open_btn, 0, Qt.AlignCenter)
 
         dp_layout.addStretch()
@@ -449,7 +449,7 @@ class StudentEditDialog(QDialog):
         self._sid = data['id']
         self._data = self._fetch_fresh_data() or data
         self.setWindowTitle(f"Modifier — {self._data.get('last_name', '?')} {self._data.get('first_name', '?')}")
-        self.setMinimumSize(900, 860)
+        self.setMinimumSize(987, 610)
         self._init_ui()
         self._load_data()
 
@@ -539,7 +539,7 @@ class StudentEditDialog(QDialog):
             f"font-size: {s(fs)}px; font-weight: bold; }}"
             f"QPushButton:hover {{ background: {p.success}; }}")
         save_btn.clicked.connect(self._save)
-        save_btn.setMinimumWidth(110)
+        save_btn.setMinimumWidth(89)
         btn_col.addWidget(save_btn)
 
         pdf_btn = QPushButton("PDF")
@@ -549,7 +549,7 @@ class StudentEditDialog(QDialog):
             f"font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.active}; }}")
         pdf_btn.clicked.connect(self._export_pdf)
-        pdf_btn.setMinimumWidth(110)
+        pdf_btn.setMinimumWidth(89)
         btn_col.addWidget(pdf_btn)
 
         word_btn = QPushButton("Word")
@@ -559,7 +559,7 @@ class StudentEditDialog(QDialog):
             f"font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.primary_container}; }}")
         word_btn.clicked.connect(self._export_word)
-        word_btn.setMinimumWidth(110)
+        word_btn.setMinimumWidth(89)
         btn_col.addWidget(word_btn)
 
         cancel_btn = QPushButton("Annuler")
@@ -569,7 +569,7 @@ class StudentEditDialog(QDialog):
             f"padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}")
         cancel_btn.clicked.connect(self.reject)
-        cancel_btn.setMinimumWidth(110)
+        cancel_btn.setMinimumWidth(89)
         btn_col.addWidget(cancel_btn)
 
         btn_col.addStretch()
@@ -607,7 +607,7 @@ class StudentEditDialog(QDialog):
         self._inp_birthdate.setStyleSheet(field_style)
         self._inp_addr1 = QTextEdit()
         self._inp_addr1.setStyleSheet(field_style.replace("QLineEdit", "QTextEdit"))
-        self._inp_addr1.setFixedHeight(80)
+        self._inp_addr1.setFixedHeight(89)
         self._inp_addr1.setPlaceholderText("Rue, quartier, BP, ...")
         self._inp_addr2 = QLineEdit(); self._inp_addr2.setStyleSheet(field_style)
         self._inp_cp = QLineEdit(); self._inp_cp.setStyleSheet(field_style)
@@ -681,7 +681,7 @@ class StudentEditDialog(QDialog):
         self._parents_table.horizontalHeader().setStretchLastSection(True)
         self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._parents_table.setMaximumHeight(120)
+        self._parents_table.setMaximumHeight(89)
         self._parents_table.setStyleSheet(
             f"QTableWidget {{ border: 1px solid {p.border}; gridline-color: {p.border_light}; "
             f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong}; }}"
@@ -694,14 +694,14 @@ class StudentEditDialog(QDialog):
         add_par_btn = QPushButton("+ Ajouter un parent")
         add_par_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.success}; }}")
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
         edit_par_btn = QPushButton("✎ Nature")
         edit_par_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.active}; }}")
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
@@ -709,7 +709,7 @@ class StudentEditDialog(QDialog):
         remove_par_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
             f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.error_container}; }}")
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
@@ -717,7 +717,7 @@ class StudentEditDialog(QDialog):
         copy_btn = QPushButton("Copier l'adresse")
         copy_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.primary}; }}")
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
@@ -746,7 +746,7 @@ class StudentEditDialog(QDialog):
         self._file_list.setStyleSheet(
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; "
             f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};")
-        self._file_list.setMaximumHeight(250)
+        self._file_list.setMaximumHeight(233)
         self._file_list.itemDoubleClicked.connect(self._open_file)
         tab5_layout.addWidget(self._file_list)
         file_btn_row = QHBoxLayout()
@@ -1169,7 +1169,7 @@ class StudentEditDialog(QDialog):
     def _add_parent_link(self):
         dlg = QDialog(self)
         dlg.setWindowTitle("Ajouter un parent")
-        dlg.setMinimumSize(450, 400)
+        dlg.setMinimumSize(377, 377)
         p = theme_manager.palette
         d = theme_manager.design
         s = theme_manager.font_size
@@ -1473,7 +1473,7 @@ class StudentCreateDialog(QDialog):
     def __init__(self, parent=None, preselected_class: int | None = None):
         super().__init__(parent)
         self.setWindowTitle("Nouvel élève")
-        self.setMinimumSize(900, 860)
+        self.setMinimumSize(987, 610)
         self._result_data: dict | None = None
         self._class_id: int | None = None
         self._next_free: int | None = None
@@ -1511,7 +1511,7 @@ class StudentCreateDialog(QDialog):
             self._class_grid = QWidget()
             self._class_grid_layout = QVBoxLayout(self._class_grid)
             self._class_grid_layout.setContentsMargins(0, 0, 0, 0)
-            self._class_grid_layout.setSpacing(4)
+            self._class_grid_layout.setSpacing(3)
             layout.addWidget(self._class_grid)
 
         # Photo + identité + boutons (toujours visibles)
@@ -1544,7 +1544,7 @@ class StudentCreateDialog(QDialog):
             f"QPushButton:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}")
         self._create_btn.setEnabled(False)
         self._create_btn.clicked.connect(self._on_create)
-        self._create_btn.setMinimumWidth(110)
+        self._create_btn.setMinimumWidth(89)
         btn_col.addWidget(self._create_btn)
 
         self._cancel_btn = QPushButton("Annuler")
@@ -1553,7 +1553,7 @@ class StudentCreateDialog(QDialog):
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.surface_variant}; }}")
         self._cancel_btn.clicked.connect(self.reject)
-        self._cancel_btn.setMinimumWidth(110)
+        self._cancel_btn.setMinimumWidth(89)
         btn_col.addWidget(self._cancel_btn)
 
         btn_col.addStretch()
@@ -1607,7 +1607,7 @@ class StudentCreateDialog(QDialog):
         self._inp_birthdate.setStyleSheet(field_style)
         self._inp_addr1 = QTextEdit()
         self._inp_addr1.setStyleSheet(field_style)
-        self._inp_addr1.setFixedHeight(80)
+        self._inp_addr1.setFixedHeight(89)
         self._inp_addr1.setPlaceholderText("Rue, quartier, BP, ...")
         self._inp_addr2 = QLineEdit(); self._inp_addr2.setStyleSheet(field_style)
         self._inp_addr2.setPlaceholderText("Appartement, bâtiment...")
@@ -1678,7 +1678,7 @@ class StudentCreateDialog(QDialog):
         g3.addWidget(self._inp_pays, 3, 0, 1, 2)
         addr_inner_layout.addLayout(g3)
 
-        addr_inner_layout.addSpacing(d.spacing + 4)
+        addr_inner_layout.addSpacing(d.spacing + 3)
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setStyleSheet(f"color: {p.border};")
@@ -1694,7 +1694,7 @@ class StudentCreateDialog(QDialog):
         self._parents_table.horizontalHeader().setStretchLastSection(True)
         self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._parents_table.setMaximumHeight(120)
+        self._parents_table.setMaximumHeight(89)
         addr_inner_layout.addWidget(self._parents_table)
 
         # Parent management toolbar
@@ -1704,7 +1704,7 @@ class StudentCreateDialog(QDialog):
         add_par_btn = QPushButton("+ Ajouter un parent")
         add_par_btn.setStyleSheet(
             f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.success}; }}")
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
@@ -1712,7 +1712,7 @@ class StudentCreateDialog(QDialog):
         edit_par_btn = QPushButton("✎ Nature")
         edit_par_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.active}; }}")
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
@@ -1721,7 +1721,7 @@ class StudentCreateDialog(QDialog):
         remove_par_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
             f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.error_container}; }}")
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
@@ -1731,7 +1731,7 @@ class StudentCreateDialog(QDialog):
         copy_btn = QPushButton("Copier l'adresse")
         copy_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: 4px 10px; font-size: {s(fs)}px; }}"
+            f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
             f"QPushButton:hover {{ background: {p.primary}; }}")
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
@@ -1870,12 +1870,12 @@ class StudentCreateDialog(QDialog):
                     f"background: {fg}; color: {on_fg}; border-radius: {d.radius}px; "
                     f"font-weight: bold; font-size: {s(10)}px; padding: 3px;")
                 col_hdr.setAlignment(Qt.AlignCenter)
-                col_hdr.setFixedHeight(26)
+                col_hdr.setFixedHeight(21)
                 grd.addWidget(col_hdr, 0, col_idx)
 
                 for i, (cid, label) in enumerate(items):
                     btn = QPushButton(label)
-                    btn.setFixedHeight(32)
+                    btn.setFixedHeight(34)
                     btn.setStyleSheet(
                         f"QPushButton {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
                         f"border-radius: {d.radius}px; font-size: {s(10)}px; padding: 2px; }}"
@@ -1885,7 +1885,7 @@ class StudentCreateDialog(QDialog):
                     grd.addWidget(btn, i + 1, col_idx)
 
             self._class_grid_layout.addLayout(grd)
-            self._class_grid_layout.addSpacing(4)
+            self._class_grid_layout.addSpacing(3)
 
         self._class_grid_layout.addStretch()
 
@@ -2204,7 +2204,7 @@ class StudentCreateDialog(QDialog):
             return
         dlg = QDialog(self)
         dlg.setWindowTitle("Ajouter un parent")
-        dlg.setMinimumSize(450, 400)
+        dlg.setMinimumSize(377, 377)
         p = theme_manager.palette; d = theme_manager.design; s = theme_manager.font_size
         dlg.setStyleSheet(f"background: {p.surface}; color: {p.text_strong};")
         layout = QVBoxLayout(dlg)
