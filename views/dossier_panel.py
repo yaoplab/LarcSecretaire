@@ -393,6 +393,14 @@ class _SectionPage(QWidget):
         self._refresh_table()
         self._refresh_files()
 
+    def _save_current(self):
+        if self._current_entry is None:
+            return
+        self._current_entry["date"] = self._date.date().toString("yyyy-MM-dd") if self._date.date().isValid() else ""
+        self._current_entry["titre"] = self._title.text()
+        self._current_entry["doc"] = self._doc.toPlainText()
+        self._refresh_files()
+
     def _add_entry(self):
         from datetime import date
 
