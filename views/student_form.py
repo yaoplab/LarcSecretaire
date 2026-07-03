@@ -679,10 +679,20 @@ class StudentEditDialog(QDialog):
         self._inp_pays = QLineEdit("Togo")
         self._inp_pays.setStyleSheet(field_style)
 
-        # Onglets
+        # Onglets — style M3
         tabs = QTabWidget()
         tabs.setDocumentMode(True)
-        tabs.setStyleSheet(f"QTabWidget::pane {{ padding: {sp}px; }}")
+        tab_bar = tabs.tabBar()
+        tab_bar.setExpanding(False)
+        tabs.setStyleSheet(f"""
+            QTabWidget::pane {{ padding: {sp}px; }}
+            QTabBar::tab {{
+                padding: {sp // 2}px {sp * 2}px;
+                font-size: {s(13)}px;
+                font-weight: bold;
+                min-width: 89px;
+            }}
+        """)
 
         # --- Tab 1 : Notes (le plus important) ---
         tab1 = QWidget()
@@ -690,7 +700,7 @@ class StudentEditDialog(QDialog):
         tab1_layout.setContentsMargins(0, 0, 0, 0)
         self._notes_panel = NotesPanel()
         tab1_layout.addWidget(self._notes_panel, 1)
-        tabs.addTab(tab1, "📝 Notes")
+        tabs.addTab(tab1, "Notes")
 
         # --- Tab 2 : Identité ---
         tab2 = QWidget()
@@ -712,7 +722,7 @@ class StudentEditDialog(QDialog):
         g1.addWidget(self._inp_birthdate, 7, 0)
         tab2_layout.addLayout(g1)
         tab2_layout.addStretch()
-        tabs.addTab(tab2, "👤 Identité")
+        tabs.addTab(tab2, "Identité")
 
         # --- Tab 3 : Contact ---
         tab3 = QWidget()
@@ -730,7 +740,7 @@ class StudentEditDialog(QDialog):
         g2.addWidget(self._inp_tel2, 3, 1)
         tab3_layout.addLayout(g2)
         tab3_layout.addStretch()
-        tabs.addTab(tab3, "📞 Contact")
+        tabs.addTab(tab3, "Contact")
 
         # --- Tab 4 : Adresse & Parents ---
         tab4 = QWidget()
@@ -743,7 +753,7 @@ class StudentEditDialog(QDialog):
         addr_card_layout = QVBoxLayout(addr_card)
         addr_card_layout.setSpacing(d.spacing)
 
-        addr_title = QLabel("📍 Adresse")
+        addr_title = QLabel("Adresse")
         addr_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         addr_card_layout.addWidget(addr_title)
 
@@ -763,7 +773,7 @@ class StudentEditDialog(QDialog):
         tab4_layout.addWidget(addr_card)
 
         # Parents
-        parents_title = QLabel("👪 Parents / tuteurs")
+        parents_title = QLabel("Parents / tuteurs")
         parents_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong}; margin-top: {sp}px;")
         tab4_layout.addWidget(parents_title)
 
@@ -823,13 +833,13 @@ class StudentEditDialog(QDialog):
         parent_tools.addStretch()
         tab4_layout.addLayout(parent_tools)
         tab4_layout.addStretch()
-        tabs.addTab(tab4, "🏠 Adresse & Parents")
+        tabs.addTab(tab4, "Adresse & Parents")
 
         # --- Tab 5 : Fichiers ---
         tab5 = QWidget()
         tab5_layout = QVBoxLayout(tab5)
         tab5_layout.setSpacing(sp)
-        files_label = QLabel("📎 Fichiers joints")
+        files_label = QLabel("Fichiers joints")
         files_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         tab5_layout.addWidget(files_label)
         self._file_list = QListWidget()
@@ -870,13 +880,13 @@ class StudentEditDialog(QDialog):
         file_btn_row.addStretch()
         tab5_layout.addLayout(file_btn_row)
         tab5_layout.addStretch()
-        tabs.addTab(tab5, "📁 Fichiers")
+        tabs.addTab(tab5, "Fichiers")
 
         # --- Tab 6 : Événements ---
         tab6 = QWidget()
         tab6_layout = QVBoxLayout(tab6)
         tab6_layout.setSpacing(sp)
-        evt_label = QLabel("📋 Événements (consultation seule)")
+        evt_label = QLabel("Événements (consultation seule)")
         evt_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         tab6_layout.addWidget(evt_label)
         self._evt_table = QTableWidget()
