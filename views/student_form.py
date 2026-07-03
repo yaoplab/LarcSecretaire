@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -679,33 +680,57 @@ class StudentEditDialog(QDialog):
         self._inp_pays = QLineEdit("Togo")
         self._inp_pays.setStyleSheet(field_style)
 
-        # Onglets — style M3
-        tabs = QTabWidget()
-        tabs.setDocumentMode(True)
-        tab_bar = tabs.tabBar()
-        tab_bar.setExpanding(False)
-        tabs.setStyleSheet(f"""
-            QTabWidget::pane {{ padding: {sp}px; }}
-            QTabBar::tab {{
-                padding: {sp // 2}px {sp * 2}px;
-                font-size: {s(13)}px;
-                font-weight: bold;
-                min-width: 89px;
-            }}
-        """)
+        # Sidebar + QStackedWidget
+        self._nav_index = 0
+        # Sidebar + QStackedWidget
+        # Sidebar verticale + QStackedWidget (remplace les onglets)
+        nav_row = QHBoxLayout()
+        nav_row.setSpacing(sp)
+        nav_side = QVBoxLayout()
+        nav_side.setSpacing(d.spacing)
+        nav_side.setContentsMargins(0, 0, sp, 0)
 
-        # --- Tab 1 : Notes (le plus important) ---
-        tab1 = QWidget()
-        tab1_layout = QVBoxLayout(tab1)
-        tab1_layout.setContentsMargins(0, 0, 0, 0)
+        nav_items = [
+            "Notes",
+            "Identité",
+            "Contact",
+            "Adresse & Parents",
+            "Fichiers",
+            "Événements",
+        ]
+
+        def _btn_style(bg, fg, hover_bg=None):
+            hbg = hover_bg or bg
+            return (
+                f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
+                f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; "
+                f"font-size: {s(fs)}px; }}"
+                f"QPushButton:hover {{ background: {hbg}; }}"
+            )
+
+        self._nav_btns: list[QPushButton] = []
+        self._nav_pages: list[QWidget] = []
+
+        nav_btn_base = (
+            f"QPushButton {{ text-align: left; border: none; border-radius: {d.radius_lg}px; "
+            f"padding: {sp}px {sp * 2}px; font-size: {s(13)}px; font-weight: bold; "
+            f"cursor: pointer; }}"
+        )
+        nav_btn_active = f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}"
+        nav_btn_idle = f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
+
+        # --- Page 1 : Notes ---
+        p1 = QWidget()
+        p1_layout = QVBoxLayout(p1)
+        p1_layout.setContentsMargins(0, 0, 0, 0)
         self._notes_panel = NotesPanel()
-        tab1_layout.addWidget(self._notes_panel, 1)
-        tabs.addTab(tab1, "Notes")
+        p1_layout.addWidget(self._notes_panel, 1)
+        self._nav_pages.append(p1)
 
-        # --- Tab 2 : Identité ---
-        tab2 = QWidget()
-        tab2_layout = QVBoxLayout(tab2)
-        tab2_layout.setSpacing(sp)
+        # --- Page 2 : Identité ---
+        p2 = QWidget()
+        p2_layout = QVBoxLayout(p2)
+        p2_layout.setSpacing(sp)
         g1 = QGridLayout()
         g1.setSpacing(sp)
         g1.addWidget(_lbl("Nom *"), 0, 0)
@@ -720,14 +745,14 @@ class StudentEditDialog(QDialog):
         g1.addWidget(self._inp_genre, 5, 1)
         g1.addWidget(_lbl("Date de naissance"), 6, 0)
         g1.addWidget(self._inp_birthdate, 7, 0)
-        tab2_layout.addLayout(g1)
-        tab2_layout.addStretch()
-        tabs.addTab(tab2, "Identité")
+        p2_layout.addLayout(g1)
+        p2_layout.addStretch()
+        self._nav_pages.append(p2)
 
-        # --- Tab 3 : Contact ---
-        tab3 = QWidget()
-        tab3_layout = QVBoxLayout(tab3)
-        tab3_layout.setSpacing(sp)
+        # --- Page 3 : Contact ---
+        p3 = QWidget()
+        p3_layout = QVBoxLayout(p3)
+        p3_layout.setSpacing(sp)
         g2 = QGridLayout()
         g2.setSpacing(sp)
         g2.addWidget(_lbl("Email"), 0, 0)
@@ -738,29 +763,24 @@ class StudentEditDialog(QDialog):
         g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
         g2.addWidget(self._inp_tel, 3, 0)
         g2.addWidget(self._inp_tel2, 3, 1)
-        tab3_layout.addLayout(g2)
-        tab3_layout.addStretch()
-        tabs.addTab(tab3, "Contact")
+        p3_layout.addLayout(g2)
+        p3_layout.addStretch()
+        self._nav_pages.append(p3)
 
-        # --- Tab 4 : Adresse & Parents ---
-        tab4 = QWidget()
-        tab4_layout = QVBoxLayout(tab4)
-        tab4_layout.setSpacing(sp)
-
-        # Carte adresse — comme une vraie lettre
+        # --- Page 4 : Adresse & Parents ---
+        p4 = QWidget()
+        p4_layout = QVBoxLayout(p4)
+        p4_layout.setSpacing(sp)
         addr_card = QFrame()
         addr_card.setStyleSheet(f"QFrame {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; padding: {sp}px; }}")
         addr_card_layout = QVBoxLayout(addr_card)
         addr_card_layout.setSpacing(d.spacing)
-
         addr_title = QLabel("Adresse")
         addr_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         addr_card_layout.addWidget(addr_title)
-
         self._inp_addr1.setFixedHeight(144)
         addr_card_layout.addWidget(self._inp_addr1)
         addr_card_layout.addWidget(self._inp_addr2)
-
         addr_grid = QGridLayout()
         addr_grid.setSpacing(d.spacing)
         addr_grid.addWidget(_lbl("Code postal"), 0, 0)
@@ -770,13 +790,10 @@ class StudentEditDialog(QDialog):
         addr_grid.addWidget(_lbl("Pays"), 2, 0)
         addr_grid.addWidget(self._inp_pays, 3, 0, 1, 2)
         addr_card_layout.addLayout(addr_grid)
-        tab4_layout.addWidget(addr_card)
-
-        # Parents
+        p4_layout.addWidget(addr_card)
         parents_title = QLabel("Parents / tuteurs")
         parents_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong}; margin-top: {sp}px;")
-        tab4_layout.addWidget(parents_title)
-
+        p4_layout.addWidget(parents_title)
         self._parents_table = QTableWidget()
         self._parents_table.setColumnCount(4)
         self._parents_table.setHorizontalHeaderLabels(["Nom", "Nature", "Email", "Téléphone"])
@@ -791,30 +808,17 @@ class StudentEditDialog(QDialog):
             f"QHeaderView::section {{ background: {p.surface_variant}; "
             f"color: {p.text_strong}; font-weight: bold; padding: 2px; border: none; }}"
         )
-        tab4_layout.addWidget(self._parents_table)
-
+        p4_layout.addWidget(self._parents_table)
         parent_tools = QHBoxLayout()
         parent_tools.setSpacing(d.spacing)
-
-        def _btn_style(bg, fg, hover_bg=None):
-            hbg = hover_bg or bg
-            return (
-                f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
-                f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; "
-                f"font-size: {s(fs)}px; }}"
-                f"QPushButton:hover {{ background: {hbg}; }}"
-            )
-
         add_par_btn = QPushButton("+ Ajouter un parent")
         add_par_btn.setStyleSheet(_btn_style(p.button_success, "white", p.success))
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
-
         edit_par_btn = QPushButton("✎ Nature")
         edit_par_btn.setStyleSheet(_btn_style(p.primary, p.on_primary, p.active))
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
-
         remove_par_btn = QPushButton("− Retirer")
         remove_par_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
@@ -824,40 +828,35 @@ class StudentEditDialog(QDialog):
         )
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
-
         copy_btn = QPushButton("Copier l'adresse")
         copy_btn.setStyleSheet(_btn_style(p.primary_container, p.on_primary, p.primary))
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
-
         parent_tools.addStretch()
-        tab4_layout.addLayout(parent_tools)
-        tab4_layout.addStretch()
-        tabs.addTab(tab4, "Adresse & Parents")
+        p4_layout.addLayout(parent_tools)
+        p4_layout.addStretch()
+        self._nav_pages.append(p4)
 
-        # --- Tab 5 : Fichiers ---
-        tab5 = QWidget()
-        tab5_layout = QVBoxLayout(tab5)
-        tab5_layout.setSpacing(sp)
+        # --- Page 5 : Fichiers ---
+        p5 = QWidget()
+        p5_layout = QVBoxLayout(p5)
+        p5_layout.setSpacing(sp)
         files_label = QLabel("Fichiers joints")
         files_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
-        tab5_layout.addWidget(files_label)
+        p5_layout.addWidget(files_label)
         self._file_list = QListWidget()
         self._file_list.setStyleSheet(
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
         )
         self._file_list.setMaximumHeight(233)
         self._file_list.itemDoubleClicked.connect(self._open_file)
-        tab5_layout.addWidget(self._file_list)
-
+        p5_layout.addWidget(self._file_list)
         file_btn_row = QHBoxLayout()
         file_btn_row.setSpacing(d.spacing)
-
         self._btn_add_file = QPushButton("Ajouter un fichier")
         self._btn_add_file.setStyleSheet(_btn_style(p.primary, p.on_primary, p.active))
         self._btn_add_file.clicked.connect(self._add_file)
         file_btn_row.addWidget(self._btn_add_file)
-
         self._btn_open_folder = QPushButton("Ouvrir le dossier")
         self._btn_open_folder.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.text_strong}; "
@@ -867,7 +866,6 @@ class StudentEditDialog(QDialog):
         )
         self._btn_open_folder.clicked.connect(self._open_folder)
         file_btn_row.addWidget(self._btn_open_folder)
-
         self._btn_del_file = QPushButton("Supprimer")
         self._btn_del_file.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {p.error}; "
@@ -878,17 +876,17 @@ class StudentEditDialog(QDialog):
         self._btn_del_file.clicked.connect(self._delete_file)
         file_btn_row.addWidget(self._btn_del_file)
         file_btn_row.addStretch()
-        tab5_layout.addLayout(file_btn_row)
-        tab5_layout.addStretch()
-        tabs.addTab(tab5, "Fichiers")
+        p5_layout.addLayout(file_btn_row)
+        p5_layout.addStretch()
+        self._nav_pages.append(p5)
 
-        # --- Tab 6 : Événements ---
-        tab6 = QWidget()
-        tab6_layout = QVBoxLayout(tab6)
-        tab6_layout.setSpacing(sp)
+        # --- Page 6 : Événements ---
+        p6 = QWidget()
+        p6_layout = QVBoxLayout(p6)
+        p6_layout.setSpacing(sp)
         evt_label = QLabel("Événements (consultation seule)")
         evt_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
-        tab6_layout.addWidget(evt_label)
+        p6_layout.addWidget(evt_label)
         self._evt_table = QTableWidget()
         self._evt_table.setColumnCount(5)
         self._evt_table.setHorizontalHeaderLabels(["Date/Heure", "Type", "Note", "Par", "Validé"])
@@ -904,10 +902,48 @@ class StudentEditDialog(QDialog):
         self._evt_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._evt_table.setSelectionBehavior(QTableWidget.SelectRows)
         self._evt_table.setAlternatingRowColors(True)
-        tab6_layout.addWidget(self._evt_table, 1)
-        tabs.addTab(tab6, "Événements")
+        p6_layout.addWidget(self._evt_table, 1)
+        self._nav_pages.append(p6)
 
-        layout.addWidget(tabs, 1)
+        # Construire la sidebar + stack
+        self._nav_stack = QStackedWidget()
+        for idx, (label, page) in enumerate(zip(nav_items, self._nav_pages)):
+            btn = QPushButton(label)
+            btn.setStyleSheet(nav_btn_base + (nav_btn_active if idx == 0 else nav_btn_idle))
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda checked, i=idx: self._on_nav(i))
+            nav_side.addWidget(btn)
+            self._nav_btns.append(btn)
+            self._nav_stack.addWidget(page)
+
+        self._nav_stack.setCurrentIndex(0)
+        nav_side.addStretch()
+        nav_row.addLayout(nav_side)
+        nav_row.addWidget(self._nav_stack, 1)
+        layout.addLayout(nav_row, 1)
+        layout.addStretch()
+
+    def _on_nav(self, index: int):
+        self._nav_stack.setCurrentIndex(index)
+        p = theme_manager.palette
+        for i, btn in enumerate(self._nav_btns):
+            if i == index:
+                btn.setStyleSheet(
+                    f"QPushButton {{ text-align: left; border: none; "
+                    f"border-radius: {theme_manager.design.radius_lg}px; "
+                    f"padding: {13}px {26}px; "
+                    f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; "
+                    f"background: {p.primary}; color: {p.on_primary}; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    f"QPushButton {{ text-align: left; border: none; "
+                    f"border-radius: {theme_manager.design.radius_lg}px; "
+                    f"padding: {13}px {26}px; "
+                    f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; "
+                    f"background: transparent; color: {p.text_strong}; }}"
+                    f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+                )
 
     def _get_class_language(self, classroom_id: int) -> int | None:
         conn = db.server_conn
