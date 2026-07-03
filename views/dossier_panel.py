@@ -85,7 +85,7 @@ class _SectionPage(QWidget):
             f"font-weight: bold; padding: 4px 6px; border: none; font-size: {s(12)}px; }}"
         )
         self._table.itemSelectionChanged.connect(self._on_select)
-        self._table.cellClicked.connect(lambda r, c: self._on_select())
+        self._table.cellClicked.connect(lambda r, c: self._on_select_row(r))
         self._table.horizontalHeader().sectionResized.connect(self._on_col_resize)
         TableSettings.restore(self._table, f"dossier/{self._key}")
         left_col.addWidget(self._table)
@@ -373,11 +373,16 @@ class _SectionPage(QWidget):
             self._table.selectRow(0)
 
     def _on_select(self):
-        self._save_current()
         rows = self._table.selectionModel().selectedRows()
         if not rows:
             return
-        idx = rows[0].row()
+        self._select_row(rows[0].row())
+
+    def _on_select_row(self, row: int):
+        self._select_row(row)
+
+    def _select_row(self, idx: int):
+        self._save_current()
         sorted_entries = sorted(self._entries, key=lambda e: e.get("date", ""), reverse=True)
         if 0 <= idx < len(sorted_entries):
             self._current_entry = sorted_entries[idx]
