@@ -15,6 +15,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QStackedWidget,
@@ -34,12 +37,13 @@ SECTIONS = [
 
 
 class _SectionPage(QWidget):
-    """Une section du DossierPanel : date + titre + notes + fichiers."""
+    """Une section : liste d'entrées (date+titre+doc) + fichiers."""
 
     def __init__(self, key: str, label: str, parent=None):
         super().__init__(parent)
         self._key = key
-        self._label = label
+        self._entries: list[dict] = []
+        self._current = -1
         self._build()
 
     def _build(self):
@@ -52,6 +56,41 @@ class _SectionPage(QWidget):
         layout.setSpacing(sp)
         layout.setContentsMargins(sp, sp, sp, 0)
 
+        # --- Liste des entrées ---
+        row1 = QHBoxLayout()
+        row1.setSpacing(6)
+        lbl = QLabel("Documents")
+        lbl.setStyleSheet(f"font-size: {s(15)}px; font-weight: bold; color: {p.text_strong};")
+        row1.addWidget(lbl)
+        row1.addStretch()
+        self._btn_add = QPushButton("+ Nouveau")
+        self._btn_add.setStyleSheet(
+            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
+            f"border-radius: {d.radius}px; padding: 4px 12px; font-size: {s(12)}px; }}"
+            f"QPushButton:hover {{ background: {p.active}; }}"
+        )
+        self._btn_add.clicked.connect(self._add_entry)
+        row1.addWidget(self._btn_add)
+        self._btn_del = QPushButton("− Supprimer")
+        self._btn_del.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {p.error}; "
+            f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
+            f"padding: 4px 12px; font-size: {s(12)}px; }}"
+            f"QPushButton:hover {{ background: {p.error_container}; }}"
+        )
+        self._btn_del.clicked.connect(self._delete_entry)
+        row1.addWidget(self._btn_del)
+        layout.addLayout(row1)
+
+        self._entry_list = QListWidget()
+        self._entry_list.setFixedHeight(144)
+        self._entry_list.setStyleSheet(
+            f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(13)}px; background: {p.surface}; color: {p.text_strong};"
+        )
+        self._entry_list.currentRowChanged.connect(self._on_select)
+        layout.addWidget(self._entry_list)
+
+        # --- Champs d'édition ---
         self._date = QDateEdit()
         self._date.setDisplayFormat("yyyy-MM-dd")
         self._date.setCalendarPopup(True)
@@ -75,7 +114,7 @@ class _SectionPage(QWidget):
 
         self._doc = QTextEdit()
         self._doc.setPlaceholderText("Notes, description, observations...")
-        self._doc.setFixedHeight(144)
+        self._doc.setFixedHeight(89)
         self._doc.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
             f"border-radius: {d.radius}px; font-size: {s(13)}px; "
@@ -83,6 +122,7 @@ class _SectionPage(QWidget):
         )
         layout.addWidget(self._doc)
 
+        # --- Fichiers ---
         sep = QLabel("Fichiers joints")
         sep.setStyleSheet(f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong};")
         layout.addWidget(sep)
@@ -93,26 +133,83 @@ class _SectionPage(QWidget):
     def set_directory(self, path: str):
         self._file_panel.set_directory(path)
 
-    def load_entry(self, entry: dict | None):
-        if not entry:
-            self._date.setDate(QDate())
-            self._title.clear()
-            self._doc.clear()
+    def _refresh_list(self):
+        self._entry_list.blockSignals(True)
+        self._entry_list.clear()
+        for i, e in enumerate(self._entries):
+            titre = e.get("titre", "") or "(sans titre)"
+            date = e.get("date", "") or "??"
+            item = QListWidgetItem(f"{date} — {titre}")
+            item.setData(Qt.UserRole, i)
+            self._entry_list.addItem(item)
+        self._entry_list.blockSignals(False)
+        if 0 <= self._current < len(self._entries):
+            self._entry_list.setCurrentRow(self._current)
+        elif self._entries:
+            self._entry_list.setCurrentRow(0)
+        else:
+            self._entry_list.clear()
+            self._current = -1
+            self._clear_fields()
+
+    def _clear_fields(self):
+        self._date.setDate(QDate())
+        self._title.clear()
+        self._doc.clear()
+
+    def _on_select(self, row: int):
+        if row < 0 or row >= len(self._entries):
             return
+        self._save_current()
+        self._current = row
+        e = self._entries[row]
         try:
-            self._date.setDate(QDate.fromString(entry.get("date", ""), "yyyy-MM-dd"))
+            self._date.setDate(QDate.fromString(e.get("date", ""), "yyyy-MM-dd"))
         except Exception:
             self._date.setDate(QDate())
-        self._title.setText(entry.get("titre", ""))
-        self._doc.setPlainText(entry.get("doc", ""))
+        self._title.setText(e.get("titre", ""))
+        self._doc.setPlainText(e.get("doc", ""))
 
-    def get_entry(self) -> dict:
+    def _save_current(self):
+        if self._current < 0 or self._current >= len(self._entries):
+            return
+        self._entries[self._current] = self._current_entry()
+
+    def _current_entry(self) -> dict:
         return {
-            "no": 1,
+            "no": self._current + 1,
             "date": self._date.date().toString("yyyy-MM-dd") if self._date.date().isValid() else "",
             "titre": self._title.text(),
             "doc": self._doc.toPlainText(),
         }
+
+    def _add_entry(self):
+        self._save_current()
+        no = len(self._entries) + 1
+        self._entries.append({"no": no, "date": "", "titre": "", "doc": ""})
+        self._current = len(self._entries) - 1
+        self._refresh_list()
+
+    def _delete_entry(self):
+        if self._current < 0 or self._current >= len(self._entries):
+            return
+        r = QMessageBox.question(
+            self, "Confirmation", f"Supprimer l'entrée «{self._entries[self._current].get('titre', '')}» ?", QMessageBox.Yes | QMessageBox.No
+        )
+        if r != QMessageBox.Yes:
+            return
+        self._entries.pop(self._current)
+        self._current = min(self._current, len(self._entries) - 1)
+        self._refresh_list()
+
+    def load_entries(self, entries: list[dict]):
+        self._entries = list(entries) if entries else []
+        self._current = -1
+        self._refresh_list()
+
+    def get_entries(self) -> list[dict]:
+        self._save_current()
+        return self._entries
 
 
 class DossierPanel(QWidget):
@@ -143,16 +240,12 @@ class DossierPanel(QWidget):
 
         self._stack = QStackedWidget()
         first = True
-
         for key, label in SECTIONS:
             btn = QPushButton(label)
-            if first:
-                btn.setStyleSheet(btn_base + f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}")
-                first = False
-            else:
-                btn.setStyleSheet(
-                    btn_base + f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
-                )
+            active_s = btn_base + f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}"
+            idle_s = btn_base + f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
+            btn.setStyleSheet(active_s if first else idle_s)
+            first = False
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(lambda checked, k=key: self._select(k))
             btn_row.addWidget(btn)
@@ -200,22 +293,15 @@ class DossierPanel(QWidget):
         """Charge les données depuis notes_json."""
         for key, page in self._pages.items():
             section = data.get(key, {})
-            entries = section.get("entries", [])
-            if entries:
-                page.load_entry(entries[0])
-            else:
-                page.load_entry(None)
+            page.load_entries(section.get("entries", []))
 
     def get_data(self) -> dict:
         """Retourne les données au format notes_json."""
         result = {}
         for key, page in self._pages.items():
-            result[key] = {
-                "intro": "",
-                "entries": [page.get_entry()],
-            }
+            result[key] = {"intro": "", "entries": page.get_entries()}
         return result
 
     def clear(self):
         for page in self._pages.values():
-            page.load_entry(None)
+            page.load_entries([])
