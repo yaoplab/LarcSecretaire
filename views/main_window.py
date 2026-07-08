@@ -206,7 +206,6 @@ class MainWindow(QWidget):
         s = theme_manager.font_size
         d = theme_manager.design
         phi = getattr(self, "_phi", None)
-        from larccommon.l10n import _
 
         self._clear_layout(self._sidebar_layout)
 
@@ -263,7 +262,7 @@ class MainWindow(QWidget):
             grd.setSpacing(d.spacing)
 
             for col_idx, (hdr_text, prog_key) in enumerate(columns):
-                fg, bg, on_fg, _ = prog_style[prog_key]
+                fg, bg, on_fg, _x = prog_style[prog_key]
                 items = groups.get(prog_key, [])
 
                 col_hdr = M3Button(hdr_text)
