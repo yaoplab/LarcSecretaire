@@ -15,6 +15,7 @@ Dépendances :
 import json
 import os
 
+from larccommon.l10n import _
 from LarcSecretaire.common.audit import audit
 from LarcSecretaire.common.database import db
 from LarcSecretaire.common.logger import log
@@ -23,37 +24,38 @@ from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import theme_manager
 from LarcSecretaire.views.notes_panel import NotesPanel
 from LarcSecretaire.views.supervisor_panel import _event_color, _event_label
-from PySide6.QtCore import QDate, QEvent, Qt
-from PySide6.QtGui import (
-    QColor,
-    QPainter,
-    QPixmap,
-    QTextDocument,
+from phibuilder.widgets import (
+    M3Button,
+    M3Card,
+    M3ComboBox,
+    M3DateEdit,
+    M3Dialog,
+    M3DialogButtonBox,
+    M3Frame,
+    M3HeaderView,
+    M3Label,
+    M3ScrollArea,
+    M3StackedWidget,
+    M3TableWidget,
+    M3TabWidget,
+    M3TextEdit,
+    M3TextField,
 )
-from PySide6.QtPrintSupport import QPrinter
+from phibuilder.widgets.button import ButtonVariant
+from phibuilder.widgets.card import CardVariant
+from PySide6.QtCore import QDate, QEvent, Qt
+from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QComboBox,
-    QDateEdit,
     QDialog,
-    QDialogButtonBox,
     QFileDialog,
-    QFrame,
     QGridLayout,
     QHBoxLayout,
-    QHeaderView,
     QInputDialog,
-    QLabel,
-    QLineEdit,
     QListWidget,
     QMessageBox,
-    QPushButton,
-    QScrollArea,
     QSizePolicy,
-    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
-    QTabWidget,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -113,8 +115,8 @@ class StudentForm(QWidget):
 
     def _init_ui(self):
         """Construit l'interface complète."""
+        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
         p = theme_manager.palette
-        s = theme_manager.font_size
         d = theme_manager.design
         layout = QVBoxLayout(self)
         layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
@@ -122,39 +124,23 @@ class StudentForm(QWidget):
 
         # Titre + bouton +
         title_row = QHBoxLayout()
-        title = QLabel("Fiche élève")
-        title.setStyleSheet(f"font-size: {s(14)}px; font-weight: bold; color: {p.text_strong};")
+        title = M3Label(_("student_form.title"), theme=phi, style="title_medium")
         title_row.addWidget(title)
         title_row.addStretch()
 
-        self._add_student_btn = QPushButton("+")
+        self._add_student_btn = M3Button("+", theme=phi, variant=ButtonVariant.TONAL)
         self._add_student_btn.setFixedSize(34, 34)
-        self._add_student_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius}px; font-size: {s(20)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
-        )
         self._add_student_btn.clicked.connect(self._open_create_dialog)
         title_row.addWidget(self._add_student_btn)
         layout.addLayout(title_row)
 
         # Barre de recherche
         search_row = QHBoxLayout()
-        self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("Rechercher par nom, prénom, email, ID ou classe...")
-        self._search_input.setStyleSheet(
-            f"padding: {d.label_pad_v}px {d.btn_sm_pad_v}px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};"
-        )
+        self._search_input = M3TextField(placeholder=_("student_form.search_placeholder"), theme=phi)
         self._search_input.returnPressed.connect(self._on_search)
         search_row.addWidget(self._search_input, 1)
 
-        self._search_btn = QPushButton("🔍 Rechercher")
-        self._search_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-weight: bold; font-size: {s(10)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
-        )
+        self._search_btn = M3Button(_("student_form.search_button"), theme=phi, variant=ButtonVariant.FILLED)
         self._search_btn.clicked.connect(self._on_search)
         search_row.addWidget(self._search_btn)
         layout.addLayout(search_row)
@@ -164,34 +150,31 @@ class StudentForm(QWidget):
         content.setSpacing(d.spacing + 2)
 
         # ── Panneau résultats (gauche) ──
-        self._results_panel = QFrame()
-        self._results_panel.setObjectName("panel")
-        self._results_panel.setStyleSheet(f"QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: {d.radius}px; }}")
-        rp_layout = QVBoxLayout(self._results_panel)
+        self._results_panel = M3Card(theme=phi, variant=CardVariant.ELEVATED, parent=self)
+        rp_layout = self._results_panel.content_layout()
         rp_layout.setContentsMargins(d.radius, d.radius, d.radius, d.radius)
 
-        self._results_label = QLabel("Résultats (0)")
-        self._results_label.setStyleSheet(f"font-weight: bold; font-size: {s(10)}px; color: {p.text_soft}; padding: {d.radius}px;")
+        self._results_label = M3Label(_("student_form.results_label").format(count=0), theme=phi, style="label_small")
+        self._results_label.setStyleSheet("font-weight: bold;")
         rp_layout.addWidget(self._results_label)
 
         # Tableau des résultats
-        self._results_table = QTableWidget()
-        self._results_table.setColumnCount(4)
-        self._results_table.setHorizontalHeaderLabels(["Nom", "Classe", "Email", "ID"])
+        self._results_table = M3TableWidget(theme=phi)
+        self._results_table.set_headers(
+            [_("student_form.table_headers"), _("student_form.table_headers_class"), _("student_form.table_headers_email"), _("student_form.table_headers_id")]
+        )
         self._results_table.setColumnHidden(3, True)
         self._results_table.horizontalHeader().setStretchLastSection(True)
-        self._results_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._results_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self._results_table.setEditTriggers(M3TableWidget.NoEditTriggers)
+        self._results_table.setSelectionBehavior(M3TableWidget.SelectRows)
         self._results_table.setAlternatingRowColors(True)
         self._results_table.itemSelectionChanged.connect(self._on_result_selected)
         rp_layout.addWidget(self._results_table, 1)
         content.addWidget(self._results_panel, 1)
 
         # ── Panneau détail (droite) — vignette info ──
-        self._detail_panel = QFrame()
-        self._detail_panel.setObjectName("panel")
-        self._detail_panel.setStyleSheet(f"QFrame#panel {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: {d.radius}px; }}")
-        dp_layout = QVBoxLayout(self._detail_panel)
+        self._detail_panel = M3Card(theme=phi, variant=CardVariant.ELEVATED, parent=self)
+        dp_layout = self._detail_panel.content_layout()
         dp_layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
         dp_layout.setSpacing(d.spacing + 2)
         dp_layout.setAlignment(Qt.AlignCenter)
@@ -204,29 +187,21 @@ class StudentForm(QWidget):
         self._detail_photo.installEventFilter(self)
         dp_layout.addWidget(self._detail_photo, 0, Qt.AlignCenter)
 
-        self._detail_nom_label = QLabel("—")
-        self._detail_nom_label.setStyleSheet(f"font-size: {s(18)}px; font-weight: bold; color: {p.text_strong};")
+        self._detail_nom_label = M3Label("—", theme=phi, style="headline_small")
         self._detail_nom_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_nom_label, 0, Qt.AlignCenter)
 
-        self._detail_classe_label = QLabel("")
-        self._detail_classe_label.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
+        self._detail_classe_label = M3Label("", theme=phi, style="body_medium")
         self._detail_classe_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_classe_label)
 
-        self._detail_id_label = QLabel("")
-        self._detail_id_label.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
+        self._detail_id_label = M3Label("", theme=phi, style="body_medium")
         self._detail_id_label.setAlignment(Qt.AlignCenter)
         dp_layout.addWidget(self._detail_id_label)
 
         dp_layout.addSpacing(13)
 
-        self._open_btn = QPushButton("Ouvrir la fiche")
-        self._open_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: {d.radius_lg}px; padding: {d.btn_pad_v + 5}px {d.btn_pad_h + 5}px; font-size: {s(14)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
-        )
+        self._open_btn = M3Button(_("student_form.open_file"), theme=phi, variant=ButtonVariant.FILLED)
         self._open_btn.clicked.connect(self._open_edit_dialog)
         self._open_btn.setMinimumWidth(144)
         dp_layout.addWidget(self._open_btn, 0, Qt.AlignCenter)
@@ -249,7 +224,7 @@ class StudentForm(QWidget):
         """
         query = self._search_input.text().strip()
         if not query:
-            QMessageBox.information(self, "Recherche", "Tapez un nom, prénom, email ou classe dans la barre de recherche.")
+            QMessageBox.information(self, _("student_form.search_info_title"), _("student_form.search_info_msg"))
             return
         self.search(query)
 
@@ -261,7 +236,7 @@ class StudentForm(QWidget):
         """
         conn = db.server_conn
         if not conn:
-            QMessageBox.warning(self, "Erreur", "Non connecté au serveur.")
+            QMessageBox.warning(self, _("common.dialog.error_title"), _("student_form.error.no_connection"))
             return
 
         from psycopg2 import errors as pg_errors
@@ -340,7 +315,7 @@ class StudentForm(QWidget):
 
         except Exception as e:
             log(f"StudentForm.search: {e}")
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
 
     def _populate_results(self):
         """Remplit le tableau des résultats de recherche."""
@@ -355,11 +330,11 @@ class StudentForm(QWidget):
 
         self._results_table.resizeColumnsToContents()
         count = len(self._results)
-        self._results_label.setText(f"Résultats ({count})")
+        self._results_label.setText(_("student_form.results_label").format(count=count))
 
         if count == 0:
             self._detail_panel.hide()
-            QMessageBox.information(self, "Recherche", "Aucun élève trouvé. Vérifiez l'orthographe ou essayez un autre terme.")
+            QMessageBox.information(self, _("student_form.search_info_title"), _("student_form.search_no_results"))
         elif count == 1:
             # Sélection automatique si un seul résultat
             self._results_table.selectRow(0)
@@ -488,7 +463,7 @@ class StudentEditDialog(QDialog):
         super().__init__(parent)
         self._sid = data["id"]
         self._data = self._fetch_fresh_data() or data
-        self.setWindowTitle(f"Modifier — {self._data.get('last_name', '?')} {self._data.get('first_name', '?')}")
+        self.setWindowTitle(_("student_form.edit_title").format(l=self._data.get("last_name", "?"), f=self._data.get("first_name", "?")))
         self.setMinimumSize(987, 610)
         self.showMaximized()
         self._init_ui()
@@ -531,30 +506,22 @@ class StudentEditDialog(QDialog):
             return None
 
     def _init_ui(self):
+        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
-        fs = 13
         sp = 13
 
         layout = QVBoxLayout(self)
         layout.setSpacing(sp)
         layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
 
-        title = QLabel("Modifier l'élève")
-        title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
+        title = M3Label(_("student_form.edit_label"), theme=phi, style="headline_medium")
         layout.addWidget(title)
 
-        field_style = (
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; font-size: {s(fs)}px; "
-            f"background: {p.surface}; color: {p.text_strong};"
-        )
-        label_style = f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold; padding: {d.label_pad_v}px {d.label_pad_h}px;"
-
         def _lbl(t):
-            lbl = QLabel(t)
-            lbl.setStyleSheet(label_style)
+            lbl = M3Label(t, theme=phi, style="body_medium")
+            lbl.setStyleSheet("font-weight: bold;")
             lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
             return lbl
 
@@ -569,55 +536,37 @@ class StudentEditDialog(QDialog):
 
         id_col = QVBoxLayout()
         id_col.setSpacing(sp // 2)
-        self._id_name = QLabel("")
-        self._id_name.setStyleSheet(f"font-size: {s(34)}px; font-weight: bold; color: {p.text_strong};")
+        self._id_name = M3Label("", theme=phi, style="display_small")
+        self._id_name.setStyleSheet("font-weight: bold;")
         id_col.addWidget(self._id_name)
-        self._id_info = QLabel("")
-        self._id_info.setStyleSheet(f"font-size: {s(21)}px; color: {p.text_soft};")
+        self._id_info = M3Label("", theme=phi, style="headline_small")
         id_col.addWidget(self._id_info)
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
 
-        # Boutons d'action — même style que la sidebar
+        # Boutons d'action
         btn_col = QVBoxLayout()
         btn_col.setSpacing(d.spacing)
         btn_col.setAlignment(Qt.AlignTop)
 
-        btn_h = 34
-        pad_h = sp * 2
+        def _m3_btn(text, variant, size="md"):
+            b = M3Button(text, theme=phi, variant=variant)
+            b.setMinimumHeight(34)
+            return b
 
-        def _act_btn(text, bg, fg, hover, bordered=False):
-            btn = QPushButton(text)
-            if bordered:
-                btn.setStyleSheet(
-                    f"QPushButton {{ background: transparent; color: {fg}; "
-                    f"border: 1px solid {p.outline_variant}; border-radius: {d.radius_lg}px; "
-                    f"padding: {d.spacing}px {pad_h}px; font-size: {s(13)}px; font-weight: bold; }}"
-                    f"QPushButton:hover {{ background: {p.surface_variant}; }}"
-                )
-            else:
-                btn.setStyleSheet(
-                    f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
-                    f"border-radius: {d.radius_lg}px; "
-                    f"padding: {d.spacing}px {pad_h}px; font-size: {s(13)}px; font-weight: bold; }}"
-                    f"QPushButton:hover {{ background: {hover}; }}"
-                )
-            btn.setMinimumHeight(btn_h)
-            return btn
-
-        save_btn = _act_btn("Enregistrer", p.button_success, "white", p.success)
+        save_btn = _m3_btn(_("student_form.save"), ButtonVariant.FILLED)
         save_btn.clicked.connect(self._save)
         btn_col.addWidget(save_btn)
 
-        pdf_btn = _act_btn("PDF", p.primary, p.on_primary, p.active)
+        pdf_btn = _m3_btn(_("student_form.pdf"), ButtonVariant.TONAL)
         pdf_btn.clicked.connect(self._export_pdf)
         btn_col.addWidget(pdf_btn)
 
-        word_btn = _act_btn("Word", p.tertiary, p.on_tertiary, p.active)
+        word_btn = _m3_btn(_("student_form.word"), ButtonVariant.TONAL)
         word_btn.clicked.connect(self._export_word)
         btn_col.addWidget(word_btn)
 
-        cancel_btn = _act_btn("Annuler", "transparent", p.text_soft, p.surface_variant, bordered=True)
+        cancel_btn = _m3_btn(_("student_form.cancel"), ButtonVariant.OUTLINED)
         cancel_btn.clicked.connect(self.reject)
         btn_col.addWidget(cancel_btn)
 
@@ -628,52 +577,51 @@ class StudentEditDialog(QDialog):
         layout.addSpacing(sp)
 
         # Champs
-        self._inp_nom = QLineEdit()
-        self._inp_nom.setStyleSheet(field_style)
-        self._inp_prenom = QLineEdit()
-        self._inp_prenom.setStyleSheet(field_style)
-        self._inp_email = QLineEdit()
-        self._inp_email.setStyleSheet(field_style)
-        self._inp_emailperso = QLineEdit()
-        self._inp_emailperso.setStyleSheet(field_style)
-        self._inp_tel = QLineEdit()
-        self._inp_tel.setStyleSheet(field_style)
-        self._inp_tel2 = QLineEdit()
-        self._inp_tel2.setStyleSheet(field_style)
-        self._inp_date_joined = QDateEdit()
+        self._inp_nom = M3TextField(theme=phi)
+        self._inp_prenom = M3TextField(theme=phi)
+        self._inp_email = M3TextField(theme=phi)
+        self._inp_emailperso = M3TextField(theme=phi)
+        self._inp_tel = M3TextField(theme=phi)
+        self._inp_tel2 = M3TextField(theme=phi)
+        self._inp_date_joined = M3DateEdit()
         self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
         self._inp_date_joined.setCalendarPopup(True)
         self._inp_date_joined.setSpecialValueText(" ")
         self._inp_date_joined.setDate(QDate())
-        self._inp_date_joined.setStyleSheet(field_style)
-        self._inp_date = QDateEdit()
+        self._inp_date = M3DateEdit()
         self._inp_date.setDisplayFormat("yyyy-MM-dd")
         self._inp_date.setCalendarPopup(True)
         self._inp_date.setSpecialValueText(" ")
         self._inp_date.setDate(QDate())
-        self._inp_date.setStyleSheet(field_style)
-        self._inp_genre = QComboBox()
-        self._inp_genre.setStyleSheet(field_style + " min-width: 180px;")
+        self._inp_date.setStyleSheet(
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
+            f"border-radius: {d.radius}px; font-size: 13px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
+        self._inp_genre = M3ComboBox(theme=phi)
         self._load_genders()
-        self._inp_birthdate = QDateEdit()
+        self._inp_birthdate = M3DateEdit()
         self._inp_birthdate.setDisplayFormat("yyyy-MM-dd")
         self._inp_birthdate.setCalendarPopup(True)
         self._inp_birthdate.setSpecialValueText(" ")
         self._inp_birthdate.setDate(QDate())
-        self._inp_birthdate.setStyleSheet(field_style)
-        self._inp_addr1 = QTextEdit()
-        addr_field_style = field_style.replace("QLineEdit", "QTextEdit")
-        self._inp_addr1.setStyleSheet(addr_field_style)
+        self._inp_birthdate.setStyleSheet(
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
+            f"border-radius: {d.radius}px; font-size: 13px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
+        self._inp_addr1 = M3TextEdit()
         self._inp_addr1.setFixedHeight(144)
-        self._inp_addr1.setPlaceholderText("Rue, quartier, BP, ...")
-        self._inp_addr2 = QLineEdit()
-        self._inp_addr2.setStyleSheet(field_style)
-        self._inp_cp = QLineEdit()
-        self._inp_cp.setStyleSheet(field_style)
-        self._inp_ville = QLineEdit()
-        self._inp_ville.setStyleSheet(field_style)
-        self._inp_pays = QLineEdit("Togo")
-        self._inp_pays.setStyleSheet(field_style)
+        self._inp_addr1.setPlaceholderText(_("student_form.street_placeholder"))
+        self._inp_addr1.setStyleSheet(
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
+            f"border-radius: {d.radius}px; font-size: 13px; "
+            f"background: {p.surface}; color: {p.text_strong};"
+        )
+        self._inp_addr2 = M3TextField(theme=phi)
+        self._inp_cp = M3TextField(theme=phi)
+        self._inp_ville = M3TextField(theme=phi)
+        self._inp_pays = M3TextField(_("student_form.default_country"), theme=phi)
 
         # Sidebar verticale + QStackedWidget (remplace les onglets)
         nav_row = QHBoxLayout()
@@ -683,31 +631,15 @@ class StudentEditDialog(QDialog):
         nav_side.setContentsMargins(0, 0, sp, 0)
 
         nav_items = [
-            "Identité & Contact",
-            "Adresse & Parents",
-            "Événements",
-            "Dossiers",
-            "Confidentiel",
+            _("student_form.tab_identity"),
+            _("student_form.tab_address"),
+            _("student_form.tab_events"),
+            _("student_form.tab_documents"),
+            _("student_form.tab_confidential"),
         ]
 
-        def _btn_style(bg, fg, hover_bg=None):
-            hbg = hover_bg or bg
-            return (
-                f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
-                f"border-radius: {d.radius}px; padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; "
-                f"font-size: {s(fs)}px; }}"
-                f"QPushButton:hover {{ background: {hbg}; }}"
-            )
-
-        self._nav_btns: list[QPushButton] = []
+        self._nav_btns: list[M3Button] = []
         self._nav_pages: list[QWidget] = []
-
-        nav_btn_base = (
-            f"QPushButton {{ text-align: left; border: none; border-radius: {d.radius_lg}px; "
-            f"padding: {sp}px {sp * 2}px; font-size: {s(13)}px; font-weight: bold; }}"
-        )
-        nav_btn_active = f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}"
-        nav_btn_idle = f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
 
         # --- Page 1 : Identité & Contact ---
         p1 = QWidget()
@@ -716,34 +648,34 @@ class StudentEditDialog(QDialog):
         g1 = QGridLayout()
         g1.setSpacing(sp)
         r = 0
-        g1.addWidget(_lbl("Nom *"), r, 0)
-        g1.addWidget(_lbl("Prénom *"), r, 1)
+        g1.addWidget(_lbl(_("student_form.last_name_label")), r, 0)
+        g1.addWidget(_lbl(_("student_form.first_name_label")), r, 1)
         r += 1
         g1.addWidget(self._inp_nom, r, 0)
         g1.addWidget(self._inp_prenom, r, 1)
         r += 1
-        g1.addWidget(_lbl("Date arrivée école"), r, 0, 1, 2)
+        g1.addWidget(_lbl(_("student_form.arrival_label")), r, 0, 1, 2)
         r += 1
         g1.addWidget(self._inp_date_joined, r, 0, 1, 2)
         r += 1
-        g1.addWidget(_lbl("Date d'entrée"), r, 0)
-        g1.addWidget(_lbl("Genre"), r, 1)
+        g1.addWidget(_lbl(_("student_form.entry_date")), r, 0)
+        g1.addWidget(_lbl(_("student_form.gender_label")), r, 1)
         r += 1
         g1.addWidget(self._inp_date, r, 0)
         g1.addWidget(self._inp_genre, r, 1)
         r += 1
-        g1.addWidget(_lbl("Date de naissance"), r, 0)
+        g1.addWidget(_lbl(_("student_form.birth_date")), r, 0)
         r += 1
         g1.addWidget(self._inp_birthdate, r, 0)
         r += 2
-        g1.addWidget(_lbl("Email"), r, 0)
-        g1.addWidget(_lbl("Email personnel"), r, 1)
+        g1.addWidget(_lbl(_("student_form.email_label")), r, 0)
+        g1.addWidget(_lbl(_("student_form.email_personal")), r, 1)
         r += 1
         g1.addWidget(self._inp_email, r, 0)
         g1.addWidget(self._inp_emailperso, r, 1)
         r += 1
-        g1.addWidget(_lbl("Téléphone portable"), r, 0)
-        g1.addWidget(_lbl("Téléphone fixe"), r, 1)
+        g1.addWidget(_lbl(_("student_form.phone_mobile")), r, 0)
+        g1.addWidget(_lbl(_("student_form.phone_fixed")), r, 1)
         r += 1
         g1.addWidget(self._inp_tel, r, 0)
         g1.addWidget(self._inp_tel2, r, 1)
@@ -755,64 +687,54 @@ class StudentEditDialog(QDialog):
         p4 = QWidget()
         p4_layout = QVBoxLayout(p4)
         p4_layout.setSpacing(sp)
-        addr_card = QFrame()
-        addr_card.setStyleSheet(f"QFrame {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; padding: {sp}px; }}")
+        addr_card = M3Frame()
+        addr_card.setStyleSheet(f"M3Frame {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; padding: {sp}px; }}")
         addr_card_layout = QVBoxLayout(addr_card)
         addr_card_layout.setSpacing(d.spacing)
-        addr_title = QLabel("Adresse")
+        addr_title = M3Label(_("student_form.address_title"))
         addr_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         addr_card_layout.addWidget(addr_title)
         addr_card_layout.addWidget(self._inp_addr1)
         addr_card_layout.addWidget(self._inp_addr2)
         addr_grid = QGridLayout()
         addr_grid.setSpacing(d.spacing)
-        addr_grid.addWidget(_lbl("Code postal"), 0, 0)
-        addr_grid.addWidget(_lbl("Ville"), 0, 1)
+        addr_grid.addWidget(_lbl(_("student_form.zip_label")), 0, 0)
+        addr_grid.addWidget(_lbl(_("student_form.city_label")), 0, 1)
         addr_grid.addWidget(self._inp_cp, 1, 0)
         addr_grid.addWidget(self._inp_ville, 1, 1)
-        addr_grid.addWidget(_lbl("Pays"), 2, 0)
+        addr_grid.addWidget(_lbl(_("student_form.country_label")), 2, 0)
         addr_grid.addWidget(self._inp_pays, 3, 0, 1, 2)
         addr_card_layout.addLayout(addr_grid)
         p4_layout.addWidget(addr_card)
-        parents_title = QLabel("Parents / tuteurs")
+        parents_title = M3Label(_("student_form.parents_title"))
         parents_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong}; margin-top: {sp}px;")
         p4_layout.addWidget(parents_title)
-        self._parents_table = QTableWidget()
-        self._parents_table.setColumnCount(4)
-        self._parents_table.setHorizontalHeaderLabels(["Nom", "Nature", "Email", "Téléphone"])
-        self._parents_table.horizontalHeader().setStretchLastSection(True)
-        self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._parents_table.setMaximumHeight(144)
-        self._parents_table.setStyleSheet(
-            f"QTableWidget {{ border: 1px solid {p.border}; "
-            f"gridline-color: {p.border_light}; font-size: {s(fs)}px; "
-            f"background: {p.surface}; color: {p.text_strong}; }}"
-            f"QHeaderView::section {{ background: {p.surface_variant}; "
-            f"color: {p.text_strong}; font-weight: bold; padding: 2px; border: none; }}"
+        self._parents_table = M3TableWidget(theme=phi)
+        self._parents_table.set_headers(
+            [
+                _("student_form.parents_table_nom"),
+                _("student_form.parents_table_nature"),
+                _("student_form.parents_table_email"),
+                _("student_form.parents_table_phone"),
+            ]
         )
+        self._parents_table.horizontalHeader().setStretchLastSection(True)
+        self._parents_table.setEditTriggers(M3TableWidget.NoEditTriggers)
+        self._parents_table.setSelectionBehavior(M3TableWidget.SelectRows)
+        self._parents_table.setMaximumHeight(144)
         p4_layout.addWidget(self._parents_table)
         parent_tools = QHBoxLayout()
         parent_tools.setSpacing(d.spacing)
-        add_par_btn = QPushButton("+ Ajouter un parent")
-        add_par_btn.setStyleSheet(_btn_style(p.button_success, "white", p.success))
+        add_par_btn = M3Button(_("student_form.add_parent"), theme=phi, variant=ButtonVariant.FILLED)
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
-        edit_par_btn = QPushButton("✎ Nature")
-        edit_par_btn.setStyleSheet(_btn_style(p.primary, p.on_primary, p.active))
+        edit_par_btn = M3Button(_("student_form.edit_nature"), theme=phi, variant=ButtonVariant.TONAL)
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
-        remove_par_btn = QPushButton("− Retirer")
-        remove_par_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.error}; "
-            f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
-            f"padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}"
-        )
+        remove_par_btn = M3Button(_("student_form.remove_parent"), theme=phi, variant=ButtonVariant.OUTLINED)
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
-        copy_btn = QPushButton("Copier l'adresse")
-        copy_btn.setStyleSheet(_btn_style(p.primary_container, p.on_primary, p.primary))
+        copy_btn = M3Button(_("student_form.copy_address"), theme=phi, variant=ButtonVariant.TONAL)
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
         parent_tools.addStretch()
@@ -824,18 +746,25 @@ class StudentEditDialog(QDialog):
         p4 = QWidget()
         p4_layout = QVBoxLayout(p4)
         p4_layout.setSpacing(sp)
-        evt_label = QLabel("Événements (consultation seule)")
+        evt_label = M3Label(_("student_form.events_title"))
         evt_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         p4_layout.addWidget(evt_label)
-        self._evt_table = QTableWidget()
-        self._evt_table.setColumnCount(5)
-        self._evt_table.setHorizontalHeaderLabels(["Date/Heure", "Type", "Note", "Par", "Validé"])
+        self._evt_table = M3TableWidget(theme=phi)
+        self._evt_table.set_headers(
+            [
+                _("student_form.events_table_date"),
+                _("student_form.events_table_type"),
+                _("student_form.events_table_note"),
+                _("student_form.events_table_by"),
+                _("student_form.events_table_validated"),
+            ]
+        )
         hh_evt = self._evt_table.horizontalHeader()
-        hh_evt.setSectionResizeMode(0, QHeaderView.Interactive)
-        hh_evt.setSectionResizeMode(1, QHeaderView.Interactive)
-        hh_evt.setSectionResizeMode(2, QHeaderView.Stretch)
-        hh_evt.setSectionResizeMode(3, QHeaderView.Interactive)
-        hh_evt.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        hh_evt.setSectionResizeMode(0, M3HeaderView.Interactive)
+        hh_evt.setSectionResizeMode(1, M3HeaderView.Interactive)
+        hh_evt.setSectionResizeMode(2, M3HeaderView.Stretch)
+        hh_evt.setSectionResizeMode(3, M3HeaderView.Interactive)
+        hh_evt.setSectionResizeMode(4, M3HeaderView.ResizeToContents)
         self._evt_table.setColumnWidth(0, 150)
         self._evt_table.setColumnWidth(1, 110)
         self._evt_table.setColumnWidth(3, 140)
@@ -863,10 +792,10 @@ class StudentEditDialog(QDialog):
         from LarcSecretaire.common.session import session as _ses
 
         if _ses.role in (UserRole.ADMIN, UserRole.COORD, UserRole.SECR):
-            conf_label = QLabel("Notes confidentielles")
+            conf_label = M3Label(_("student_form.confidential_notes"))
             conf_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
             p5_layout.addWidget(conf_label)
-            conf_info = QLabel("Réservé aux coordinateurs, directeurs et secrétaires.\nInformations sensibles ne devant pas être diffusées.")
+            conf_info = M3Label(_("student_form.confidential_desc"))
             conf_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft}; padding-bottom: {sp}px;")
             conf_info.setWordWrap(True)
             p5_layout.addWidget(conf_info)
@@ -875,7 +804,7 @@ class StudentEditDialog(QDialog):
             self._conf_file_panel = FilePanel()
             p5_layout.addWidget(self._conf_file_panel, 1)
         else:
-            deny = QLabel("Accès restreint aux coordinateurs, directeurs et secrétaires.")
+            deny = M3Label(_("student_form.confidential_restricted"))
             deny.setStyleSheet(f"font-size: {s(15)}px; color: {p.text_disabled}; padding: 40px;")
             deny.setAlignment(Qt.AlignCenter)
             deny.setWordWrap(True)
@@ -883,11 +812,12 @@ class StudentEditDialog(QDialog):
         self._nav_pages.append(p5)
 
         # Construire la sidebar + stack
-        self._nav_stack = QStackedWidget()
+        self._nav_stack = M3StackedWidget()
         for idx, (label, page) in enumerate(zip(nav_items, self._nav_pages)):
-            btn = QPushButton(label)
-            btn.setStyleSheet(nav_btn_base + (nav_btn_active if idx == 0 else nav_btn_idle))
+            btn = M3Button(label, theme=phi, variant=ButtonVariant.TEXT)
             btn.setCursor(Qt.PointingHandCursor)
+            btn.setCheckable(True)
+            btn.setChecked(idx == 0)
             btn.clicked.connect(lambda checked, i=idx: self._on_nav(i))
             nav_side.addWidget(btn)
             self._nav_btns.append(btn)
@@ -902,26 +832,8 @@ class StudentEditDialog(QDialog):
 
     def _on_nav(self, index: int):
         self._nav_stack.setCurrentIndex(index)
-        p = theme_manager.palette
-        sp = theme_manager.design.spacing * 2
         for i, btn in enumerate(self._nav_btns):
-            if i == index:
-                btn.setStyleSheet(
-                    f"QPushButton {{ text-align: left; border: none; "
-                    f"border-radius: {theme_manager.design.radius_lg}px; "
-                    f"padding: {sp}px {sp * 2}px; "
-                    f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; "
-                    f"background: {p.primary}; color: {p.on_primary}; }}"
-                )
-            else:
-                btn.setStyleSheet(
-                    f"QPushButton {{ text-align: left; border: none; "
-                    f"border-radius: {theme_manager.design.radius_lg}px; "
-                    f"padding: {sp}px {sp * 2}px; "
-                    f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; "
-                    f"background: transparent; color: {p.text_strong}; }}"
-                    f"QPushButton:hover {{ background: {p.surface_variant}; }}"
-                )
+            btn.setChecked(i == index)
 
     def _get_class_language(self, classroom_id: int) -> int | None:
         conn = db.server_conn
@@ -946,7 +858,7 @@ class StudentEditDialog(QDialog):
 
     def _load_genders(self, lang_id: int | None = None, include_gid: int | None = None):
         self._inp_genre.clear()
-        self._inp_genre.addItem("— Non précisé —", 0)
+        self._inp_genre.addItem(_("student_form.gender_not_specified"), 0)
         conn = db.server_conn
         if not conn:
             return
@@ -984,7 +896,7 @@ class StudentEditDialog(QDialog):
 
         # Identité
         self._id_name.setText(f"{d['last_name']} {d['first_name']}")
-        self._id_info.setText(f"ID : {sid}  |  Classe : {d.get('classroom', '—')}")
+        self._id_info.setText(_("student_form.id_class_info").format(id=sid, cls=d.get("classroom", "—")))
 
         # Champs
         self._inp_nom.setText(d.get("last_name", ""))
@@ -1022,7 +934,7 @@ class StudentEditDialog(QDialog):
         self._inp_addr2.setText(d.get("address_line2", "") or "")
         self._inp_cp.setText(d.get("postal_code", "") or "")
         self._inp_ville.setText(d.get("city", "") or "")
-        self._inp_pays.setText(d.get("country", "") or "Togo")
+        self._inp_pays.setText(d.get("country", "") or _("student_form.default_country"))
         raw_notes_json = d.get("notes_json") or None
         if raw_notes_json:
             if isinstance(raw_notes_json, str):
@@ -1141,7 +1053,7 @@ class StudentEditDialog(QDialog):
     def _save(self):
         conn = db.server_conn
         if not conn:
-            QMessageBox.warning(self, "Erreur", "Non connecté au serveur.")
+            QMessageBox.warning(self, _("common.dialog.error_title"), _("student_form.error.no_connection"))
             return
         try:
             cur = conn.cursor()
@@ -1222,12 +1134,12 @@ class StudentEditDialog(QDialog):
             conn.commit()
             log(f"StudentEditDialog: saved #{self._sid}")
 
-            QMessageBox.information(self, "Succès", "Élève mis à jour.")
+            QMessageBox.information(self, _("common.label.success"), _("student_form.success_updated"))
             self.accept()
         except Exception as e:
             conn.rollback()
             log(f"StudentEditDialog._save: {e}")
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
 
     # ── Notes (formatage HTML) — supprimé, remplacé par NotesPanel JSON
 
@@ -1242,7 +1154,7 @@ class StudentEditDialog(QDialog):
     def _copy_parent_address(self):
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Copie adresse", "Sélectionnez d'abord un parent dans la liste.")
+            QMessageBox.warning(self, _("student_form.copy_address_title"), _("student_form.copy_address_none"))
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
@@ -1271,14 +1183,14 @@ class StudentEditDialog(QDialog):
                     self._inp_pays.setText(pays)
                 log(f"Copied address from parent #{pid} to student #{self._sid}")
             else:
-                QMessageBox.information(self, "Copie adresse", "Ce parent n'a pas d'adresse enregistrée.")
+                QMessageBox.information(self, _("student_form.copy_address_title"), _("student_form.copy_address_no_address"))
         except Exception as e:
             log(f"_copy_parent_address: {e}")
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
 
     def _add_parent_link(self):
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Ajouter un parent")
+        dlg = M3Dialog(self)
+        dlg.setWindowTitle(_("student_form.add_parent"))
         dlg.setMinimumSize(377, 377)
         p = theme_manager.palette
         d = theme_manager.design
@@ -1286,8 +1198,8 @@ class StudentEditDialog(QDialog):
         fs = 10
         dlg.setStyleSheet(f"background: {p.surface}; color: {p.text_strong};")
         layout = QVBoxLayout(dlg)
-        search_inp = QLineEdit()
-        search_inp.setPlaceholderText("Taper au moins 3 caractères...")
+        search_inp = M3TextField()
+        search_inp.setPlaceholderText(_("student_form.search_parent_placeholder"))
         search_inp.setStyleSheet(
             f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
         )
@@ -1297,7 +1209,7 @@ class StudentEditDialog(QDialog):
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
         )
         layout.addWidget(result_list, 1)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = M3DialogButtonBox(M3DialogButtonBox.Ok | M3DialogButtonBox.Cancel)
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)
@@ -1358,19 +1270,19 @@ class StudentEditDialog(QDialog):
                 log(f"Linked parent #{pid} to student #{self._sid}")
             except Exception as e:
                 log(f"_add_parent_link insert: {e}")
-                QMessageBox.critical(self, "Erreur", str(e))
+                QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
             self._load_parents()
 
     def _edit_parent_nature(self):
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Nature", "Sélectionnez d'abord un parent.")
+            QMessageBox.warning(self, _("student_form.nature_dialog_title"), _("parent.error.no_parent_selected"))
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
             return
         pid = self._parent_ids[row]
-        nature, ok = QInputDialog.getText(self, "Nature du lien", "Nature (ex: père, mère, tuteur légal...):")
+        nature, ok = QInputDialog.getText(self, _("student_form.nature_prompt_title"), _("student_form.nature_prompt_msg"))
         if not ok:
             return
         conn = db.server_conn
@@ -1386,12 +1298,12 @@ class StudentEditDialog(QDialog):
             self._load_parents()
         except Exception as e:
             log(f"_edit_parent_nature: {e}")
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
 
     def _remove_parent_link(self):
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Retirer", "Sélectionnez d'abord un parent.")
+            QMessageBox.warning(self, _("student_form.remove_parent"), _("parent.error.no_parent_selected"))
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
@@ -1399,8 +1311,8 @@ class StudentEditDialog(QDialog):
         pid = self._parent_ids[row]
         confirm = QMessageBox.question(
             self,
-            "Confirmation",
-            "Retirer ce parent de l'élève ?\n(L'élève n'aura plus accès à ce parent)",
+            _("student_form.remove_confirm_title"),
+            _("student_form.remove_confirm_msg"),
             QMessageBox.Yes | QMessageBox.No,
         )
         if confirm != QMessageBox.Yes:
@@ -1415,7 +1327,7 @@ class StudentEditDialog(QDialog):
             self._load_parents()
         except Exception as e:
             log(f"_remove_parent_link: {e}")
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
 
     def _build_full_html(self) -> str:
         d = self._data
@@ -1492,13 +1404,13 @@ class StudentEditDialog(QDialog):
         # Notes structurées
         parts.append("<h2>Notes</h2>")
         section_labels = {
-            "confidentielle": "Confidentielle",
-            "medicale": "Médicale",
-            "pedagogique": "Pédagogique",
-            "administrative": "Administrative",
-            "communication": "Communication",
-            "orientation": "Orientation",
-            "autre": "Autre",
+            "confidentielle": _("notes.section.confidential"),
+            "medicale": _("notes.section.medical"),
+            "pedagogique": _("notes.section.pedagogic"),
+            "administrative": _("notes.section.administrative"),
+            "communication": _("notes.section.communication"),
+            "orientation": _("notes.section.orientation"),
+            "autre": _("notes.section.other"),
         }
         notes_data = self._notes_panel.get_json()
         has_notes = False
@@ -1547,8 +1459,8 @@ class StudentEditDialog(QDialog):
     def _export_pdf(self):
         html = self._build_full_html()
         d = self._data
-        default_name = f"{d.get('last_name', '')}_{d.get('first_name', '')} — Fiche élève".strip()
-        path, _ = QFileDialog.getSaveFileName(self, "Exporter en PDF", default_name, "Fichier PDF (*.pdf)")
+        default_name = _("student_form.export_pdf_file").format(last=d.get("last_name", ""), first=d.get("first_name", ""))
+        path, _ = QFileDialog.getSaveFileName(self, _("student_form.pdf"), default_name, "Fichier PDF (*.pdf)")
         if not path:
             return
         try:
@@ -1560,26 +1472,26 @@ class StudentEditDialog(QDialog):
             printer.setPageSize(QPrinter.A4)
             doc.print_(printer)
             log(f"Export PDF #{d['id']}: {path}")
-            QMessageBox.information(self, "Export PDF", f"Fiche exportée vers :\n{path}")
+            QMessageBox.information(self, _("student_form.pdf"), _("student_form.export_pdf_success").format(path=path))
         except Exception as e:
             log(f"Export PDF error: {e}")
-            QMessageBox.critical(self, "Erreur export PDF", str(e))
+            QMessageBox.critical(self, _("student_form.export_pdf_error"), str(e))
 
     def _export_word(self):
         html = self._build_full_html()
         d = self._data
-        default_name = f"{d.get('last_name', '')}_{d.get('first_name', '')} — Fiche élève".strip()
-        path, _ = QFileDialog.getSaveFileName(self, "Exporter en Word", default_name, "Document HTML (*.html *.htm)")
+        default_name = _("student_form.export_word_file").format(last=d.get("last_name", ""), first=d.get("first_name", ""))
+        path, _ = QFileDialog.getSaveFileName(self, _("student_form.word"), default_name, "Document HTML (*.html *.htm)")
         if not path:
             return
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(html)
             log(f"Export Word #{d['id']}: {path}")
-            QMessageBox.information(self, "Export Word", f"Fiche exportée vers :\n{path}\n\nOuvrir dans Word pour modifier.")
+            QMessageBox.information(self, _("student_form.word"), _("student_form.export_word_success").format(path=path))
         except Exception as e:
             log(f"Export Word error: {e}")
-            QMessageBox.critical(self, "Erreur export Word", str(e))
+            QMessageBox.critical(self, _("student_form.export_word_error"), str(e))
 
 
 # ──────────────────────────────────────────────
@@ -1597,7 +1509,7 @@ class StudentCreateDialog(QDialog):
 
     def __init__(self, parent=None, preselected_class: int | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Nouvel élève")
+        self.setWindowTitle(_("student_form.new_student_title"))
         self.setMinimumSize(987, 610)
         self._result_data: dict | None = None
         self._class_id: int | None = None
@@ -1606,7 +1518,7 @@ class StudentCreateDialog(QDialog):
         self._parent_ids: list[int] = []
         self._search_parents_data: list[int] = []
         self._classes: list[tuple] = []
-        self._class_btns: dict[int, QPushButton] = {}
+        self._class_btns: dict[int, M3Button] = {}
         self._preselected_class = preselected_class
         self._init_ui()
         self._load_classes()
@@ -1620,17 +1532,17 @@ class StudentCreateDialog(QDialog):
         layout.setSpacing(d.spacing + 2)
         layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
 
-        self._class_title = QLabel("Nouvel élève")
+        self._class_title = M3Label(_("student_form.new_student_label"))
         self._class_title.setStyleSheet(f"font-size: {s(15)}px; font-weight: bold; color: {p.text_strong};")
         layout.addWidget(self._class_title)
 
         if self._preselected_class:
-            self._class_info = QLabel()
+            self._class_info = M3Label()
             self._class_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft}; padding-bottom: 8px;")
             layout.addWidget(self._class_info)
             self._class_grid = None
         else:
-            cl_label = QLabel("Classe :")
+            cl_label = M3Label(_("student_form.class_selector"))
             cl_label.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold;")
             layout.addWidget(cl_label)
             self._class_grid = QWidget()
@@ -1648,10 +1560,10 @@ class StudentCreateDialog(QDialog):
         photo_row.addWidget(self._photo)
 
         id_col = QVBoxLayout()
-        self._id_name = QLabel("Nouvel élève")
+        self._id_name = M3Label(_("student_form.new_student_name"))
         self._id_name.setStyleSheet(f"font-size: {s(15)}px; font-weight: bold; color: {p.text_strong};")
         id_col.addWidget(self._id_name)
-        self._id_info = QLabel("Remplissez les informations ci-dessous")
+        self._id_info = M3Label(_("student_form.new_student_info"))
         self._id_info.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft};")
         id_col.addWidget(self._id_info)
         id_col.addStretch()
@@ -1661,23 +1573,23 @@ class StudentCreateDialog(QDialog):
         btn_col = QVBoxLayout()
         btn_col.setSpacing(d.spacing)
 
-        self._create_btn = QPushButton("Créer l'élève")
+        self._create_btn = M3Button(_("student_form.create_button"))
         self._create_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
+            f"M3Button {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h}px; font-size: {s(fs)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
-            f"QPushButton:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}"
+            f"M3Button:hover {{ background: {p.success}; }}"
+            f"M3Button:disabled {{ background: {p.border_light}; color: {p.text_disabled}; }}"
         )
         self._create_btn.setEnabled(False)
         self._create_btn.clicked.connect(self._on_create)
         self._create_btn.setMinimumWidth(89)
         btn_col.addWidget(self._create_btn)
 
-        self._cancel_btn = QPushButton("Annuler")
+        self._cancel_btn = M3Button(_("student_form.cancel_button"))
         self._cancel_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.text_soft}; border: 1px solid {p.border}; "
+            f"M3Button {{ background: transparent; color: {p.text_soft}; border: 1px solid {p.border}; "
             f"border-radius: {d.radius}px; padding: {d.btn_pad_v}px {d.btn_pad_h - 2}px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+            f"M3Button:hover {{ background: {p.surface_variant}; }}"
         )
         self._cancel_btn.clicked.connect(self.reject)
         self._cancel_btn.setMinimumWidth(89)
@@ -1695,69 +1607,69 @@ class StudentCreateDialog(QDialog):
         label_style = f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold; padding: {d.label_pad_v}px {d.label_pad_h}px;"
 
         def _lbl(t):
-            lbl = QLabel(t)
+            lbl = M3Label(t)
             lbl.setStyleSheet(label_style)
             lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
             return lbl
 
         # Champs (créés avant les onglets)
-        self._inp_nom = QLineEdit()
+        self._inp_nom = M3TextField()
         self._inp_nom.setStyleSheet(field_style)
-        self._inp_nom.setPlaceholderText("Nom de famille")
-        self._inp_prenom = QLineEdit()
+        self._inp_nom.setPlaceholderText(_("student_form.last_name_placeholder"))
+        self._inp_prenom = M3TextField()
         self._inp_prenom.setStyleSheet(field_style)
-        self._inp_prenom.setPlaceholderText("Prénom")
-        self._inp_email = QLineEdit()
+        self._inp_prenom.setPlaceholderText(_("student_form.first_name_placeholder"))
+        self._inp_email = M3TextField()
         self._inp_email.setStyleSheet(field_style)
-        self._inp_email.setPlaceholderText("email@ecole.org")
-        self._inp_emailperso = QLineEdit()
+        self._inp_email.setPlaceholderText(_("student_form.email_placeholder"))
+        self._inp_emailperso = M3TextField()
         self._inp_emailperso.setStyleSheet(field_style)
-        self._inp_emailperso.setPlaceholderText("email.perso@exemple.com")
-        self._inp_tel = QLineEdit()
+        self._inp_emailperso.setPlaceholderText(_("student_form.email_personal_placeholder"))
+        self._inp_tel = M3TextField()
         self._inp_tel.setStyleSheet(field_style)
-        self._inp_tel.setPlaceholderText("+228 XX XX XX XX")
-        self._inp_tel2 = QLineEdit()
+        self._inp_tel.setPlaceholderText(_("student_form.phone_placeholder"))
+        self._inp_tel2 = M3TextField()
         self._inp_tel2.setStyleSheet(field_style)
-        self._inp_tel2.setPlaceholderText("+228 XX XX XX XX")
-        self._inp_date_joined = QDateEdit()
+        self._inp_tel2.setPlaceholderText(_("student_form.phone_fixed_placeholder"))
+        self._inp_date_joined = M3DateEdit()
         self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
         self._inp_date_joined.setCalendarPopup(True)
         self._inp_date_joined.setSpecialValueText(" ")
         self._inp_date_joined.setDate(QDate())
         self._inp_date_joined.setStyleSheet(field_style)
-        self._inp_date = QDateEdit()
+        self._inp_date = M3DateEdit()
         self._inp_date.setDisplayFormat("yyyy-MM-dd")
         self._inp_date.setCalendarPopup(True)
         self._inp_date.setSpecialValueText(" ")
         self._inp_date.setDate(QDate())
         self._inp_date.setStyleSheet(field_style)
-        self._inp_genre = QComboBox()
+        self._inp_genre = M3ComboBox()
         self._inp_genre.setStyleSheet(field_style + " min-width: 180px;")
         self._load_genders()
-        self._inp_birthdate = QDateEdit()
+        self._inp_birthdate = M3DateEdit()
         self._inp_birthdate.setDisplayFormat("yyyy-MM-dd")
         self._inp_birthdate.setCalendarPopup(True)
         self._inp_birthdate.setSpecialValueText(" ")
         self._inp_birthdate.setDate(QDate())
         self._inp_birthdate.setStyleSheet(field_style)
-        self._inp_addr1 = QTextEdit()
+        self._inp_addr1 = M3TextEdit()
         self._inp_addr1.setStyleSheet(field_style)
         self._inp_addr1.setFixedHeight(89)
-        self._inp_addr1.setPlaceholderText("Rue, quartier, BP, ...")
-        self._inp_addr2 = QLineEdit()
+        self._inp_addr1.setPlaceholderText(_("student_form.street_placeholder"))
+        self._inp_addr2 = M3TextField()
         self._inp_addr2.setStyleSheet(field_style)
-        self._inp_addr2.setPlaceholderText("Appartement, bâtiment...")
-        self._inp_cp = QLineEdit()
+        self._inp_addr2.setPlaceholderText(_("student_form.address_complement"))
+        self._inp_cp = M3TextField()
         self._inp_cp.setStyleSheet(field_style)
-        self._inp_cp.setPlaceholderText("75001")
-        self._inp_ville = QLineEdit()
+        self._inp_cp.setPlaceholderText(_("student_form.zip_placeholder"))
+        self._inp_ville = M3TextField()
         self._inp_ville.setStyleSheet(field_style)
-        self._inp_ville.setPlaceholderText("Lomé")
-        self._inp_pays = QLineEdit("Togo")
+        self._inp_ville.setPlaceholderText(_("student_form.city_placeholder"))
+        self._inp_pays = M3TextField(_("student_form.default_country"))
         self._inp_pays.setStyleSheet(field_style)
 
         # Onglets (même structure que EditDialog)
-        tabs = QTabWidget()
+        tabs = M3TabWidget()
         tabs.setDocumentMode(True)
 
         # --- Tab 1 : Identité ---
@@ -1766,21 +1678,21 @@ class StudentCreateDialog(QDialog):
         tab1_layout.setSpacing(d.spacing)
         g1 = QGridLayout()
         g1.setSpacing(d.spacing)
-        g1.addWidget(_lbl("Nom *"), 0, 0)
-        g1.addWidget(_lbl("Prénom *"), 0, 1)
+        g1.addWidget(_lbl(_("student_form.last_name_label")), 0, 0)
+        g1.addWidget(_lbl(_("student_form.first_name_label")), 0, 1)
         g1.addWidget(self._inp_nom, 1, 0)
         g1.addWidget(self._inp_prenom, 1, 1)
-        g1.addWidget(_lbl("Date arrivée école"), 2, 0, 1, 2)
+        g1.addWidget(_lbl(_("student_form.arrival_label")), 2, 0, 1, 2)
         g1.addWidget(self._inp_date_joined, 3, 0, 1, 2)
-        g1.addWidget(_lbl("Date d'entrée"), 4, 0)
-        g1.addWidget(_lbl("Genre"), 4, 1)
+        g1.addWidget(_lbl(_("student_form.entry_date")), 4, 0)
+        g1.addWidget(_lbl(_("student_form.gender_label")), 4, 1)
         g1.addWidget(self._inp_date, 5, 0)
         g1.addWidget(self._inp_genre, 5, 1)
-        g1.addWidget(_lbl("Date de naissance"), 6, 0)
+        g1.addWidget(_lbl(_("student_form.birth_date")), 6, 0)
         g1.addWidget(self._inp_birthdate, 7, 0)
         tab1_layout.addLayout(g1)
         tab1_layout.addStretch()
-        tabs.addTab(tab1, "Identité")
+        tabs.addTab(tab1, _("student_form.tab_identity"))
 
         # --- Tab 2 : Contact ---
         tab2 = QWidget()
@@ -1788,58 +1700,65 @@ class StudentCreateDialog(QDialog):
         tab2_layout.setSpacing(d.spacing)
         g2 = QGridLayout()
         g2.setSpacing(d.spacing)
-        g2.addWidget(_lbl("Email"), 0, 0)
-        g2.addWidget(_lbl("Email personnel"), 0, 1)
+        g2.addWidget(_lbl(_("student_form.email_label")), 0, 0)
+        g2.addWidget(_lbl(_("student_form.email_personal")), 0, 1)
         g2.addWidget(self._inp_email, 1, 0)
         g2.addWidget(self._inp_emailperso, 1, 1)
-        g2.addWidget(_lbl("Téléphone portable"), 2, 0)
-        g2.addWidget(_lbl("Téléphone fixe"), 2, 1)
+        g2.addWidget(_lbl(_("student_form.phone_mobile")), 2, 0)
+        g2.addWidget(_lbl(_("student_form.phone_fixed")), 2, 1)
         g2.addWidget(self._inp_tel, 3, 0)
         g2.addWidget(self._inp_tel2, 3, 1)
         tab2_layout.addLayout(g2)
         tab2_layout.addStretch()
-        tabs.addTab(tab2, "Contact")
+        tabs.addTab(tab2, _("student_form.contact_tab"))
 
         # --- Tab 3 : Adresse & Parents ---
         tab3 = QWidget()
         tab3_layout = QVBoxLayout(tab3)
         tab3_layout.setSpacing(d.spacing)
 
-        addr_scroll = QScrollArea()
+        addr_scroll = M3ScrollArea()
         addr_scroll.setWidgetResizable(True)
-        addr_scroll.setFrameShape(QFrame.NoFrame)
+        addr_scroll.setFrameShape(M3Frame.NoFrame)
         addr_inner = QWidget()
         addr_inner_layout = QVBoxLayout(addr_inner)
         addr_inner_layout.setSpacing(d.spacing)
         addr_inner_layout.setContentsMargins(0, 0, 0, 0)
 
-        addr_inner_layout.addWidget(_lbl("Adresse de l'élève"))
+        addr_inner_layout.addWidget(_lbl(_("student_form.address_title")))
         addr_inner_layout.addWidget(self._inp_addr1)
-        addr_inner_layout.addWidget(_lbl("Complément d'adresse"))
+        addr_inner_layout.addWidget(_lbl(_("student_form.address_complement")))
         addr_inner_layout.addWidget(self._inp_addr2)
         g3 = QGridLayout()
         g3.setSpacing(d.spacing)
-        g3.addWidget(_lbl("Code postal"), 0, 0)
-        g3.addWidget(_lbl("Ville"), 0, 1)
+        g3.addWidget(_lbl(_("student_form.zip_label")), 0, 0)
+        g3.addWidget(_lbl(_("student_form.city_label")), 0, 1)
         g3.addWidget(self._inp_cp, 1, 0)
         g3.addWidget(self._inp_ville, 1, 1)
-        g3.addWidget(_lbl("Pays"), 2, 0)
+        g3.addWidget(_lbl(_("student_form.country_label")), 2, 0)
         g3.addWidget(self._inp_pays, 3, 0, 1, 2)
         addr_inner_layout.addLayout(g3)
 
         addr_inner_layout.addSpacing(d.spacing + 3)
-        sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
+        sep = M3Frame()
+        sep.setFrameShape(M3Frame.HLine)
         sep.setStyleSheet(f"color: {p.border};")
         addr_inner_layout.addWidget(sep)
         addr_inner_layout.addSpacing(d.spacing)
 
-        parents_title = QLabel("Parents / tuteurs")
+        parents_title = M3Label(_("student_form.parents_title"))
         parents_title.setStyleSheet(f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong};")
         addr_inner_layout.addWidget(parents_title)
-        self._parents_table = QTableWidget()
+        self._parents_table = M3TableWidget()
         self._parents_table.setColumnCount(4)
-        self._parents_table.setHorizontalHeaderLabels(["Nom", "Nature", "Email", "Téléphone"])
+        self._parents_table.setHorizontalHeaderLabels(
+            [
+                _("student_form.parents_table_nom"),
+                _("student_form.parents_table_nature"),
+                _("student_form.parents_table_email"),
+                _("student_form.parents_table_phone"),
+            ]
+        )
         self._parents_table.horizontalHeader().setStretchLastSection(True)
         self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -1850,41 +1769,41 @@ class StudentCreateDialog(QDialog):
         parent_tools = QHBoxLayout()
         parent_tools.setSpacing(d.spacing)
 
-        add_par_btn = QPushButton("+ Ajouter un parent")
+        add_par_btn = M3Button(_("student_form.add_parent"))
         add_par_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
+            f"M3Button {{ background: {p.button_success}; color: white; border: none; "
             f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
+            f"M3Button:hover {{ background: {p.success}; }}"
         )
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
 
-        edit_par_btn = QPushButton("✎ Nature")
+        edit_par_btn = M3Button(_("student_form.edit_nature"))
         edit_par_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
+            f"M3Button {{ background: {p.primary}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
+            f"M3Button:hover {{ background: {p.active}; }}"
         )
         edit_par_btn.clicked.connect(self._edit_parent_nature)
         parent_tools.addWidget(edit_par_btn)
 
-        remove_par_btn = QPushButton("− Retirer")
+        remove_par_btn = M3Button(_("student_form.remove_parent"))
         remove_par_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.error}; "
+            f"M3Button {{ background: transparent; color: {p.error}; "
             f"border: 1px solid {p.error}; border-radius: {d.radius}px; "
             f"padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}"
+            f"M3Button:hover {{ background: {p.error_container}; }}"
         )
         remove_par_btn.clicked.connect(self._remove_parent_link)
         parent_tools.addWidget(remove_par_btn)
 
         parent_tools.addStretch()
 
-        copy_btn = QPushButton("Copier l'adresse")
+        copy_btn = M3Button(_("student_form.copy_address"))
         copy_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
+            f"M3Button {{ background: {p.primary_container}; color: {p.on_primary}; border: none; "
             f"border-radius: {d.radius}px; padding: 3px 10px; font-size: {s(fs)}px; }}"
-            f"QPushButton:hover {{ background: {p.primary}; }}"
+            f"M3Button:hover {{ background: {p.primary}; }}"
         )
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
@@ -1894,7 +1813,7 @@ class StudentCreateDialog(QDialog):
         addr_inner_layout.addStretch()
         addr_scroll.setWidget(addr_inner)
         tab3_layout.addWidget(addr_scroll, 1)
-        tabs.addTab(tab3, "Adresse & Parents")
+        tabs.addTab(tab3, _("student_form.tab_address"))
 
         # --- Tab 4 : Notes structurées (JSON) ---
         tab4 = QWidget()
@@ -1902,40 +1821,40 @@ class StudentCreateDialog(QDialog):
         tab4_layout.setContentsMargins(0, 0, 0, 0)
         self._notes_panel = NotesPanel()
         tab4_layout.addWidget(self._notes_panel, 1)
-        tabs.addTab(tab4, "Notes")
+        tabs.addTab(tab4, _("student_form.notes_tab"))
         self._inp_nom.textChanged.connect(
-            lambda: self._notes_panel.set_student_name(f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève")
+            lambda: self._notes_panel.set_student_name(f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or _("student_form.new_student_name"))
         )
         self._inp_prenom.textChanged.connect(
-            lambda: self._notes_panel.set_student_name(f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or "Nouvel élève")
+            lambda: self._notes_panel.set_student_name(f"{self._inp_nom.text()} {self._inp_prenom.text()}".strip() or _("student_form.new_student_name"))
         )
 
         # --- Tab 5 : Fichiers ---
         tab5 = QWidget()
         tab5_layout = QVBoxLayout(tab5)
         tab5_layout.setSpacing(d.spacing)
-        ph5 = QLabel("Les fichiers seront disponibles après la création de l'élève.")
+        ph5 = M3Label(_("student_form.files_placeholder"))
         ph5.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft}; font-style: italic;")
         ph5.setAlignment(Qt.AlignCenter)
         tab5_layout.addWidget(ph5)
         tab5_layout.addStretch()
-        tabs.addTab(tab5, "Fichiers")
+        tabs.addTab(tab5, _("student_form.files_tab"))
 
         # --- Tab 6 : Événements (placeholder) ---
         tab6 = QWidget()
         tab6_layout = QVBoxLayout(tab6)
         tab6_layout.setSpacing(d.spacing)
-        ph6 = QLabel("Les événements seront visibles après la création de l'élève.")
+        ph6 = M3Label(_("student_form.events_placeholder"))
         ph6.setStyleSheet(f"font-size: {s(fs)}px; color: {p.text_soft}; font-style: italic;")
         ph6.setAlignment(Qt.AlignCenter)
         tab6_layout.addWidget(ph6)
         tab6_layout.addStretch()
-        tabs.addTab(tab6, "Événements")
+        tabs.addTab(tab6, _("student_form.events_tab"))
 
         layout.addWidget(tabs, 1)
 
         # Infos slot
-        self._slot_info = QLabel("Sélectionnez une classe")
+        self._slot_info = M3Label(_("student_form.select_class"))
         self._slot_info.setStyleSheet(f"font-size: {s(11)}px; color: {p.text_soft}; padding: {d.radius}px; font-style: italic;")
         layout.addWidget(self._slot_info)
 
@@ -1957,7 +1876,7 @@ class StudentCreateDialog(QDialog):
                 )
                 row = cur.fetchone()
                 if row:
-                    self._class_info.setText(f"Nouvel élève dans la classe : {row[0]}")
+                    self._class_info.setText(_("student_form.class_slot").format(label=row[0]))
                 self._on_class_changed(self._preselected_class)
             else:
                 # Mode libre : grille de boutons
@@ -1995,8 +1914,8 @@ class StudentCreateDialog(QDialog):
                 groups[sigle].append((cid, label))
 
         sections = [
-            ("Collège", [("PEI", "PEI"), ("MYP", "MYP")]),
-            ("Lycée", [("DP", "DPFr"), ("DPEn", "DPEn")]),
+            (_("sec_main.college"), [("PEI", "PEI"), ("MYP", "MYP")]),
+            (_("sec_main.lycee"), [("DP", "DPFr"), ("DPEn", "DPEn")]),
         ]
 
         # Vider le layout
@@ -2004,7 +1923,7 @@ class StudentCreateDialog(QDialog):
         self._class_btns.clear()
 
         for sec_name, columns in sections:
-            sec_hdr = QLabel(sec_name)
+            sec_hdr = M3Label(sec_name)
             sec_hdr.setStyleSheet(
                 f"font-weight: bold; font-size: {s(11)}px; color: {p.text_strong}; border-bottom: 2px solid {p.outline_variant}; padding: 2px 0;"
             )
@@ -2019,19 +1938,19 @@ class StudentCreateDialog(QDialog):
                 fg, bg, on_fg = prog_style[prog_key]
                 items = groups[prog_key]
 
-                col_hdr = QLabel(hdr_text)
+                col_hdr = M3Label(hdr_text)
                 col_hdr.setStyleSheet(f"background: {fg}; color: {on_fg}; border-radius: {d.radius}px; font-weight: bold; font-size: {s(10)}px; padding: 3px;")
                 col_hdr.setAlignment(Qt.AlignCenter)
                 col_hdr.setFixedHeight(21)
                 grd.addWidget(col_hdr, 0, col_idx)
 
                 for i, (cid, label) in enumerate(items):
-                    btn = QPushButton(label)
+                    btn = M3Button(label)
                     btn.setFixedHeight(34)
                     btn.setStyleSheet(
-                        f"QPushButton {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
+                        f"M3Button {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
                         f"border-radius: {d.radius}px; font-size: {s(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                        f"M3Button:hover {{ background: {fg}; color: {bg}; }}"
                     )
                     btn.clicked.connect(lambda checked, c=cid: self._on_class_changed(c))
                     self._class_btns[cid] = btn
@@ -2081,15 +2000,15 @@ class StudentCreateDialog(QDialog):
                 fg, bg, on_fg = prog_map.get(sigle, (p.text_strong, p.surface_variant, p.text_strong))
                 if cid == class_id:
                     btn.setStyleSheet(
-                        f"QPushButton {{ background: {fg}; color: {bg}; border: 2px solid {fg}; "
+                        f"M3Button {{ background: {fg}; color: {bg}; border: 2px solid {fg}; "
                         f"border-radius: {theme_manager.design.radius}px; font-size: {theme_manager.font_size(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                        f"M3Button:hover {{ background: {fg}; color: {bg}; }}"
                     )
                 else:
                     btn.setStyleSheet(
-                        f"QPushButton {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
+                        f"M3Button {{ background: {bg}; color: {fg}; border: 2px solid transparent; "
                         f"border-radius: {theme_manager.design.radius}px; font-size: {theme_manager.font_size(10)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
+                        f"M3Button:hover {{ background: {fg}; color: {bg}; }}"
                     )
 
         # Filtrer les genres selon la langue de la classe
@@ -2133,11 +2052,11 @@ class StudentCreateDialog(QDialog):
             s = theme_manager.font_size
             d = theme_manager.design
             if free:
-                self._slot_info.setText(f"Slot libre : N°{free:02d} (ID = {self._class_id * 100 + free})")
+                self._slot_info.setText(_("student_form.free_slot").format(n=free, id=self._class_id * 100 + free))
                 self._slot_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.success}; padding: {d.radius}px; font-weight: bold;")
                 self._create_btn.setEnabled(True)
             else:
-                self._slot_info.setText("Aucun slot libre dans cette classe")
+                self._slot_info.setText(_("student_form.no_slot"))
                 self._slot_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.error}; padding: {d.radius}px;")
                 self._create_btn.setEnabled(False)
         except Exception as e:
@@ -2166,7 +2085,7 @@ class StudentCreateDialog(QDialog):
 
     def _load_genders(self, lang_id: int | None = None):
         self._inp_genre.clear()
-        self._inp_genre.addItem("— Non précisé —", 0)
+        self._inp_genre.addItem(_("student_form.gender_not_specified"), 0)
         conn = db.server_conn
         if not conn:
             return
@@ -2185,7 +2104,7 @@ class StudentCreateDialog(QDialog):
         nom = self._inp_nom.text().strip()
         prenom = self._inp_prenom.text().strip()
         if not nom or not prenom:
-            QMessageBox.warning(self, "Validation", "Nom et prénom sont obligatoires.")
+            QMessageBox.warning(self, _("common.dialog.confirm_title"), _("student_form.validation_required"))
             return
         self._create_student()
 
@@ -2300,7 +2219,7 @@ class StudentCreateDialog(QDialog):
             # Charger les parents maintenant que l'élève existe
             self._load_parents()
 
-            QMessageBox.information(self, "Succès", f"Élève créé : {prenom} {nom}\nID : {student_id}  |  Classe : slot N°{slot:02d}")
+            QMessageBox.information(self, _("student_form.created"), _("student_form.created_msg").format(f=prenom, l=nom, sid=student_id, slot=slot))
 
             # Réinitialiser le formulaire pour une autre saisie
             for w in [
@@ -2328,7 +2247,7 @@ class StudentCreateDialog(QDialog):
         except Exception as e:
             conn.rollback()
             log(f"StudentCreateDialog._create_student: {e}")
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
 
     def _load_parents(self):
         self._parent_ids = []
@@ -2365,11 +2284,11 @@ class StudentCreateDialog(QDialog):
 
     def _copy_parent_address(self):
         if not self._sid:
-            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            QMessageBox.information(self, _("student_form.save_first"), _("student_form.save_first_msg"))
             return
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Copie adresse", "Sélectionnez d'abord un parent.")
+            QMessageBox.warning(self, _("student_form.copy_address_title"), _("student_form.copy_address_none"))
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
@@ -2401,18 +2320,18 @@ class StudentCreateDialog(QDialog):
 
     def _add_parent_link(self):
         if not self._sid:
-            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            QMessageBox.information(self, _("student_form.save_first"), _("student_form.save_first_msg"))
             return
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Ajouter un parent")
+        dlg = M3Dialog(self)
+        dlg.setWindowTitle(_("student_form.add_parent"))
         dlg.setMinimumSize(377, 377)
         p = theme_manager.palette
         d = theme_manager.design
         s = theme_manager.font_size
         dlg.setStyleSheet(f"background: {p.surface}; color: {p.text_strong};")
         layout = QVBoxLayout(dlg)
-        search_inp = QLineEdit()
-        search_inp.setPlaceholderText("Taper au moins 3 caractères...")
+        search_inp = M3TextField()
+        search_inp.setPlaceholderText(_("student_form.search_parent_placeholder"))
         search_inp.setStyleSheet(
             f"padding: 6px; border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};"
         )
@@ -2422,7 +2341,7 @@ class StudentCreateDialog(QDialog):
             f"border: 1px solid {p.border}; border-radius: {d.radius}px; font-size: {s(10)}px; background: {p.surface}; color: {p.text_strong};"
         )
         layout.addWidget(result_list, 1)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = M3DialogButtonBox(M3DialogButtonBox.Ok | M3DialogButtonBox.Cancel)
         buttons.accepted.connect(dlg.accept)
         buttons.rejected.connect(dlg.reject)
         layout.addWidget(buttons)
@@ -2475,16 +2394,16 @@ class StudentCreateDialog(QDialog):
                 )
             except Exception as e:
                 log(f"_add_parent_link insert: {e}")
-                QMessageBox.critical(self, "Erreur", str(e))
+                QMessageBox.critical(self, _("common.dialog.error_title"), str(e))
             self._load_parents()
 
     def _edit_parent_nature(self):
         if not self._sid:
-            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            QMessageBox.information(self, _("student_form.save_first"), _("student_form.save_first_msg"))
             return
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Nature", "Sélectionnez d'abord un parent.")
+            QMessageBox.warning(self, _("student_form.nature_dialog_title"), _("parent.error.no_parent_selected"))
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
@@ -2492,7 +2411,7 @@ class StudentCreateDialog(QDialog):
         pid = self._parent_ids[row]
         from PySide6.QtWidgets import QInputDialog
 
-        nature, ok = QInputDialog.getText(self, "Nature du lien", "Nature (ex: père, mère, tuteur légal...):")
+        nature, ok = QInputDialog.getText(self, _("student_form.nature_prompt_title"), _("student_form.nature_prompt_msg"))
         if not ok:
             return
         conn = db.server_conn
@@ -2510,17 +2429,17 @@ class StudentCreateDialog(QDialog):
 
     def _remove_parent_link(self):
         if not self._sid:
-            QMessageBox.information(self, "Info", "Enregistrez d'abord l'élève.")
+            QMessageBox.information(self, _("student_form.save_first"), _("student_form.save_first_msg"))
             return
         sel = self._parents_table.selectedItems()
         if not sel or not self._parent_ids:
-            QMessageBox.warning(self, "Retirer", "Sélectionnez d'abord un parent.")
+            QMessageBox.warning(self, _("student_form.remove_parent"), _("student_form.edit_nature"))
             return
         row = sel[0].row()
         if row >= len(self._parent_ids):
             return
         pid = self._parent_ids[row]
-        confirm = QMessageBox.question(self, "Confirmation", "Retirer ce parent de l'élève ?", QMessageBox.Yes | QMessageBox.No)
+        confirm = QMessageBox.question(self, _("student_form.remove_confirm_title"), _("student_form.remove_confirm_msg"), QMessageBox.Yes | QMessageBox.No)
         if confirm != QMessageBox.Yes:
             return
         conn = db.server_conn

@@ -1,3 +1,4 @@
+from larccommon.l10n import _
 from LarcSecretaire.common.audit import audit
 from LarcSecretaire.common.database import db
 from LarcSecretaire.common.logger import log
@@ -7,6 +8,19 @@ from LarcSecretaire.common.theme import QssHelper, theme_manager
 from LarcSecretaire.views.parent_manager import ParentManager
 from LarcSecretaire.views.student_form import StudentForm
 from LarcSecretaire.views.supervisor_panel import SupervisorPanel
+from phibuilder.widgets import (
+    M3Button,
+    M3Card,
+    M3Frame,
+    M3HeaderView,
+    M3Label,
+    M3Menu,
+    M3ScrollArea,
+    M3StackedWidget,
+    M3TableWidget,
+)
+from phibuilder.widgets.button import ButtonVariant
+from phibuilder.widgets.card import CardVariant
 from PySide6.QtCharts import (
     QBarCategoryAxis,
     QBarSeries,
@@ -19,17 +33,9 @@ from PySide6.QtCore import QEvent, QMargins, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter
 from PySide6.QtWidgets import (
     QApplication,
-    QFrame,
     QGridLayout,
     QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QMenu,
     QMessageBox,
-    QPushButton,
-    QScrollArea,
-    QStackedWidget,
-    QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -43,7 +49,7 @@ class MainWindow(QWidget):
         self._classes: list[tuple] = []
         self._stats: dict = {}
 
-        self.setWindowTitle(f"LarcSecrétariat — {session.full_name}")
+        self.setWindowTitle(_("sec_main.title").format(name=session.full_name))
         self.setMinimumSize(987, 610)
         self._setup_ui()
         self._load_initial_data()
@@ -64,14 +70,10 @@ class MainWindow(QWidget):
     def _style(self) -> str:
         p = theme_manager.palette
         d = theme_manager.design
-        s = theme_manager.font_size
         return f"""
             {QssHelper.top_bar(p, d)}
             {QssHelper.panel(p, d)}
-            {QssHelper.table(p, d, s)}
-            QPushButton:pressed {{ background: {p.primary}; color: {p.on_primary}; }}
-            QFrame#kpi {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; }}
-            {QssHelper.panel_title(p, s, 13)}
+            M3Button:pressed {{ background: {p.primary}; color: {p.on_primary}; }}
         """
 
     def eventFilter(self, obj, event):
@@ -84,8 +86,8 @@ class MainWindow(QWidget):
         audit.logout(session.user_id, session.full_name)
         QMessageBox.information(
             self,
-            "Session expirée",
-            "Session inactive depuis 10 minutes.\nL'application va se fermer.",
+            _("sec_main.session_expired_title"),
+            _("sec_main.session_expired_msg"),
         )
         db.disconnect_all()
         QApplication.quit()
@@ -97,57 +99,55 @@ class MainWindow(QWidget):
 
     def _setup_ui(self):
         d = theme_manager.design
+        self._phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = self._phi
         self.setStyleSheet(self._style())
         outer = QVBoxLayout(self)
         outer.setContentsMargins(6, 6, 6, 6)
         outer.setSpacing(6)
 
-        # Top bar (style LarcSuperviseur)
-        top = QFrame()
+        # Top bar
+        top = M3Frame()
         top.setObjectName("top_bar")
         top_layout = QHBoxLayout(top)
         top_layout.setContentsMargins(10, 6, 10, 6)
         top_layout.setSpacing(6)
 
-        self._title = QLabel(f"📋 LarcSecrétariat — {session.full_name}")
-        self._title.setObjectName("panel_title")
+        self._title = M3Label(_("sec_main.bar_title").format(name=session.full_name), theme=phi, style="title_medium")
         top_layout.addWidget(self._title)
         top_layout.addStretch()
 
-        self._date_label = QLabel()
-        self._date_label.setStyleSheet(
-            f"font-size: {theme_manager.font_size(13)}px; color: {theme_manager.palette.text_soft};"
-        )
+        self._date_label = M3Label(theme=phi, style="body_small")
         top_layout.addWidget(self._date_label)
 
-        self._network_label = QLabel()
+        self._network_label = M3Label()
         self._network_label.setStyleSheet(f"font-size: {theme_manager.font_size(12)}px; font-weight: bold;")
         top_layout.addWidget(self._network_label)
 
-        self._theme_btn = QPushButton("🎨")
+        self._theme_btn = M3Button("🎨")
         self._theme_btn.setFixedSize(34, 34)
         self._theme_btn.setCursor(Qt.PointingHandCursor)
         self._theme_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {theme_manager.palette.outline_variant}; "
+            f"M3Button {{ background: transparent; border: 1px solid {theme_manager.palette.outline_variant}; "
             f"border-radius: {d.radius}px; font-size: 13px; }}"
-            f"QPushButton:hover {{ background: {theme_manager.palette.surface_variant}; }}"
+            f"M3Button:hover {{ background: {theme_manager.palette.surface_variant}; }}"
         )
         self._theme_btn.clicked.connect(self._cycle_theme)
         top_layout.addWidget(self._theme_btn)
 
-        # Profil button (comme LarcSuperviseur)
+        # Profil button
         initials = "".join(w[0].upper() for w in session.full_name.split() if w)[:2] or "?"
-        self._profile_btn = QPushButton(initials)
+        self._profile_btn = M3Button(initials)
         self._profile_btn.setFixedSize(34, 34)
         self._profile_btn.setCursor(Qt.PointingHandCursor)
         self._profile_btn.setStyleSheet(
-            f"QPushButton {{ background: {theme_manager.palette.primary}; "
+            f"M3Button {{ background: {theme_manager.palette.primary}; "
             f"color: {theme_manager.palette.on_primary}; font-weight: bold; "
             f"font-size: 13px; border: none; border-radius: 17px; }}"
-            f"QPushButton:hover {{ background: {theme_manager.palette.active}; }}"
+            f"M3Button:hover {{ background: {theme_manager.palette.active}; }}"
         )
-        self._profile_menu = QMenu(self)
-        logout_action = self._profile_menu.addAction("Déconnexion")
+        self._profile_menu = M3Menu(self)
+        logout_action = self._profile_menu.addAction(_("sec_main.logout"))
         logout_action.triggered.connect(self._on_logout)
         self._profile_btn.setMenu(self._profile_menu)
         top_layout.addWidget(self._profile_btn)
@@ -160,7 +160,7 @@ class MainWindow(QWidget):
         main_h.setSpacing(6)
 
         # Sidebar
-        self._sidebar = QFrame()
+        self._sidebar = M3Frame()
         self._sidebar.setObjectName("panel")
         self._sidebar.setFixedWidth(233)
         self._sidebar_layout = QVBoxLayout(self._sidebar)
@@ -171,7 +171,7 @@ class MainWindow(QWidget):
         main_h.addWidget(self._sidebar)
 
         # Content stack
-        self._content_stack = QStackedWidget()
+        self._content_stack = M3StackedWidget()
 
         # Page 0 : Tableau de bord
         self._dashboard_page = self._build_dashboard()
@@ -193,13 +193,9 @@ class MainWindow(QWidget):
         outer.addLayout(main_h, 1)
 
         # Status bar
-        self._status_bar = QLabel()
+        self._status_bar = M3Label(theme=phi, style="body_small")
         self._status_bar.setFixedHeight(21)
-        self._status_bar.setStyleSheet(
-            f"background: {theme_manager.palette.surface_variant}; "
-            f"color: {theme_manager.palette.text_soft}; "
-            f"font-size: {theme_manager.font_size(10)}px; padding: 2px 13px;"
-        )
+        self._status_bar.setStyleSheet(f"background: {theme_manager.palette.surface_variant}; color: {theme_manager.palette.text_soft}; padding: 2px 13px;")
         outer.addWidget(self._status_bar)
 
         self._update_datetime()
@@ -209,63 +205,31 @@ class MainWindow(QWidget):
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
+        phi = getattr(self, "_phi", None)
 
         self._clear_layout(self._sidebar_layout)
-
-        def _make_btn(ss, min_h=34):
-            b = QPushButton()
-            b.setMinimumHeight(min_h)
-            b.setStyleSheet(ss)
-            b.setCursor(Qt.PointingHandCursor)
-            return b
 
         self._selected_btn = None
 
         # Titre Navigation
-        title = QLabel("Navigation")
-        title.setStyleSheet(f"font-size: {s(11)}px; font-weight: bold; color: {p.text_strong}; padding: 3px;")
+        title = M3Label(_("sec_main.nav_title"), theme=phi, style="label_large")
         self._sidebar_layout.addWidget(title)
 
         # Tableau de bord
-        btn = _make_btn(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: none; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; padding: 3px 8px; text-align: left; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}",
-            min_h=34,
-        )
-        btn.setText("📊 Tableau de bord")
+        btn = M3Button(_("sec_main.dashboard"), theme=phi, variant=ButtonVariant.TEXT)
+        btn.setCursor(Qt.PointingHandCursor)
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(0))
         self._sidebar_layout.addWidget(btn)
 
         # Section Inscriptions
-        sec_title = QLabel("Inscriptions")
-        sec_title.setStyleSheet(
-            f"font-size: {s(9)}px; font-weight: bold; color: {p.text_disabled}; "
-            f"padding: 8px 3px 2px 3px; text-transform: uppercase;"
-        )
+        sec_title = M3Label(_("sec_main.registrations"), theme=phi, style="label_small")
         self._sidebar_layout.addWidget(sec_title)
 
-        btn = _make_btn(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: none; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; padding: 3px 8px; text-align: left; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}",
-            min_h=34,
-        )
-        btn.setText("🔍 Rechercher un élève")
-        btn.setObjectName("nav_search")
+        btn = M3Button(_("sec_main.search"), theme=phi, variant=ButtonVariant.TEXT)
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(3))
         self._sidebar_layout.addWidget(btn)
 
-        btn = _make_btn(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: none; border-radius: {d.radius}px; "
-            f"font-size: {s(10)}px; padding: 3px 8px; text-align: left; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}",
-            min_h=34,
-        )
-        btn.setText("👪 Gestion parents")
+        btn = M3Button(_("sec_main.parents"), theme=phi, variant=ButtonVariant.TEXT)
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(2))
         self._sidebar_layout.addWidget(btn)
 
@@ -285,19 +249,13 @@ class MainWindow(QWidget):
                 groups[sigle].append((cid, label))
 
         sections = [
-            ("Collège", [("PEI", "PEI"), ("MYP", "MYP")]),
-            ("Lycée", [("DP", "DPFr"), ("DPEn", "DPEn")]),
+            (_("sec_main.college"), [("PEI", "PEI"), ("MYP", "MYP")]),
+            (_("sec_main.lycee"), [("DP", "DPFr"), ("DPEn", "DPEn")]),
         ]
 
         for sec_name, columns in sections:
-            sec_hdr = _make_btn(
-                f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-                f"border: none; border-bottom: 2px solid {p.outline_variant}; "
-                f"font-weight: bold; font-size: {s(13)}px; text-align: left; padding: 4px 2px; }}"
-                f"QPushButton:hover {{ color: {p.primary}; border-bottom: 2px solid {p.primary}; }}",
-                min_h=34,
-            )
-            sec_hdr.setText(sec_name)
+            sec_hdr = M3Button(sec_name, theme=phi, variant=ButtonVariant.TEXT)
+            sec_hdr.setCursor(Qt.PointingHandCursor)
             self._sidebar_layout.addWidget(sec_hdr)
 
             grd = QGridLayout()
@@ -307,26 +265,27 @@ class MainWindow(QWidget):
                 fg, bg, on_fg, _ = prog_style[prog_key]
                 items = groups.get(prog_key, [])
 
-                col_hdr = _make_btn(
-                    f"QPushButton {{ background: {fg}; color: {on_fg}; border: none; "
+                col_hdr = M3Button(hdr_text)
+                col_hdr.setMinimumHeight(21)
+                col_hdr.setCursor(Qt.PointingHandCursor)
+                col_hdr.setStyleSheet(
+                    f"M3Button {{ background: {fg}; color: {on_fg}; border: none; "
                     f"border-radius: {d.radius}px; font-weight: bold; font-size: {s(13)}px; padding: 3px; }}"
-                    f"QPushButton:hover {{ opacity: 0.8; }}",
-                    min_h=21,
                 )
-                col_hdr.setText(hdr_text)
                 grd.addWidget(col_hdr, 0, col_idx)
 
                 for i, (cid, label) in enumerate(items):
-                    btn = _make_btn(
-                        f"QPushButton {{ background: {bg}; color: {fg}; border: none; "
+                    btn = M3Button(label)
+                    btn.setMinimumHeight(34)
+                    btn.setCursor(Qt.PointingHandCursor)
+                    btn.setStyleSheet(
+                        f"M3Button {{ background: {bg}; color: {fg}; border: none; "
                         f"border-radius: {d.radius}px; font-size: {s(13)}px; padding: 2px; }}"
-                        f"QPushButton:hover {{ background: {fg}; color: {bg}; }}"
-                        f"QPushButton:checked {{ background: {fg}; color: {bg}; "
-                        f"border: 2px solid {fg}; }}",
-                        min_h=34,
+                        f"M3Button:hover {{ background: {fg}; color: {bg}; }}"
+                        f"M3Button:checked {{ background: {fg}; color: {bg}; "
+                        f"border: 2px solid {fg}; }}"
                     )
                     btn.setCheckable(True)
-                    btn.setText(label)
                     btn.clicked.connect(lambda checked, c=cid, b=btn: self._on_class_clicked(c, b))
                     grd.addWidget(btn, i + 1, col_idx)
 
@@ -334,25 +293,11 @@ class MainWindow(QWidget):
             self._sidebar_layout.addSpacing(d.spacing)
 
         # Enseignants (placeholder)
-        ens_hdr = _make_btn(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: none; border-bottom: 2px solid {p.outline_variant}; "
-            f"font-weight: bold; font-size: {s(13)}px; text-align: left; padding: 4px 2px; }}"
-            f"QPushButton:hover {{ color: {p.primary}; border-bottom: 2px solid {p.primary}; }}",
-            min_h=34,
-        )
-        ens_hdr.setText("Enseignants")
+        ens_hdr = M3Button(_("sec_main.teachers"), theme=phi, variant=ButtonVariant.TEXT)
         self._sidebar_layout.addWidget(ens_hdr)
 
         # Staff non enseignant (placeholder)
-        staff_hdr = _make_btn(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: none; border-bottom: 2px solid {p.outline_variant}; "
-            f"font-weight: bold; font-size: {s(13)}px; text-align: left; padding: 4px 2px; }}"
-            f"QPushButton:hover {{ color: {p.primary}; border-bottom: 2px solid {p.primary}; }}",
-            min_h=34,
-        )
-        staff_hdr.setText("Staff non enseignant")
+        staff_hdr = M3Button(_("sec_main.non_teaching_staff"), theme=phi, variant=ButtonVariant.TEXT)
         self._sidebar_layout.addWidget(staff_hdr)
 
         self._sidebar_layout.addSpacing(d.spacing)
@@ -360,19 +305,19 @@ class MainWindow(QWidget):
         self._sidebar_layout.addStretch()
 
         # État réseau en bas
-        self._sidebar_status = QLabel()
-        self._sidebar_status.setStyleSheet(f"font-size: {s(9)}px; padding: 3px;")
+        self._sidebar_status = M3Label(theme=phi, style="body_small")
         self._sidebar_status.setAlignment(Qt.AlignCenter)
         self._sidebar_layout.addWidget(self._sidebar_status)
         self._selected_btn = None
 
     def _build_dashboard(self) -> QWidget:
+        phi = getattr(self, "_phi", None)
         p = theme_manager.palette
         s = theme_manager.font_size
 
-        page = QScrollArea()
+        page = M3ScrollArea()
         page.setWidgetResizable(True)
-        page.setFrameShape(QFrame.NoFrame)
+        page.setFrameShape(M3Frame.NoFrame)
 
         inner = QWidget()
         layout = QVBoxLayout(inner)
@@ -385,21 +330,18 @@ class MainWindow(QWidget):
         self._kpi_widgets = {}
         self._kpi_labels = {}
         for key, label in [
-            ("total", "Total élèves"),
-            ("college", "Collège"),
-            ("lycee", "Lycée"),
-            ("enseignants", "Enseignants"),
+            ("total", _("sec_main.kpi.total")),
+            ("college", _("sec_main.kpi.college")),
+            ("lycee", _("sec_main.kpi.lycee")),
+            ("enseignants", _("sec_main.kpi.teachers")),
         ]:
-            f = QFrame()
-            f.setObjectName("kpi")
+            f = M3Card(theme=phi, variant=CardVariant.FILLED, parent=self)
             f.setMinimumHeight(89)
-            fl = QVBoxLayout(f)
+            fl = f.content_layout()
             fl.setAlignment(Qt.AlignCenter)
-            v = QLabel("—")
-            v.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.primary};")
+            v = M3Label("—", theme=phi, style="display_small")
             v.setAlignment(Qt.AlignCenter)
-            l = QLabel(label)
-            l.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft};")
+            l = M3Label(label, theme=phi, style="label_small")
             l.setAlignment(Qt.AlignCenter)
             fl.addWidget(v)
             fl.addWidget(l)
@@ -416,36 +358,40 @@ class MainWindow(QWidget):
         left_col.setSpacing(8)
 
         # Tableau élèves
-        self._dashboard_title = QLabel("Effectifs par programme")
-        self._dashboard_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
+        self._dashboard_title = M3Label(_("sec_main.stats_class_title"), theme=phi, style="title_small")
         left_col.addWidget(self._dashboard_title)
 
-        self._dashboard_table = QTableWidget()
-        self._dashboard_table.setColumnCount(7)
-        self._dashboard_table.setHorizontalHeaderLabels(["Programme", "Actifs", "Places", "Taux", "♂", "♀", "Total"])
+        self._dashboard_table = M3TableWidget(theme=phi)
+        self._dashboard_table.set_headers(
+            [
+                _("sec_main.stats_class_headers"),
+                _("sec_main.stats_class_headers_active"),
+                _("sec_main.stats_class_headers_seats"),
+                _("sec_main.stats_class_headers_rate"),
+                _("sec_main.stats_class_headers_male"),
+                _("sec_main.stats_class_headers_female"),
+                _("sec_main.stats_class_headers_total"),
+            ]
+        )
         hdr = self._dashboard_table.horizontalHeader()
         for i in range(7):
-            hdr.setSectionResizeMode(i, QHeaderView.Stretch)
+            hdr.setSectionResizeMode(i, M3HeaderView.Stretch)
         self._dashboard_table.setMaximumHeight(233)
-        self._dashboard_table.setAlternatingRowColors(True)
-        self._dashboard_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self._dashboard_table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._dashboard_table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         left_col.addWidget(self._dashboard_table)
 
         # Tableau enseignants
-        self._teacher_title = QLabel("Statistiques enseignants")
-        self._teacher_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
+        self._teacher_title = M3Label(_("sec_main.stats_teacher_title"), theme=phi, style="title_small")
         left_col.addWidget(self._teacher_title)
 
-        self._teacher_table = QTableWidget()
-        self._teacher_table.setColumnCount(2)
-        self._teacher_table.setHorizontalHeaderLabels(["Statut", "Actifs"])
+        self._teacher_table = M3TableWidget(theme=phi)
+        self._teacher_table.set_headers([_("sec_main.stats_teacher_headers"), _("sec_main.stats_teacher_headers_active")])
         thdr = self._teacher_table.horizontalHeader()
-        thdr.setSectionResizeMode(0, QHeaderView.Stretch)
-        thdr.setSectionResizeMode(1, QHeaderView.Stretch)
+        thdr.setSectionResizeMode(0, M3HeaderView.Stretch)
+        thdr.setSectionResizeMode(1, M3HeaderView.Stretch)
         self._teacher_table.setMaximumHeight(144)
-        self._teacher_table.setAlternatingRowColors(True)
-        self._teacher_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self._teacher_table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._teacher_table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         left_col.addWidget(self._teacher_table)
 
@@ -467,20 +413,17 @@ class MainWindow(QWidget):
         gender_row = QHBoxLayout()
         gender_row.setSpacing(3)
         gender_row.setAlignment(Qt.AlignCenter)
-        self._gender_ratio_label = QLabel()
-        self._gender_ratio_label.setStyleSheet(
-            f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong}; padding: 5px;"
-        )
+        self._gender_ratio_label = M3Label(theme=phi, style="body_medium")
+        self._gender_ratio_label.setStyleSheet("font-weight: bold; padding: 5px;")
         gender_row.addWidget(self._gender_ratio_label)
         layout.addLayout(gender_row)
 
         # Alertes
-        self._alert_title = QLabel("Alertes")
-        self._alert_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
+        self._alert_title = M3Label(_("sec_main.alerts_title"), theme=phi, style="title_small")
         layout.addWidget(self._alert_title)
 
-        self._alert_label = QLabel()
-        self._alert_label.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft}; padding: 8px;")
+        self._alert_label = M3Label()
+        self._alert_label.setStyleSheet(f"font-size: {theme_manager.font_size(10)}px; color: {p.text_soft}; padding: 8px;")
         self._alert_label.setWordWrap(True)
         self._alert_label.setObjectName("panel")
         layout.addWidget(self._alert_label)
@@ -518,7 +461,7 @@ class MainWindow(QWidget):
 
         chart = QChart()
         chart.addSeries(series)
-        chart.setTitle("Effectifs par niveau")
+        chart.setTitle(_("sec_main.stats_class_title"))
         chart.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
         axis_x = QBarCategoryAxis()
         axis_x.append(categories)
@@ -540,7 +483,13 @@ class MainWindow(QWidget):
     def _load_initial_data(self):
         conn = db.server_conn
         if not conn:
-            self._status_bar.setText("Non connecté au serveur.")
+            db.connect_intranet()
+            conn = db.server_conn
+        if not conn:
+            db.connect_cloud()
+            conn = db.server_conn
+        if not conn:
+            self._status_bar.setText(_("sec_main.no_connection"))
             return
 
         try:
@@ -620,12 +569,9 @@ class MainWindow(QWidget):
             # Ratio F/G élèves
             gt = total_g + total_f
             if gt:
-                self._gender_ratio_label.setText(
-                    f"Élèves — ♂ Garçons {total_g} ({total_g / gt * 100:.0f}%)  "
-                    f"┃  ♀ Filles {total_f} ({total_f / gt * 100:.0f}%)"
-                )
+                self._gender_ratio_label.setText(_("sec_main.ratio_text").format(g=total_g, gp=total_g / gt * 100, f=total_f, fp=total_f / gt * 100))
             else:
-                self._gender_ratio_label.setText("Élèves — ♂ —  ┃  ♀ —")
+                self._gender_ratio_label.setText(_("sec_main.ratio_fallback"))
 
             # Tableau enseignants
             cur.execute("""
@@ -685,9 +631,7 @@ class MainWindow(QWidget):
                 (_SEC_PROGS,),
             )
             no_parent = cur.fetchone()[0]
-            self._alert_label.setText(
-                f"⚠ {no_parent} élève(s) actif(s) sans parent/tuteur rattaché." if no_parent else "✓ Aucune alerte."
-            )
+            self._alert_label.setText(_("sec_main.alert_students").format(n=no_parent) if no_parent else _("sec_main.alert_none"))
 
             # Classes pour la sidebar
             cur.execute(
@@ -704,18 +648,18 @@ class MainWindow(QWidget):
             self._classes = cur.fetchall()
             self._build_sidebar()
 
-            self._status_bar.setText("Données chargées.")
+            self._status_bar.setText(_("sec_main.loaded"))
 
         except Exception as e:
             log(f"_load_initial_data: {e}")
-            self._status_bar.setText(f"Erreur de chargement : {e}")
+            self._status_bar.setText(_("sec_main.loading_error").format(e=e))
 
     def _on_class_clicked(self, class_id: int, btn=None):
         label = next((c[1] for c in self._classes if c[0] == class_id), str(class_id))
         self._select_btn(btn)
         self._content_stack.setCurrentIndex(1)
         self._supervisor_panel.load_class(class_id, label)
-        self._status_bar.setText(f"Supervision — {label}")
+        self._status_bar.setText(_("sec_main.status_supervise").format(label=label))
 
     def _select_btn(self, btn):
         if self._selected_btn is not None:
@@ -763,38 +707,29 @@ class MainWindow(QWidget):
         # Main window
         self.setStyleSheet(self._style())
 
-        # Top bar
+        # Top bar - restyle non-phibuilder widgets only
         self._theme_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {p.outline_variant}; "
+            f"M3Button {{ background: transparent; border: 1px solid {p.outline_variant}; "
             f"border-radius: {d.radius}px; font-size: 13px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
+            f"M3Button:hover {{ background: {p.surface_variant}; }}"
         )
-        self._date_label.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft};")
         self._network_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold;")
-        self._title.setStyleSheet(f"color: {p.text_strong}; font-size: {s(13)}px; font-weight: bold;")
         self._profile_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; "
+            f"M3Button {{ background: {p.primary}; color: {p.on_primary}; "
             f"font-weight: bold; font-size: 13px; border: none; border-radius: 17px; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
+            f"M3Button:hover {{ background: {p.active}; }}"
         )
 
-        # Dashboard
+        # Dashboard KPI - restyle legacy QLabel values
         for v in self._kpi_widgets.values():
-            v.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.primary};")
+            v.setStyleSheet(f"font-weight: bold; color: {p.primary};")
         for l in self._kpi_labels.values():
-            l.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft};")
-        self._dashboard_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
-        self._teacher_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
-        self._gender_ratio_label.setStyleSheet(
-            f"font-size: {s(13)}px; font-weight: bold; color: {p.text_strong}; padding: 5px;"
-        )
-        self._alert_title.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {p.text_strong};")
+            l.setStyleSheet(f"color: {p.text_soft};")
+        self._gender_ratio_label.setStyleSheet(f"font-weight: bold; padding: 5px; color: {p.text_strong};")
         self._alert_label.setStyleSheet(f"font-size: {s(10)}px; color: {p.text_soft}; padding: 8px;")
 
         # Status bar
-        self._status_bar.setStyleSheet(
-            f"background: {p.surface_variant}; color: {p.text_soft}; font-size: {s(10)}px; padding: 2px 13px;"
-        )
+        self._status_bar.setStyleSheet(f"background: {p.surface_variant}; color: {p.text_soft}; padding: 2px 13px;")
 
     def _update_datetime(self):
         from datetime import datetime
@@ -807,15 +742,13 @@ class MainWindow(QWidget):
         p = theme_manager.palette
         s = theme_manager.font_size
         if net == NetworkMode.INTRANET:
-            txt, color = "Intranet ●", p.success
+            txt, color = _("sec_main.network_intranet"), p.success
         elif net == NetworkMode.INTERNET:
-            txt, color = "Cloud ●", p.primary
+            txt, color = _("sec_main.network_cloud"), p.primary
         else:
-            txt, color = "Hors ligne", p.text_disabled
+            txt, color = _("sec_main.network_offline"), p.text_disabled
         self._network_label.setText(txt)
         self._network_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold; color: {color};")
-        self._network_label.setStyleSheet(
-            f"color: {color}; font-weight: bold; font-size: {theme_manager.font_size(11)}px;"
-        )
+        self._network_label.setStyleSheet(f"color: {color}; font-weight: bold; font-size: {theme_manager.font_size(11)}px;")
         self._sidebar_status.setText(txt)
         self._sidebar_status.setStyleSheet(f"font-size: {theme_manager.font_size(9)}px; color: {color};")

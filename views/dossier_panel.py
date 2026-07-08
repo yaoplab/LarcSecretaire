@@ -6,33 +6,28 @@ Chaque entrée = un document avec ses propres fichiers joints.
 
 import os
 
+from larccommon.l10n import _
 from larccommon.widgets.table_settings import TableSettings
 from LarcSecretaire.common.theme import theme_manager
+from phibuilder.widgets import M3Button, M3Card, M3DateEdit, M3HeaderView, M3Label, M3StackedWidget, M3TableWidget, M3TextEdit, M3TextField
+from phibuilder.widgets.button import ButtonVariant
+from phibuilder.widgets.card import CardVariant
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
-    QDateEdit,
-    QFrame,
     QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QLineEdit,
     QMessageBox,
-    QPushButton,
-    QStackedWidget,
-    QTableWidget,
     QTableWidgetItem,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 SECTIONS = [
-    ("medicale", "Médicale"),
-    ("pedagogique", "Pédagogique"),
-    ("administrative", "Administrative"),
-    ("communication", "Communication"),
-    ("orientation", "Orientation"),
-    ("autre", "Autre"),
+    ("medicale", _("dossier.section.medical")),
+    ("pedagogique", _("dossier.section.pedagogic")),
+    ("administrative", _("dossier.section.administrative")),
+    ("communication", _("dossier.section.communication")),
+    ("orientation", _("dossier.section.orientation")),
+    ("autre", _("dossier.section.other")),
 ]
 
 
@@ -49,8 +44,8 @@ class _SectionPage(QWidget):
         self._build()
 
     def _build(self):
+        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
         p = theme_manager.palette
-        s = theme_manager.font_size
         d = theme_manager.design
         sp = d.spacing * 2
 
@@ -66,23 +61,14 @@ class _SectionPage(QWidget):
         left_col = QVBoxLayout()
         left_col.setSpacing(4)
 
-        self._table = QTableWidget()
-        self._table.setColumnCount(3)
-        self._table.setHorizontalHeaderLabels(["Date", "Titre", "Description"])
-        self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self._table = M3TableWidget(theme=phi)
+        self._table.set_headers([_("dossier.table_headers"), _("dossier.table_headers_title"), _("dossier.table_headers_description")])
+        self._table.horizontalHeader().setSectionResizeMode(0, M3HeaderView.ResizeToContents)
+        self._table.horizontalHeader().setSectionResizeMode(1, M3HeaderView.Interactive)
         self._table.setColumnWidth(1, 120)
-        self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._table.setStyleSheet(
-            f"QTableWidget {{ border: 1px solid {p.outline_variant}; "
-            f"gridline-color: {p.outline_variant}; font-size: {s(12)}px; "
-            f"background: {p.surface}; color: {p.text_strong}; }}"
-            f"QTableWidget::item {{ padding: 3px 6px; }}"
-            f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
-            f"font-weight: bold; padding: 4px 6px; border: none; font-size: {s(12)}px; }}"
-        )
+        self._table.horizontalHeader().setSectionResizeMode(2, M3HeaderView.Stretch)
+        self._table.setSelectionBehavior(M3TableWidget.SelectRows)
+        self._table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._table.itemSelectionChanged.connect(self._on_select)
         self._table.cellClicked.connect(lambda r, c: self._on_select_row(r))
         self._table.horizontalHeader().sectionResized.connect(self._on_col_resize)
@@ -97,54 +83,37 @@ class _SectionPage(QWidget):
 
         title_row = QHBoxLayout()
         title_row.setSpacing(6)
-        self._title = QLineEdit()
-        self._title.setPlaceholderText("Titre")
-        self._title.setStyleSheet(
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
-            f"background: {p.surface}; color: {p.text_strong};"
-        )
+        self._title = M3TextField(placeholder=_("dossier.title_placeholder"), theme=phi)
         self._title.textChanged.connect(self._save_current)
         title_row.addWidget(self._title, 1)
-        add_btn = QPushButton("+")
+        add_btn = M3Button("+", theme=phi, variant=ButtonVariant.FILLED)
         add_btn.setFixedSize(24, 24)
-        add_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: 12px; font-size: {s(14)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
-        )
         add_btn.clicked.connect(self._add_entry)
         title_row.addWidget(add_btn)
-        del_btn = QPushButton("−")
+        del_btn = M3Button("−", theme=phi, variant=ButtonVariant.OUTLINED)
         del_btn.setFixedSize(24, 24)
-        del_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.error}; "
-            f"border: 1px solid {p.error}; border-radius: 12px; "
-            f"font-size: {s(14)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}"
-        )
         del_btn.clicked.connect(self._delete_entry)
         title_row.addWidget(del_btn)
         right_col.addLayout(title_row)
 
-        self._date = QDateEdit()
+        self._date = M3DateEdit()
         self._date.setDisplayFormat("yyyy-MM-dd")
         self._date.setCalendarPopup(True)
         self._date.setSpecialValueText(" ")
         self._date.setDate(QDate())
         self._date.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
+            f"border-radius: {d.radius}px; font-size: 12px; "
             f"background: {p.surface}; color: {p.text_strong};"
         )
         self._date.dateChanged.connect(self._save_current)
         right_col.addWidget(self._date)
 
-        self._doc = QTextEdit()
-        self._doc.setPlaceholderText("Description / note...")
+        self._doc = M3TextEdit()
+        self._doc.setPlaceholderText(_("dossier.description_placeholder"))
         self._doc.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: {s(12)}px; "
+            f"border-radius: {d.radius}px; font-size: 12px; "
             f"background: {p.surface}; color: {p.text_strong};"
         )
         self._doc.textChanged.connect(self._save_current)
@@ -152,13 +121,7 @@ class _SectionPage(QWidget):
 
         save_row = QHBoxLayout()
         save_row.addStretch()
-        save_btn = QPushButton("✓ Enregistrer")
-        save_btn.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: {d.radius_lg}px; padding: {d.spacing}px {d.spacing * 4}px; "
-            f"font-size: {s(13)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
-        )
+        save_btn = M3Button(_("dossier.save_button"), theme=phi, variant=ButtonVariant.FILLED)
         save_btn.clicked.connect(self._save_and_refresh)
         save_row.addWidget(save_btn)
         right_col.addLayout(save_row)
@@ -177,75 +140,44 @@ class _SectionPage(QWidget):
         file_layout.setContentsMargins(0, 0, 0, 0)
         file_layout.setSpacing(4)
 
-        self._file_table = QTableWidget()
-        self._file_table.setColumnCount(2)
-        self._file_table.setHorizontalHeaderLabels(["Pièce jointe", "Document associé"])
-        self._file_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._file_table = M3TableWidget(theme=phi)
+        self._file_table.set_headers([_("dossier.file_headers_name"), _("dossier.file_headers_doc")])
+        self._file_table.horizontalHeader().setSectionResizeMode(0, M3HeaderView.Interactive)
         self._file_table.setColumnWidth(0, 144)
-        self._file_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self._file_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._file_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._file_table.setStyleSheet(
-            f"QTableWidget {{ border: 1px solid {p.outline_variant}; "
-            f"gridline-color: {p.outline_variant}; font-size: {s(11)}px; "
-            f"background: {p.surface}; color: {p.text_strong}; }}"
-            f"QTableWidget::item {{ padding: 2px 4px; }}"
-            f"QHeaderView::section {{ background: {p.surface_variant}; color: {p.text_strong}; "
-            f"font-weight: bold; padding: 3px 4px; border: none; font-size: {s(11)}px; }}"
-        )
+        self._file_table.horizontalHeader().setSectionResizeMode(1, M3HeaderView.Stretch)
+        self._file_table.setSelectionBehavior(M3TableWidget.SelectRows)
+        self._file_table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._file_table.itemSelectionChanged.connect(self._on_file_selected)
         self._file_table.cellDoubleClicked.connect(self._on_preview_file_row)
         file_layout.addWidget(self._file_table)
 
         file_btns = QHBoxLayout()
         file_btns.setSpacing(4)
-        add_f = QPushButton("+")
+        add_f = M3Button("+", theme=phi, variant=ButtonVariant.FILLED)
         add_f.setFixedSize(22, 22)
-        add_f.setStyleSheet(
-            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; border: none; "
-            f"border-radius: 11px; font-size: {s(12)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.active}; }}"
-        )
         add_f.clicked.connect(self._add_file)
         file_btns.addWidget(add_f)
-        open_f = QPushButton("📂")
+        open_f = M3Button("📂", theme=phi, variant=ButtonVariant.OUTLINED)
         open_f.setFixedSize(22, 22)
-        open_f.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.text_strong}; "
-            f"border: 1px solid {p.outline_variant}; border-radius: 11px; font-size: {s(10)}px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
-        )
         open_f.clicked.connect(self._open_file_dir)
         file_btns.addWidget(open_f)
-        del_f = QPushButton("−")
+        del_f = M3Button("−", theme=phi, variant=ButtonVariant.OUTLINED)
         del_f.setFixedSize(22, 22)
-        del_f.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {p.error}; "
-            f"border: 1px solid {p.error}; border-radius: 11px; "
-            f"font-size: {s(14)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.error_container}; }}"
-        )
         del_f.clicked.connect(self._delete_file)
         file_btns.addWidget(del_f)
-        save_f = QPushButton("✓")
+        save_f = M3Button("✓", theme=phi, variant=ButtonVariant.FILLED)
         save_f.setFixedSize(22, 22)
-        save_f.setStyleSheet(
-            f"QPushButton {{ background: {p.button_success}; color: white; border: none; "
-            f"border-radius: 11px; font-size: {s(11)}px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background: {p.success}; }}"
-        )
         save_f.clicked.connect(self._refresh_files)
         file_btns.addWidget(save_f)
         file_btns.addStretch()
         file_layout.addLayout(file_btns)
         bottom.addWidget(file_widget, 5)
 
-        self._preview_frame = QFrame()
-        self._preview_frame.setStyleSheet(f"background: {p.surface_variant}; border-radius: {d.radius_lg}px;")
-        self._preview_layout = QVBoxLayout(self._preview_frame)
-        self._preview_widget = QLabel("Sélectionnez un fichier")
+        self._preview_frame = M3Card(theme=phi, variant=CardVariant.FILLED, parent=self)
+        self._preview_layout = self._preview_frame.content_layout()
+        self._preview_widget = M3Label(_("dossier.preview_placeholder"))
         self._preview_widget.setAlignment(Qt.AlignCenter)
-        self._preview_widget.setStyleSheet(f"font-size: {s(11)}px; color: {p.text_disabled};")
+        self._preview_widget.setStyleSheet(f"font-size: 11px; color: {p.text_disabled};")
         self._preview_layout.addWidget(self._preview_widget)
         bottom.addWidget(self._preview_frame, 8)
 
@@ -272,7 +204,7 @@ class _SectionPage(QWidget):
         d = self._entry_dir()
         if not d:
             return
-        paths, _ = QFileDialog.getOpenFileNames(self, "Ajouter des fichiers", "")
+        paths, _ = QFileDialog.getOpenFileNames(self, _("dossier.add_files"), "")
         if not paths:
             return
         import shutil
@@ -286,7 +218,7 @@ class _SectionPage(QWidget):
         if not rows:
             return
         name = self._file_table.item(rows[0].row(), 0).text()
-        r = QMessageBox.question(self, "Confirmation", f"Supprimer {name} ?", QMessageBox.Yes | QMessageBox.No)
+        r = QMessageBox.question(self, _("dossier.confirm_delete"), _("dossier.confirm_delete_file").format(name=name), QMessageBox.Yes | QMessageBox.No)
         if r != QMessageBox.Yes:
             return
         path = os.path.join(self._entry_dir(), name)
@@ -294,7 +226,7 @@ class _SectionPage(QWidget):
             os.remove(path)
             self._refresh_files()
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", str(e))
+            QMessageBox.critical(self, _("dossier.error"), str(e))
 
     def _open_file_dir(self):
         d = self._entry_dir()
@@ -330,23 +262,23 @@ class _SectionPage(QWidget):
         if ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp"}:
             from PySide6.QtGui import QPixmap
 
-            lbl = QLabel()
+            lbl = M3Label()
             pix = QPixmap(path)
             lbl.setPixmap(pix.scaled(300, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             lbl.setAlignment(Qt.AlignCenter)
             self._preview_layout.addWidget(lbl)
         elif ext in {".txt", ".csv", ".md", ".json", ".py", ".sql"}:
-            ed = QTextEdit()
+            ed = M3TextEdit()
             ed.setReadOnly(True)
             ed.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px;")
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     ed.setPlainText(f.read()[:5000])
             except Exception:
-                ed.setPlainText("(Illisible)")
+                ed.setPlainText(_("dossier.fallback_text"))
             self._preview_layout.addWidget(ed)
         else:
-            lbl = QLabel(f"{name.text()}\n\n{os.path.getsize(path):,} octets\n\nDouble-clic pour ouvrir")
+            lbl = M3Label(_("dossier.file_info").format(name=name.text(), bytes=f"{os.path.getsize(path):,}"))
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setStyleSheet(f"font-size: {theme_manager.font_size(11)}px; color: {theme_manager.palette.text_soft};")
             self._preview_layout.addWidget(lbl)
@@ -431,7 +363,9 @@ class _SectionPage(QWidget):
         if idx < 0 or idx >= len(self._entries):
             return
         e = self._entries[idx]
-        r = QMessageBox.question(self, "Confirmation", f"Supprimer «{e.get('titre', '')}» ?", QMessageBox.Yes | QMessageBox.No)
+        r = QMessageBox.question(
+            self, _("dossier.confirm_delete_entry"), _("dossier.confirm_delete_entry_msg").format(title=e.get("titre", "")), QMessageBox.Yes | QMessageBox.No
+        )
         if r != QMessageBox.Yes:
             return
         self._entries.pop(idx)
@@ -470,21 +404,21 @@ class DossierPanel(QWidget):
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
-        self._btns: list[QPushButton] = []
+        self._btns: list[M3Button] = []
         self._stack_info: list[tuple] = []
 
         visible_sections = list(SECTIONS)
 
         btn_base = (
-            f"QPushButton {{ border: none; border-radius: {d.radius_lg}px; "
+            f"M3Button {{ border: none; border-radius: {d.radius_lg}px; "
             f"padding: {d.spacing * 2}px {d.spacing * 4}px; "
             f"font-size: {s(13)}px; font-weight: bold; }}"
         )
 
         for key, label in visible_sections:
-            btn = QPushButton(label)
+            btn = M3Button(label)
             btn.setStyleSheet(
-                btn_base + f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
+                btn_base + f"M3Button {{ background: transparent; color: {p.text_strong}; }}M3Button:hover {{ background: {p.surface_variant}; }}"
             )
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(lambda checked, k=key: self._select(k))
@@ -495,7 +429,7 @@ class DossierPanel(QWidget):
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
-        self._stack = QStackedWidget()
+        self._stack = M3StackedWidget()
         for key, label in self._stack_info:
             self._stack.addWidget(_SectionPage(key, self._sid))
             self._pages.append(self._stack.widget(self._stack.count() - 1))
@@ -508,17 +442,17 @@ class DossierPanel(QWidget):
         p = theme_manager.palette
         sp = theme_manager.design.spacing * 2
         btn_base = (
-            f"QPushButton {{ border: none; border-radius: {theme_manager.design.radius_lg}px; "
+            f"M3Button {{ border: none; border-radius: {theme_manager.design.radius_lg}px; "
             f"padding: {sp}px {sp * 2}px; font-size: {theme_manager.font_size(13)}px; "
             f"font-weight: bold; }}"
         )
         for i, (k, _) in enumerate(self._stack_info):
             if k == key:
-                self._btns[i].setStyleSheet(btn_base + f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; }}")
+                self._btns[i].setStyleSheet(btn_base + f"M3Button {{ background: {p.primary}; color: {p.on_primary}; }}")
                 self._stack.setCurrentIndex(i)
             else:
                 self._btns[i].setStyleSheet(
-                    btn_base + f"QPushButton {{ background: transparent; color: {p.text_strong}; }}QPushButton:hover {{ background: {p.surface_variant}; }}"
+                    btn_base + f"M3Button {{ background: transparent; color: {p.text_strong}; }}M3Button:hover {{ background: {p.surface_variant}; }}"
                 )
 
     def set_directory(self, base_dir: str):
