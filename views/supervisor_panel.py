@@ -19,7 +19,7 @@ from phibuilder.widgets import (
     M3TextEdit,
 )
 from phibuilder.widgets.button import ButtonVariant
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -294,9 +294,21 @@ class SupervisorPanel(QWidget):
         from larccommon.widgets.card_config import PHI_COMPACT, PHI_LARGE, PHI_MEDIUM
 
         self._card_sizes = {"compact": PHI_COMPACT, "medium": PHI_MEDIUM, "large": PHI_LARGE}
-        settings = QSettings("Larc", "LarcSecretaire")
-        saved = settings.value("card_theme", "")
-        self._card_size = saved if saved else getattr(session, "card_theme", "medium")
+        # Charger depuis la DB
+        saved = getattr(session, "card_theme", "medium")
+        if session.user_id:
+            try:
+                cur = db.server_conn.cursor()
+                cur.execute(
+                    "SELECT value FROM larcauth_config WHERE key = %s",
+                    (f"user_{session.user_id}_card_theme",),
+                )
+                r = cur.fetchone()
+                if r:
+                    saved = r[0]
+            except Exception:
+                pass
+        self._card_size = saved
         for key, icon_name in [("compact", "view_comfy"), ("medium", "view_module"), ("large", "dashboard")]:
             btn = QPushButton("")
             btn.setFixedSize(28, 28)
@@ -518,7 +530,16 @@ class SupervisorPanel(QWidget):
     def _on_card_size(self, key: str):
         self._card_size = key
         session.card_theme = key
-        QSettings("Larc", "LarcSecretaire").setValue("card_theme", key)
+        if session.user_id:
+            try:
+                cur = db.server_conn.cursor()
+                cur.execute(
+                    "INSERT INTO larcauth_config (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                    (f"user_{session.user_id}_card_theme", key),
+                )
+                db.server_conn.commit()
+            except Exception:
+                pass
         self._rebuild_cards()
         self._load_presence()
         for btn in self.findChildren(QPushButton):
