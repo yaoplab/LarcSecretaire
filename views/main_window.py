@@ -206,6 +206,7 @@ class MainWindow(QWidget):
         s = theme_manager.font_size
         d = theme_manager.design
         phi = getattr(self, "_phi", None)
+        from larccommon.l10n import _
 
         self._clear_layout(self._sidebar_layout)
 
