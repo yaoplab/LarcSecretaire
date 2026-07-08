@@ -44,7 +44,8 @@ from phibuilder.widgets import (
 from phibuilder.widgets.button import ButtonVariant
 from phibuilder.widgets.card import CardVariant
 from PySide6.QtCore import QDate, QEvent, Qt
-from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPixmap, QTextDocument
+from PySide6.QtPrintSupport import QPrinter
 from phibuilder.widgets import M3SidebarNav
 from PySide6.QtWidgets import (
     QCheckBox,
