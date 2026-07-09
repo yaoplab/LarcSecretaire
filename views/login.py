@@ -378,15 +378,15 @@ class LoginWindow(QWidget):
 
     # ---- Network ----
     def _apply_tab_visibility(self):
-        mode = self._net_status
+        intra_ok, internet_ok = self._net_status
         p = theme_manager.palette
 
         if self._tabs_forced:
             self._tabs.setTabVisible(0, True)
             self._tabs.setTabVisible(1, True)
             self._err_label.setText("")
-            intra_color = p.success if mode == NetworkMode.INTRANET else p.text_soft
-            cloud_color = p.primary if mode != NetworkMode.OFFLINE else p.text_soft
+            intra_color = p.success if intra_ok else p.text_soft
+            cloud_color = p.primary if internet_ok else p.text_soft
             self._net_label.setText(
                 f"<span style='color:{intra_color}'>{_('sec_login.status.intranet')}</span>"
                 f"   <span style='color:{cloud_color}'>{_('sec_login.status.cloud')}</span>"
@@ -395,7 +395,7 @@ class LoginWindow(QWidget):
             self._net_label.setStyleSheet("font-weight: bold; font-size: 13px;")
             return
 
-        if mode == NetworkMode.INTRANET:
+        if intra_ok:
             self._tabs.setTabVisible(0, True)
             self._tabs.setTabVisible(1, False)
             self._tabs.setCurrentIndex(0)
@@ -403,7 +403,7 @@ class LoginWindow(QWidget):
             self._net_label.setText(_("sec_login.status.intranet"))
             self._net_label.setStyleSheet(f"color: {p.success}; font-weight: bold; font-size: 13px;")
 
-        elif mode == NetworkMode.INTERNET:
+        elif internet_ok:
             self._tabs.setTabVisible(0, False)
             self._tabs.setTabVisible(1, True)
             self._tabs.setCurrentIndex(1)
