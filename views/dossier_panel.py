@@ -90,7 +90,7 @@ class _SectionPage(QWidget):
         add_btn.setFixedSize(24, 24)
         add_btn.clicked.connect(self._add_entry)
         title_row.addWidget(add_btn)
-        del_btn = QPushButton("-")
+        del_btn = M3Button("-", theme=phi, variant=ButtonVariant.OUTLINED)
         del_btn.setFixedSize(24, 24)
         del_btn.clicked.connect(self._delete_entry)
         title_row.addWidget(del_btn)
