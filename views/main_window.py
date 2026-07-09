@@ -243,8 +243,8 @@ class MainWindow(QWidget):
 
         # Tableau de bord
         btn = QPushButton(_("sec_main.dashboard"))
+        btn.setObjectName("section_btn")
         btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet(f"QPushButton {{ text-align: left; background: transparent; color: {p.text_strong}; border: none; border-radius: {d.radius}px; font-size: {s(10)}px; padding: 3px 8px; }}QPushButton:hover {{ background: {p.surface_variant}; }}")
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(0))
         self._sidebar_layout.addWidget(btn)
 
@@ -254,14 +254,14 @@ class MainWindow(QWidget):
         self._sidebar_layout.addWidget(sec_title)
 
         btn = QPushButton(_("sec_main.search"))
+        btn.setObjectName("section_btn")
         btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet(f"QPushButton {{ text-align: left; background: transparent; color: {p.text_strong}; border: none; border-radius: {d.radius}px; font-size: {s(10)}px; padding: 3px 8px; }}QPushButton:hover {{ background: {p.surface_variant}; }}")
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(3))
         self._sidebar_layout.addWidget(btn)
 
         btn = QPushButton(_("sec_main.parents"))
+        btn.setObjectName("section_btn")
         btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet(f"QPushButton {{ text-align: left; background: transparent; color: {p.text_strong}; border: none; border-radius: {d.radius}px; font-size: {s(10)}px; padding: 3px 8px; }}QPushButton:hover {{ background: {p.surface_variant}; }}")
         btn.clicked.connect(lambda: self._content_stack.setCurrentIndex(2))
         self._sidebar_layout.addWidget(btn)
 
