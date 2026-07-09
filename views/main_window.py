@@ -8,19 +8,6 @@ from LarcSecretaire.common.theme import QssHelper, theme_manager
 from LarcSecretaire.views.parent_manager import ParentManager
 from LarcSecretaire.views.student_form import StudentForm
 from LarcSecretaire.views.supervisor_panel import SupervisorPanel
-from phibuilder.widgets import (
-    M3Button,
-    M3Card,
-    M3Frame,
-    M3HeaderView,
-    M3Label,
-    M3Menu,
-    M3ScrollArea,
-    M3StackedWidget,
-    M3TableWidget,
-)
-from phibuilder.widgets.button import ButtonVariant
-from phibuilder.widgets.card import CardVariant
 from PySide6.QtCharts import (
     QBarCategoryAxis,
     QBarSeries,
@@ -47,7 +34,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -119,8 +105,8 @@ class MainWindow(QWidget):
 
     def _setup_ui(self):
         d = theme_manager.design
-        self._phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
-        phi = self._phi
+        
+        
         self.setStyleSheet(self._style())
         outer = QVBoxLayout(self)
         outer.setContentsMargins(6, 6, 6, 6)
@@ -182,6 +168,7 @@ class MainWindow(QWidget):
 
         # Sidebar
         self._sidebar = QFrame()
+        self._sidebar.setObjectName("sidebar")
         self._sidebar.setObjectName("sidebar")
         self._sidebar.setFixedWidth(233)
         self._sidebar_layout = QVBoxLayout(self._sidebar)
@@ -451,7 +438,7 @@ class MainWindow(QWidget):
         gender_row = QHBoxLayout()
         gender_row.setSpacing(3)
         gender_row.setAlignment(Qt.AlignCenter)
-        self._gender_ratio_label = M3Label(theme=phi, style="body_medium")
+        self._gender_ratio_label = QLabel()
         self._gender_ratio_label.setStyleSheet("font-weight: bold; padding: 5px;")
         gender_row.addWidget(self._gender_ratio_label)
         layout.addLayout(gender_row)
@@ -461,7 +448,7 @@ class MainWindow(QWidget):
         self._alert_title.setObjectName("panel_title")
         layout.addWidget(self._alert_title)
 
-        self._alert_label = M3Label()
+        self._alert_label = QLabel()
         self._alert_label.setStyleSheet(f"font-size: {theme_manager.font_size(10)}px; color: {p.text_soft}; padding: 8px;")
         self._alert_label.setWordWrap(True)
         self._alert_label.setObjectName("panel")
@@ -769,15 +756,15 @@ class MainWindow(QWidget):
 
         # Top bar - restyle non-phibuilder widgets only
         self._theme_btn.setStyleSheet(
-            f"M3Button {{ background: transparent; border: 1px solid {p.outline_variant}; "
+            f"QPushButton {{ background: transparent; border: 1px solid {p.outline_variant}; "
             f"border-radius: {d.radius}px; font-size: 13px; }}"
-            f"M3Button:hover {{ background: {p.surface_variant}; }}"
+            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
         )
         self._network_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold;")
         self._profile_btn.setStyleSheet(
-            f"M3Button {{ background: {p.primary}; color: {p.on_primary}; "
+            f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; "
             f"font-weight: bold; font-size: 13px; border: none; border-radius: 17px; }}"
-            f"M3Button:hover {{ background: {p.active}; }}"
+            f"QPushButton:hover {{ background: {p.active}; }}"
         )
 
         # Dashboard KPI - restyle legacy QLabel values
