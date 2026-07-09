@@ -245,18 +245,20 @@ class LoginWindow(QWidget):
         layout = QVBoxLayout(w)
         layout.setAlignment(Qt.AlignCenter)
 
-        email_lbl = QLabel(_("sec_login.email_label"), )
+        email_lbl = QLabel(_("sec_login.email_label"))
         layout.addWidget(email_lbl)
-        email = QLineEdit(placeholder=_("sec_login.email_placeholder"))
+        email = QLineEdit()
+        email.setPlaceholderText(_("sec_login.email_placeholder"))
         email.setFixedHeight(55)
         self._edt_i_email = email
         layout.addWidget(email)
 
         layout.addSpacing(21)
 
-        pwd_lbl = QLabel(_("sec_login.password_label"), )
+        pwd_lbl = QLabel(_("sec_login.password_label"))
         layout.addWidget(pwd_lbl)
-        pwd = QLineEdit(placeholder=_("sec_login.password_placeholder"))
+        pwd = QLineEdit()
+        pwd.setPlaceholderText(_("sec_login.password_placeholder"))
         pwd.setEchoMode(QLineEdit().EchoMode.Password)
         pwd.setFixedHeight(55)
         pwd.returnPressed.connect(self._on_intranet)
