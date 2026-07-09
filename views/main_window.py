@@ -5,6 +5,7 @@ from LarcSecretaire.common.logger import log
 from LarcSecretaire.common.network import NetworkMode, detect_network
 from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import QssHelper, theme_manager
+from larccommon.icons import icon as md3_icon
 from LarcSecretaire.views.parent_manager import ParentManager
 from LarcSecretaire.views.student_form import StudentForm
 from LarcSecretaire.views.supervisor_panel import SupervisorPanel
@@ -16,7 +17,7 @@ from PySide6.QtCharts import (
     QChartView,
     QValueAxis,
 )
-from PySide6.QtCore import QEvent, QMargins, Qt, QTimer
+from PySide6.QtCore import QEvent, QMargins, QSize, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter
 from PySide6.QtWidgets import (
     QApplication,
@@ -86,6 +87,9 @@ class MainWindow(QWidget):
             {QssHelper.section_btn(p, d, s)}
             {QssHelper.combobox(p, d)}
             {QssHelper.kpi_common(p, d, s)}
+            QPushButton#theme_btn {{
+                background: transparent; border: none; font-size: 18px;
+            }}
             QPushButton:pressed {{ background: {p.primary}; color: {p.on_primary}; }}
             QLabel#kpi_small_value {{
                 font-size: {s(18)}px; font-weight: bold; color: {p.primary};
@@ -132,7 +136,7 @@ class MainWindow(QWidget):
         top_layout.setContentsMargins(10, 6, 10, 6)
         top_layout.setSpacing(6)
 
-        self._title = QLabel(f"📋 {_('sec_main.bar_title').format(name=session.full_name)}")
+        self._title = QLabel(_("sec_main.bar_title").format(name=session.full_name))
         self._title.setObjectName("panel_title")
         top_layout.addWidget(self._title)
         top_layout.addStretch()
@@ -145,9 +149,11 @@ class MainWindow(QWidget):
         self._network_label.setStyleSheet(f"font-size: {theme_manager.font_size(12)}px; font-weight: bold;")
         top_layout.addWidget(self._network_label)
 
-        self._theme_btn = QPushButton("🎨")
+        self._theme_btn = QPushButton()
         self._theme_btn.setObjectName("theme_btn")
         self._theme_btn.setFixedSize(34, 34)
+        self._theme_btn.setIcon(self._theme_icon())
+        self._theme_btn.setIconSize(QSize(theme_manager.image.icon_btn, theme_manager.image.icon_btn))
         self._theme_btn.setCursor(Qt.PointingHandCursor)
         self._theme_btn.clicked.connect(self._cycle_theme)
         top_layout.addWidget(self._theme_btn)
@@ -165,7 +171,7 @@ class MainWindow(QWidget):
         )
         self._profile_menu = QMenu(self)
         current_lang = "EN" if session.fk_language == 1 else "FR"
-        lang_action = self._profile_menu.addAction(f"🌐 {current_lang} → {'FR' if current_lang == 'EN' else 'EN'}")
+        lang_action = self._profile_menu.addAction(f"{current_lang} → {'FR' if current_lang == 'EN' else 'EN'}")
         lang_action.triggered.connect(self._on_toggle_language)
         logout_action = self._profile_menu.addAction(_("sec_main.logout"))
         logout_action.triggered.connect(self._on_logout)
@@ -713,6 +719,11 @@ class MainWindow(QWidget):
             except RuntimeError:
                 pass
 
+    def _theme_icon(self):
+        name_map = {"blue": "light_mode", "dark": "dark_mode", "sobre": "tonality", "contrast": "contrast"}
+        name = name_map.get(theme_manager.active_name, "light_mode")
+        return md3_icon(name, color=theme_manager.palette.text_strong, size=theme_manager.image.icon_btn)
+
     def _cycle_theme(self):
         themes = ["blue", "dark", "sobre", "contrast"]
         current = theme_manager._active
@@ -767,12 +778,8 @@ class MainWindow(QWidget):
         # Main window
         self.setStyleSheet(self._style())
 
-        # Top bar - restyle non-phibuilder widgets only
-        self._theme_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: 13px; }}"
-            f"QPushButton:hover {{ background: {p.surface_variant}; }}"
-        )
+        # Top bar
+        self._theme_btn.setIcon(self._theme_icon())
         self._network_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold;")
         self._profile_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; "
