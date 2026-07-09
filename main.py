@@ -108,6 +108,7 @@ def main() -> None:
     login = LoginWindow(
         on_success=on_success,
         title_prefix="LarcSecrétariat",
+        subtitle=_("login.subtitle.secretaire"),
         on_intranet_login=on_intranet_login,
         on_cloud_login=on_cloud_login,
     )
