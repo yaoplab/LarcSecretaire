@@ -26,6 +26,10 @@ def main() -> None:
     font = QFont("Roboto", 10)
     app.setFont(font)
 
+    from larccommon.l10n import Translator
+    lang = os.environ.get("LARC_LANG", "fr")
+    Translator.instance(lang).load_dir(Translator.l10n_dir())
+
     from LarcSecretaire.common.theme import theme_manager
 
     theme_manager.bind(app)
