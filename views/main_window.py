@@ -762,12 +762,12 @@ class MainWindow(QWidget):
         self._date_label.setText(now.strftime("%A %d %B %Y %H:%M") + "  ")
 
     def _update_status_bar(self):
-        net = detect_network()
+        intra_ok, internet_ok = detect_network()
         p = theme_manager.palette
         s = theme_manager.font_size
-        if net == NetworkMode.INTRANET:
+        if intra_ok:
             txt, color = _("sec_main.network_intranet"), p.success
-        elif net == NetworkMode.INTERNET:
+        elif internet_ok:
             txt, color = _("sec_main.network_cloud"), p.primary
         else:
             txt, color = _("sec_main.network_offline"), p.text_disabled
