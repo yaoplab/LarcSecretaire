@@ -12,10 +12,15 @@ from LarcSecretaire.common.network import NetworkMode, detect_network
 from LarcSecretaire.common.session import AuthResult, ConnMode, UserRole, session
 from LarcSecretaire.common.sqlite_init import sqlite_init
 from LarcSecretaire.common.theme import theme_manager
+from PySide6.QtCore import QEvent, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
