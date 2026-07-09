@@ -32,8 +32,6 @@ def main() -> None:
 
     from LarcSecretaire.common.theme import theme_manager
 
-    theme_manager.bind(app)
-
     from LarcSecretaire.common.logger import log
 
     log("LarcSecretaire démarré")
