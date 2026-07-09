@@ -336,19 +336,19 @@ class MainWindow(QWidget):
         self._sidebar_layout.addStretch()
 
         # État réseau en bas
-        self._sidebar_status = M3Label(theme=phi, style="body_small")
+        self._sidebar_status = QLabel()
+        self._sidebar_status.setStyleSheet(f"font-size: {theme_manager.font_size(9)}px; padding: 3px;")
         self._sidebar_status.setAlignment(Qt.AlignCenter)
         self._sidebar_layout.addWidget(self._sidebar_status)
         self._selected_btn = None
 
     def _build_dashboard(self) -> QWidget:
-        phi = getattr(self, "_phi", None)
         p = theme_manager.palette
         s = theme_manager.font_size
 
-        page = M3ScrollArea()
+        page = QScrollArea()
         page.setWidgetResizable(True)
-        page.setFrameShape(M3Frame.NoFrame)
+        page.setFrameShape(QFrame.NoFrame)
 
         inner = QWidget()
         layout = QVBoxLayout(inner)
@@ -366,13 +366,16 @@ class MainWindow(QWidget):
             ("lycee", _("sec_main.kpi.lycee")),
             ("enseignants", _("sec_main.kpi.teachers")),
         ]:
-            f = M3Card(theme=phi, variant=CardVariant.FILLED, parent=self)
+            f = QFrame()
+            f.setObjectName("kpi_card")
             f.setMinimumHeight(89)
-            fl = f.content_layout()
+            fl = QVBoxLayout(f)
             fl.setAlignment(Qt.AlignCenter)
-            v = M3Label("—", theme=phi, style="display_small")
+            v = QLabel("—")
+            v.setObjectName("kpi_value")
             v.setAlignment(Qt.AlignCenter)
-            l = M3Label(label, theme=phi, style="label_small")
+            l = QLabel(label)
+            l.setObjectName("kpi_label")
             l.setAlignment(Qt.AlignCenter)
             fl.addWidget(v)
             fl.addWidget(l)
@@ -389,11 +392,13 @@ class MainWindow(QWidget):
         left_col.setSpacing(8)
 
         # Tableau élèves
-        self._dashboard_title = M3Label(_("sec_main.stats_class_title"), theme=phi, style="title_small")
+        self._dashboard_title = QLabel(_("sec_main.stats_class_title"))
+        self._dashboard_title.setObjectName("panel_title")
         left_col.addWidget(self._dashboard_title)
 
-        self._dashboard_table = M3TableWidget(theme=phi)
-        self._dashboard_table.set_headers(
+        self._dashboard_table = QTableWidget()
+        self._dashboard_table.setColumnCount(8)
+        self._dashboard_table.setHorizontalHeaderLabels(
             [
                 _("sec_main.stats_class_headers"),
                 _("sec_main.stats_class_headers_active"),
@@ -406,23 +411,25 @@ class MainWindow(QWidget):
         )
         hdr = self._dashboard_table.horizontalHeader()
         for i in range(7):
-            hdr.setSectionResizeMode(i, M3HeaderView.Stretch)
+            hdr.setSectionResizeMode(i, QHeaderView.Stretch)
         self._dashboard_table.setMaximumHeight(233)
-        self._dashboard_table.setEditTriggers(M3TableWidget.NoEditTriggers)
+        self._dashboard_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._dashboard_table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         left_col.addWidget(self._dashboard_table)
 
         # Tableau enseignants
-        self._teacher_title = M3Label(_("sec_main.stats_teacher_title"), theme=phi, style="title_small")
+        self._teacher_title = QLabel(_("sec_main.stats_teacher_title"))
+        self._teacher_title.setObjectName("panel_title")
         left_col.addWidget(self._teacher_title)
 
-        self._teacher_table = M3TableWidget(theme=phi)
-        self._teacher_table.set_headers([_("sec_main.stats_teacher_headers"), _("sec_main.stats_teacher_headers_active")])
+        self._teacher_table = QTableWidget()
+        self._teacher_table.setColumnCount(2)
+        self._teacher_table.setHorizontalHeaderLabels([_("sec_main.stats_teacher_headers"), _("sec_main.stats_teacher_headers_active")])
         thdr = self._teacher_table.horizontalHeader()
-        thdr.setSectionResizeMode(0, M3HeaderView.Stretch)
-        thdr.setSectionResizeMode(1, M3HeaderView.Stretch)
+        thdr.setSectionResizeMode(0, QHeaderView.Stretch)
+        thdr.setSectionResizeMode(1, QHeaderView.Stretch)
         self._teacher_table.setMaximumHeight(144)
-        self._teacher_table.setEditTriggers(M3TableWidget.NoEditTriggers)
+        self._teacher_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._teacher_table.verticalHeader().setDefaultAlignment(Qt.AlignCenter)
         left_col.addWidget(self._teacher_table)
 
@@ -450,7 +457,8 @@ class MainWindow(QWidget):
         layout.addLayout(gender_row)
 
         # Alertes
-        self._alert_title = M3Label(_("sec_main.alerts_title"), theme=phi, style="title_small")
+        self._alert_title = QLabel(_("sec_main.alerts_title"))
+        self._alert_title.setObjectName("panel_title")
         layout.addWidget(self._alert_title)
 
         self._alert_label = M3Label()
