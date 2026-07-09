@@ -44,6 +44,18 @@ class MainWindow(QWidget):
 
         self.setWindowTitle(_("sec_main.title").format(name=session.full_name))
         self.setMinimumSize(987, 610)
+
+        # Charger theme_pref depuis DB
+        if session.user_id:
+            try:
+                cur = db.server_conn.cursor()
+                cur.execute("SELECT value FROM larcauth_config WHERE key = %s", (f"user_{session.user_id}_theme_pref",))
+                r = cur.fetchone()
+                if r and r[0] in ("blue", "dark", "sobre", "contrast"):
+                    theme_manager.set_active(r[0])
+            except Exception:
+                pass
+
         self._setup_ui()
         self._load_initial_data()
 
