@@ -84,8 +84,11 @@ class LoginWindow(QWidget):
         self._tabs_forced = False
 
         db.connect_intranet()
+        print(f"[DEBUG] Intranet OK: {db.server_conn is not None}")
         if not db.server_conn:
             db.connect_cloud()
+            print(f"[DEBUG] Cloud OK: {db.server_conn is not None}")
+        print(f"[DEBUG] Final conn: {db.server_conn is not None}, mode: {db.mode}")
         sqlite_init.init()
         app_config.load()
 
