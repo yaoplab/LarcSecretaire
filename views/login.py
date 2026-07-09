@@ -273,7 +273,8 @@ class LoginWindow(QWidget):
             layout.addWidget(term_lbl)
             layout.addSpacing(16)
 
-        btn = QPushButton(_("sec_login.connect_intranet"), )
+        btn = QPushButton(_("sec_login.connect_intranet"))
+        btn.setObjectName("btnIntra")
         btn.setFixedSize(210, 55)
         btn.clicked.connect(self._on_intranet)
         layout.addWidget(btn, 0, Qt.AlignCenter)
