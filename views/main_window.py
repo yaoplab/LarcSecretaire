@@ -147,6 +147,9 @@ class MainWindow(QWidget):
             f"M3Button:hover {{ background: {theme_manager.palette.active}; }}"
         )
         self._profile_menu = M3Menu(self)
+        current_lang = "EN" if session.fk_language == 1 else "FR"
+        lang_action = self._profile_menu.addAction(f"🌐 {current_lang} → {'FR' if current_lang == 'EN' else 'EN'}")
+        lang_action.triggered.connect(self._on_toggle_language)
         logout_action = self._profile_menu.addAction(_("sec_main.logout"))
         logout_action.triggered.connect(self._on_logout)
         self._profile_btn.setMenu(self._profile_menu)
@@ -692,6 +695,27 @@ class MainWindow(QWidget):
                 item.widget().deleteLater()
             elif item.layout():
                 self._clear_layout(item.layout())
+
+    def _on_toggle_language(self):
+        new_lang = 1 if session.fk_language == 2 else 2
+        session.fk_language = new_lang
+        lang_str = "en" if new_lang == 1 else "fr"
+        from larccommon.l10n import Translator
+        Translator.instance(lang_str).reload(Translator.l10n_dir())
+        if session.user_id:
+            try:
+                cur = db.server_conn.cursor()
+                cur.execute(
+                    "INSERT INTO larcauth_config (key, value) VALUES (%s, %s) "
+                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                    (f"user_{session.user_id}_fk_language", str(new_lang)),
+                )
+                db.server_conn.commit()
+            except Exception:
+                pass
+        QMessageBox.information(
+            self, _("sec_main.title"),
+            _("sec_main.restart_needed"))
 
     def _on_logout(self):
         from larccommon.database import db as _larc_db
