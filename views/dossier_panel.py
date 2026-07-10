@@ -103,7 +103,7 @@ class _SectionPage(QWidget):
         self._date.setDate(QDate())
         self._date.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: 12px; "
+            f"border-radius: {theme_manager.design.radius}px; font-size: 12px; "
             f"background: {p.surface}; color: {p.text_strong};"
         )
         self._date.dateChanged.connect(self._save_current)
@@ -113,7 +113,7 @@ class _SectionPage(QWidget):
         self._doc.setPlaceholderText(_("dossier.description_placeholder"))
         self._doc.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant}; "
-            f"border-radius: {d.radius}px; font-size: 12px; "
+            f"border-radius: {theme_manager.design.radius}px; font-size: 12px; "
             f"background: {p.surface}; color: {p.text_strong};"
         )
         self._doc.textChanged.connect(self._save_current)

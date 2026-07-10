@@ -18,7 +18,7 @@ def _sha256_hex(s: str) -> str:
 class ChangePasswordDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
         self.setWindowTitle(_("password.title"))
         self.setFixedSize(360, 260)
         layout = QVBoxLayout(self)
@@ -34,14 +34,17 @@ class ChangePasswordDialog(QDialog):
 
         self._old_pwd = M3TextField(placeholder=_("password.old_placeholder"), theme=phi)
         self._old_pwd.setEchoMode(M3TextField().EchoMode.Password)
+        self._old_pwd.setStyleSheet("background: transparent; border: 1px solid " + phi.colors.outline + "; border-radius: 4px;")
         layout.addWidget(self._old_pwd)
 
         self._new_pwd = M3TextField(placeholder=_("password.new_placeholder"), theme=phi)
         self._new_pwd.setEchoMode(M3TextField().EchoMode.Password)
+        self._new_pwd.setStyleSheet("background: transparent; border: 1px solid " + phi.colors.outline + "; border-radius: 4px;")
         layout.addWidget(self._new_pwd)
 
         self._confirm_pwd = M3TextField(placeholder=_("password.confirm_placeholder"), theme=phi)
         self._confirm_pwd.setEchoMode(M3TextField().EchoMode.Password)
+        self._confirm_pwd.setStyleSheet("background: transparent; border: 1px solid " + phi.colors.outline + "; border-radius: 4px;")
         layout.addWidget(self._confirm_pwd)
 
         btn_row = QHBoxLayout()

@@ -43,6 +43,7 @@ from phibuilder.widgets import (
 )
 from phibuilder.widgets.button import ButtonVariant
 from phibuilder.widgets.card import CardVariant
+from phibuilder.phi.scale import SpacingToken
 from PySide6.QtCore import QDate, QEvent, Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap, QTextDocument
 from PySide6.QtPrintSupport import QPrinter
@@ -125,7 +126,8 @@ class StudentForm(QWidget):
 
     def _init_ui(self):
         """Construit l'interface complète."""
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
+        sp = phi.spacing.spacing
         p = theme_manager.palette
         d = theme_manager.design
         layout = QVBoxLayout(self)
@@ -190,7 +192,7 @@ class StudentForm(QWidget):
         dp_layout.setAlignment(Qt.AlignCenter)
 
         self._detail_photo = QLabel()
-        self._detail_photo.setFixedSize(160, 160)
+        self._detail_photo.setFixedSize(sp(SpacingToken.XXXL) + sp(SpacingToken.MD), sp(SpacingToken.XXXL) + sp(SpacingToken.MD))
         self._detail_photo.setStyleSheet(f"background: {p.primary_container}; border-radius: {d.radius_xl + 2}px;")
         self._detail_photo.setAlignment(Qt.AlignCenter)
         self._detail_photo.setCursor(Qt.PointingHandCursor)
@@ -516,17 +518,18 @@ class StudentEditDialog(QDialog):
             return None
 
     def _init_ui(self):
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
-        sp = 13
+        sp = phi.spacing.spacing
+        _s = sp(SpacingToken.SM)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(sp)
+        layout.setSpacing(sp(SpacingToken.SM))
         layout.setContentsMargins(d.margin, d.margin, d.margin, d.margin)
 
-        title = M3Label(_("student_form.edit_label"), theme=phi, style="headline_medium")
+        title = M3Label(_("student_form.edit_label"), theme=phi, style="title_small")
         layout.addWidget(title)
 
         def _lbl(t):
@@ -535,21 +538,21 @@ class StudentEditDialog(QDialog):
             lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
             return lbl
 
-        # Photo + identité + boutons
+        # Photo + nom + actions
         photo_row = QHBoxLayout()
-        photo_row.setSpacing(sp)
+        photo_row.setSpacing(sp(SpacingToken.SM))
         self._photo = QLabel()
-        self._photo.setFixedSize(144, 144)
+        self._photo.setFixedSize(sp(SpacingToken.XXXL), sp(SpacingToken.XXXL))
         self._photo.setStyleSheet(f"background: {p.primary_container}; border-radius: {d.radius_xl}px;")
         self._photo.setAlignment(Qt.AlignCenter)
         photo_row.addWidget(self._photo)
 
         id_col = QVBoxLayout()
-        id_col.setSpacing(sp // 2)
-        self._id_name = M3Label("", theme=phi, style="display_small")
+        id_col.setSpacing(_s // 2)
+        self._id_name = M3Label("", theme=phi, style="headline_large")
         self._id_name.setStyleSheet("font-weight: bold;")
         id_col.addWidget(self._id_name)
-        self._id_info = M3Label("", theme=phi, style="headline_small")
+        self._id_info = M3Label("", theme=phi, style="body_medium")
         id_col.addWidget(self._id_info)
         id_col.addStretch()
         photo_row.addLayout(id_col, 1)
@@ -584,61 +587,83 @@ class StudentEditDialog(QDialog):
         photo_row.addLayout(btn_col)
 
         layout.addLayout(photo_row)
-        layout.addSpacing(sp)
+        layout.addSpacing(_s)
 
-        # Champs
+        # Champs — hauteur uniforme via Fibonacci
+        _fh = sp(SpacingToken.LG)
         self._inp_nom = M3TextField(theme=phi)
+        self._inp_nom.setFixedHeight(_fh)
         self._inp_prenom = M3TextField(theme=phi)
+        self._inp_prenom.setFixedHeight(_fh)
         self._inp_email = M3TextField(theme=phi)
+        self._inp_email.setFixedHeight(_fh)
         self._inp_emailperso = M3TextField(theme=phi)
+        self._inp_emailperso.setFixedHeight(_fh)
         self._inp_tel = M3TextField(theme=phi)
+        self._inp_tel.setFixedHeight(_fh)
         self._inp_tel2 = M3TextField(theme=phi)
-        self._inp_date_joined = M3DateEdit()
+        self._inp_tel2.setFixedHeight(_fh)
+        self._inp_date_joined = M3DateEdit(theme=phi)
+        self._inp_date_joined.setFixedHeight(_fh)
         self._inp_date_joined.setDisplayFormat("yyyy-MM-dd")
         self._inp_date_joined.setCalendarPopup(True)
         self._inp_date_joined.setSpecialValueText(" ")
         self._inp_date_joined.setDate(QDate())
-        self._inp_date = M3DateEdit()
+        self._inp_date = M3DateEdit(theme=phi)
+        self._inp_date.setFixedHeight(_fh)
         self._inp_date.setDisplayFormat("yyyy-MM-dd")
         self._inp_date.setCalendarPopup(True)
         self._inp_date.setSpecialValueText(" ")
         self._inp_date.setDate(QDate())
-        self._inp_date.setStyleSheet(
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; font-size: 13px; "
-            f"background: {p.surface}; color: {p.text_strong};"
-        )
         self._inp_genre = M3ComboBox(theme=phi)
+        self._inp_genre.setFixedHeight(_fh)
         self._load_genders()
-        self._inp_birthdate = M3DateEdit()
+        self._inp_birthdate = M3DateEdit(theme=phi)
+        self._inp_birthdate.setFixedHeight(_fh)
         self._inp_birthdate.setDisplayFormat("yyyy-MM-dd")
         self._inp_birthdate.setCalendarPopup(True)
         self._inp_birthdate.setSpecialValueText(" ")
         self._inp_birthdate.setDate(QDate())
-        self._inp_birthdate.setStyleSheet(
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; font-size: 13px; "
-            f"background: {p.surface}; color: {p.text_strong};"
-        )
-        self._inp_addr1 = M3TextEdit()
-        self._inp_addr1.setFixedHeight(144)
+        self._inp_addr1 = M3TextEdit(theme=phi)
+        self._inp_addr1.setFixedHeight(sp(SpacingToken.XXXL))
         self._inp_addr1.setPlaceholderText(_("student_form.street_placeholder"))
         self._inp_addr1.setStyleSheet(
             f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; "
-            f"border-radius: {d.radius}px; font-size: 13px; "
+            f"border-radius: {sp(SpacingToken.XXS)}px; font-size: {s(13)}px; "
             f"background: {p.surface}; color: {p.text_strong};"
         )
         self._inp_addr2 = M3TextField(theme=phi)
+        self._inp_addr2.setFixedHeight(_fh)
         self._inp_cp = M3TextField(theme=phi)
+        self._inp_cp.setFixedHeight(_fh)
         self._inp_ville = M3TextField(theme=phi)
+        self._inp_ville.setFixedHeight(_fh)
         self._inp_pays = M3TextField(_("student_form.default_country"), theme=phi)
+        self._inp_pays.setFixedHeight(_fh)
+
+        # Pas de coins arrondis pour tous les champs de saisie
+        _flat_field = (
+            f"background-color: transparent; border: 1px solid {p.outline}; "
+            f"border-radius: {sp(SpacingToken.XXS)}px; padding: {sp(SpacingToken.MD)}px; font-size: {s(13)}px; "
+            f"color: {p.text_strong};"
+        )
+        for w in (
+            self._inp_nom, self._inp_prenom,
+            self._inp_email, self._inp_emailperso,
+            self._inp_tel, self._inp_tel2,
+            self._inp_addr2, self._inp_cp, self._inp_ville, self._inp_pays,
+        ):
+            w.setStyleSheet(_flat_field)
+        for w in (self._inp_date_joined, self._inp_date, self._inp_birthdate):
+            w.setStyleSheet(f"border-radius: {sp(SpacingToken.XXS)}px;")
+        self._inp_genre.setStyleSheet(f"border-radius: {sp(SpacingToken.XXS)}px;")
 
         # Sidebar verticale + QStackedWidget (remplace les onglets)
         nav_row = QHBoxLayout()
-        nav_row.setSpacing(sp)
+        nav_row.setSpacing(_s)
         nav_side = QVBoxLayout()
         nav_side.setSpacing(d.spacing)
-        nav_side.setContentsMargins(0, 0, sp, 0)
+        nav_side.setContentsMargins(0, 0, _s, 0)
 
         nav_items = [
             _("student_form.tab_identity"),
@@ -651,90 +676,119 @@ class StudentEditDialog(QDialog):
         self._nav_btns: list[M3Button] = []
         self._nav_pages: list[QWidget] = []
 
-        # --- Page 1 : Identité & Contact ---
+        # --- Page 1 : Identité & Contact (redesign M3Cards + Fibonacci) ---
         p1 = QWidget()
         p1_layout = QVBoxLayout(p1)
-        p1_layout.setSpacing(sp)
-        g1 = QGridLayout()
-        g1.setSpacing(sp)
+        p1_layout.setSpacing(sp(SpacingToken.MD))
+
+        # --- Carte Identité ---
+        id_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        id_cl = id_card.content_layout()
+        id_cl.setSpacing(sp(SpacingToken.SM))
+        id_cl.addWidget(M3Label(_("student_form.tab_identity"), theme=phi, style="title_small"))
+        id_grid = QGridLayout()
+        id_grid.setSpacing(sp(SpacingToken.SM))
+        id_grid.setColumnStretch(0, 1)
+        id_grid.setColumnStretch(1, 1)
         r = 0
-        g1.addWidget(_lbl(_("student_form.last_name_label")), r, 0)
-        g1.addWidget(_lbl(_("student_form.first_name_label")), r, 1)
+        id_grid.addWidget(_lbl(_("student_form.first_name_label")), r, 0)
+        id_grid.addWidget(_lbl(_("student_form.last_name_label")), r, 1)
         r += 1
-        g1.addWidget(self._inp_nom, r, 0)
-        g1.addWidget(self._inp_prenom, r, 1)
+        id_grid.addWidget(self._inp_prenom, r, 0)
+        id_grid.addWidget(self._inp_nom, r, 1)
         r += 1
-        g1.addWidget(_lbl(_("student_form.arrival_label")), r, 0, 1, 2)
+        id_grid.addWidget(_lbl(_("student_form.gender_label")), r, 0)
+        id_grid.addWidget(_lbl(_("student_form.birth_date")), r, 1)
         r += 1
-        g1.addWidget(self._inp_date_joined, r, 0, 1, 2)
+        id_grid.addWidget(self._inp_genre, r, 0)
+        id_grid.addWidget(self._inp_birthdate, r, 1)
+        id_cl.addLayout(id_grid)
+        p1_layout.addWidget(id_card)
+
+        # --- Carte Dates ---
+        dt_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        dt_cl = dt_card.content_layout()
+        dt_cl.setSpacing(sp(SpacingToken.SM))
+        dt_cl.addWidget(M3Label("Dates", theme=phi, style="title_small"))
+        dt_grid = QGridLayout()
+        dt_grid.setSpacing(sp(SpacingToken.SM))
+        dt_grid.setColumnStretch(0, 1)
+        dt_grid.setColumnStretch(1, 1)
+        r = 0
+        dt_grid.addWidget(_lbl(_("student_form.arrival_label")), r, 0)
+        dt_grid.addWidget(_lbl(_("student_form.entry_date")), r, 1)
         r += 1
-        g1.addWidget(_lbl(_("student_form.entry_date")), r, 0)
-        g1.addWidget(_lbl(_("student_form.gender_label")), r, 1)
+        dt_grid.addWidget(self._inp_date_joined, r, 0)
+        dt_grid.addWidget(self._inp_date, r, 1)
+        dt_cl.addLayout(dt_grid)
+        p1_layout.addWidget(dt_card)
+
+        # --- Carte Contact ---
+        ct_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        ct_cl = ct_card.content_layout()
+        ct_cl.setSpacing(sp(SpacingToken.SM))
+        ct_cl.addWidget(M3Label("Contact", theme=phi, style="title_small"))
+        ct_grid = QGridLayout()
+        ct_grid.setSpacing(sp(SpacingToken.SM))
+        ct_grid.setColumnStretch(0, 1)
+        ct_grid.setColumnStretch(1, 1)
+        r = 0
+        ct_grid.addWidget(_lbl(_("student_form.email_label")), r, 0)
+        ct_grid.addWidget(_lbl(_("student_form.email_personal")), r, 1)
         r += 1
-        g1.addWidget(self._inp_date, r, 0)
-        g1.addWidget(self._inp_genre, r, 1)
+        ct_grid.addWidget(self._inp_email, r, 0)
+        ct_grid.addWidget(self._inp_emailperso, r, 1)
         r += 1
-        g1.addWidget(_lbl(_("student_form.birth_date")), r, 0)
+        ct_grid.addWidget(_lbl(_("student_form.phone_mobile")), r, 0)
+        ct_grid.addWidget(_lbl(_("student_form.phone_fixed")), r, 1)
         r += 1
-        g1.addWidget(self._inp_birthdate, r, 0)
-        r += 2
-        g1.addWidget(_lbl(_("student_form.email_label")), r, 0)
-        g1.addWidget(_lbl(_("student_form.email_personal")), r, 1)
-        r += 1
-        g1.addWidget(self._inp_email, r, 0)
-        g1.addWidget(self._inp_emailperso, r, 1)
-        r += 1
-        g1.addWidget(_lbl(_("student_form.phone_mobile")), r, 0)
-        g1.addWidget(_lbl(_("student_form.phone_fixed")), r, 1)
-        r += 1
-        g1.addWidget(self._inp_tel, r, 0)
-        g1.addWidget(self._inp_tel2, r, 1)
-        p1_layout.addLayout(g1)
+        ct_grid.addWidget(self._inp_tel, r, 0)
+        ct_grid.addWidget(self._inp_tel2, r, 1)
+        ct_cl.addLayout(ct_grid)
+        p1_layout.addWidget(ct_card)
+
         p1_layout.addStretch()
         self._nav_pages.append(p1)
 
-        # --- Page 3 : Adresse & Parents ---
+        # --- Page 3 : Adresse & Parents (redesign M3Cards + Fibonacci) ---
         p4 = QWidget()
         p4_layout = QVBoxLayout(p4)
-        p4_layout.setSpacing(sp)
-        addr_card = M3Frame()
-        addr_card.setStyleSheet(f"M3Frame {{ background: {p.surface_variant}; border-radius: {d.radius_lg}px; padding: {sp}px; }}")
-        addr_card_layout = QVBoxLayout(addr_card)
-        addr_card_layout.setSpacing(d.spacing)
-        addr_title = M3Label(_("student_form.address_title"))
-        addr_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
-        addr_card_layout.addWidget(addr_title)
-        addr_card_layout.addWidget(self._inp_addr1)
-        addr_card_layout.addWidget(self._inp_addr2)
-        addr_grid = QGridLayout()
-        addr_grid.setSpacing(d.spacing)
-        addr_grid.addWidget(_lbl(_("student_form.zip_label")), 0, 0)
-        addr_grid.addWidget(_lbl(_("student_form.city_label")), 0, 1)
-        addr_grid.addWidget(self._inp_cp, 1, 0)
-        addr_grid.addWidget(self._inp_ville, 1, 1)
-        addr_grid.addWidget(_lbl(_("student_form.country_label")), 2, 0)
-        addr_grid.addWidget(self._inp_pays, 3, 0, 1, 2)
-        addr_card_layout.addLayout(addr_grid)
-        p4_layout.addWidget(addr_card)
-        parents_title = M3Label(_("student_form.parents_title"))
-        parents_title.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong}; margin-top: {sp}px;")
-        p4_layout.addWidget(parents_title)
+        p4_layout.setSpacing(sp(SpacingToken.MD))
+
+        # --- Carte Parents ---
+        par_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        par_cl = par_card.content_layout()
+        par_cl.setSpacing(sp(SpacingToken.SM))
+        par_cl.addWidget(M3Label(_("student_form.parents_title"), theme=phi, style="title_small"))
+
         self._parents_table = M3TableWidget(theme=phi)
-        self._parents_table.set_headers(
-            [
-                _("student_form.parents_table_nom"),
-                _("student_form.parents_table_nature"),
-                _("student_form.parents_table_email"),
-                _("student_form.parents_table_phone"),
-            ]
-        )
+        self._parents_table.set_headers([
+            _("student_form.parents_table_nom"),
+            _("student_form.parents_table_nature"),
+            _("student_form.parents_table_email"),
+            _("student_form.parents_table_phone"),
+        ])
         self._parents_table.horizontalHeader().setStretchLastSection(True)
         self._parents_table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._parents_table.setSelectionBehavior(M3TableWidget.SelectRows)
-        self._parents_table.setMaximumHeight(144)
-        p4_layout.addWidget(self._parents_table)
+        self._parents_table.setShowGrid(True)
+        hh = self._parents_table.horizontalHeader()
+        hh.setFixedHeight(sp(SpacingToken.LG))
+        self._parents_table.setStyleSheet(
+            f"M3TableWidget {{ background-color: {p.surface}; border: 1px solid {p.outline}; border-radius: 0px; "
+            f"gridline-color: {p.outline_variant}; outline: none; font-size: {s(13)}px; color: {p.text_strong}; }}"
+            f"M3TableWidget::item {{ padding: {sp(SpacingToken.MD)}px; "
+            f"border-bottom: 1px solid {p.outline_variant}; }}"
+            f"M3TableWidget::item:selected {{ background-color: {p.primary_container}; color: {p.text_strong}; }}"
+            f"QHeaderView::section {{ background-color: {p.surface}; color: {p.text_strong}; "
+            f"padding: {sp(SpacingToken.XS)}px; border: none; "
+            f"border-bottom: 2px solid {p.outline}; font-size: {s(12)}px; font-weight: bold; }}"
+        )
+        self._parents_table.setMaximumHeight(sp(SpacingToken.XXXL))
+        par_cl.addWidget(self._parents_table)
+
         parent_tools = QHBoxLayout()
-        parent_tools.setSpacing(d.spacing)
+        parent_tools.setSpacing(sp(SpacingToken.SM))
         add_par_btn = M3Button(_("student_form.add_parent"), theme=phi, variant=ButtonVariant.FILLED)
         add_par_btn.clicked.connect(self._add_parent_link)
         parent_tools.addWidget(add_par_btn)
@@ -748,14 +802,37 @@ class StudentEditDialog(QDialog):
         copy_btn.clicked.connect(self._copy_parent_address)
         parent_tools.addWidget(copy_btn)
         parent_tools.addStretch()
-        p4_layout.addLayout(parent_tools)
+        par_cl.addLayout(parent_tools)
+        p4_layout.addWidget(par_card)
+
+        # --- Carte Adresse ---
+        addr_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        addr_cl = addr_card.content_layout()
+        addr_cl.setSpacing(sp(SpacingToken.SM))
+        addr_cl.addWidget(M3Label(_("student_form.address_title"), theme=phi, style="title_small"))
+
+        addr_cl.addWidget(self._inp_addr1)
+        addr_cl.addWidget(self._inp_addr2)
+        addr_grid = QGridLayout()
+        addr_grid.setSpacing(sp(SpacingToken.SM))
+        addr_grid.setColumnStretch(0, 1)
+        addr_grid.setColumnStretch(1, 1)
+        addr_grid.addWidget(_lbl(_("student_form.zip_label")), 0, 0)
+        addr_grid.addWidget(_lbl(_("student_form.city_label")), 0, 1)
+        addr_grid.addWidget(self._inp_cp, 1, 0)
+        addr_grid.addWidget(self._inp_ville, 1, 1)
+        addr_grid.addWidget(_lbl(_("student_form.country_label")), 2, 0)
+        addr_grid.addWidget(self._inp_pays, 3, 0, 1, 2)
+        addr_cl.addLayout(addr_grid)
+        p4_layout.addWidget(addr_card)
+
         p4_layout.addStretch()
         self._nav_pages.append(p4)
 
         # --- Page 4 : Événements ---
         p4 = QWidget()
         p4_layout = QVBoxLayout(p4)
-        p4_layout.setSpacing(sp)
+        p4_layout.setSpacing(_s)
         evt_label = M3Label(_("student_form.events_title"))
         evt_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
         p4_layout.addWidget(evt_label)
@@ -778,6 +855,17 @@ class StudentEditDialog(QDialog):
         self._evt_table.setColumnWidth(0, 150)
         self._evt_table.setColumnWidth(1, 110)
         self._evt_table.setColumnWidth(3, 140)
+        self._evt_table.setShowGrid(True)
+        self._evt_table.setStyleSheet(
+            f"M3TableWidget {{ background-color: {p.surface}; border: 1px solid {p.outline}; border-radius: 0px; "
+            f"gridline-color: {p.outline_variant}; outline: none; font-size: {s(13)}px; color: {p.text_strong}; }}"
+            f"M3TableWidget::item {{ padding: {sp(SpacingToken.MD)}px; "
+            f"border-bottom: 1px solid {p.outline_variant}; }}"
+            f"M3TableWidget::item:selected {{ background-color: {p.primary_container}; color: {p.text_strong}; }}"
+            f"QHeaderView::section {{ background-color: {p.surface}; color: {p.text_strong}; "
+            f"padding: {sp(SpacingToken.XS)}px; border: none; "
+            f"border-bottom: 2px solid {p.outline}; font-size: {s(12)}px; font-weight: bold; }}"
+        )
         self._evt_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._evt_table.setSelectionBehavior(QTableWidget.SelectRows)
         self._evt_table.setAlternatingRowColors(True)
@@ -797,7 +885,7 @@ class StudentEditDialog(QDialog):
         # --- Confidentiel (restreint) ---
         p5 = QWidget()
         p5_layout = QVBoxLayout(p5)
-        p5_layout.setSpacing(sp)
+        p5_layout.setSpacing(_s)
         from LarcSecretaire.common.session import UserRole
         from LarcSecretaire.common.session import session as _ses
 
@@ -806,7 +894,7 @@ class StudentEditDialog(QDialog):
             conf_label.setStyleSheet(f"font-size: {s(21)}px; font-weight: bold; color: {p.text_strong};")
             p5_layout.addWidget(conf_label)
             conf_info = M3Label(_("student_form.confidential_desc"))
-            conf_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft}; padding-bottom: {sp}px;")
+            conf_info.setStyleSheet(f"font-size: {s(13)}px; color: {p.text_soft}; padding-bottom: {_s}px;")
             conf_info.setWordWrap(True)
             p5_layout.addWidget(conf_info)
             from larccommon.widgets import FilePanel
@@ -1534,6 +1622,8 @@ class StudentCreateDialog(QDialog):
         self._load_classes()
 
     def _init_ui(self):
+        phi = theme_manager.phi_theme
+        sp = phi.spacing.spacing
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
@@ -1564,7 +1654,7 @@ class StudentCreateDialog(QDialog):
         # Photo + identité + boutons (toujours visibles)
         photo_row = QHBoxLayout()
         self._photo = QLabel()
-        self._photo.setFixedSize(120, 120)
+        self._photo.setFixedSize(sp(SpacingToken.XXXL), sp(SpacingToken.XXXL))
         self._photo.setStyleSheet(f"background: {p.primary_container}; border-radius: {d.radius_xl}px;")
         self._photo.setAlignment(Qt.AlignCenter)
         photo_row.addWidget(self._photo)
@@ -1592,7 +1682,7 @@ class StudentCreateDialog(QDialog):
         )
         self._create_btn.setEnabled(False)
         self._create_btn.clicked.connect(self._on_create)
-        self._create_btn.setMinimumWidth(89)
+        self._create_btn.setMinimumWidth(sp(SpacingToken.XXL))
         btn_col.addWidget(self._create_btn)
 
         self._cancel_btn = M3Button(_("student_form.cancel_button"))
@@ -1602,7 +1692,7 @@ class StudentCreateDialog(QDialog):
             f"M3Button:hover {{ background: {p.surface_variant}; }}"
         )
         self._cancel_btn.clicked.connect(self.reject)
-        self._cancel_btn.setMinimumWidth(89)
+        self._cancel_btn.setMinimumWidth(sp(SpacingToken.XXL))
         btn_col.addWidget(self._cancel_btn)
 
         btn_col.addStretch()
@@ -1611,7 +1701,7 @@ class StudentCreateDialog(QDialog):
         layout.addLayout(photo_row)
 
         field_style = (
-            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; border-radius: {d.radius}px; "
+            f"padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.border}; border-radius: {sp(SpacingToken.XXS)}px; "
             f"font-size: {s(fs)}px; background: {p.surface}; color: {p.text_strong};"
         )
         label_style = f"font-size: {s(fs)}px; color: {p.text_soft}; font-weight: bold; padding: {d.label_pad_v}px {d.label_pad_h}px;"
@@ -1664,7 +1754,7 @@ class StudentCreateDialog(QDialog):
         self._inp_birthdate.setStyleSheet(field_style)
         self._inp_addr1 = M3TextEdit()
         self._inp_addr1.setStyleSheet(field_style)
-        self._inp_addr1.setFixedHeight(89)
+        self._inp_addr1.setFixedHeight(sp(SpacingToken.XXL))
         self._inp_addr1.setPlaceholderText(_("student_form.street_placeholder"))
         self._inp_addr2 = M3TextField()
         self._inp_addr2.setStyleSheet(field_style)
@@ -1772,7 +1862,7 @@ class StudentCreateDialog(QDialog):
         self._parents_table.horizontalHeader().setStretchLastSection(True)
         self._parents_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._parents_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._parents_table.setMaximumHeight(89)
+        self._parents_table.setMaximumHeight(sp(SpacingToken.XXL))
         addr_inner_layout.addWidget(self._parents_table)
 
         # Parent management toolbar

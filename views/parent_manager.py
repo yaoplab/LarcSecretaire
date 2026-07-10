@@ -23,7 +23,6 @@ from phibuilder.widgets import (
     M3Card,
     M3ComboBox,
     M3DialogButtonBox,
-    M3GroupBox,
     M3Label,
     M3Splitter,
     M3TableWidget,
@@ -31,10 +30,11 @@ from phibuilder.widgets import (
 )
 from phibuilder.widgets.button import ButtonVariant
 from phibuilder.widgets.card import CardVariant
+from phibuilder.phi.scale import SpacingToken
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
-    QFormLayout,
+    QGridLayout,
     QHBoxLayout,
     QMessageBox,
     QTableWidgetItem,
@@ -52,22 +52,29 @@ class ParentManager(QWidget):
         self._load_data()
 
     def _init_ui(self):
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
+        sp = phi.spacing.spacing
         p = theme_manager.palette
+        _fh = sp(SpacingToken.XL)
+
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(13, 13, 13, 13)
-        layout.setSpacing(8)
+        layout.setContentsMargins(sp(SpacingToken.SM), sp(SpacingToken.SM),
+                                  sp(SpacingToken.SM), sp(SpacingToken.SM))
+        layout.setSpacing(sp(SpacingToken.SM))
 
         hdr = M3Label(_("parent.title"), theme=phi, style="title_medium")
         layout.addWidget(hdr)
 
         # Search row
         search_row = QHBoxLayout()
+        search_row.setSpacing(sp(SpacingToken.SM))
         self._search_input = M3TextField(placeholder=_("parent.search_placeholder"), theme=phi)
+        self._search_input.setFixedHeight(_fh)
         self._search_input.textChanged.connect(self._filter_parents)
         search_row.addWidget(self._search_input, 1)
 
         self._add_btn = M3Button(_("parent.add_button"), theme=phi, variant=ButtonVariant.FILLED)
+        self._add_btn.setMinimumHeight(_fh)
         self._add_btn.clicked.connect(self._on_add_parent)
         search_row.addWidget(self._add_btn)
         layout.addLayout(search_row)
@@ -78,27 +85,35 @@ class ParentManager(QWidget):
         # Left: parent table
         left = M3Card(theme=phi, variant=CardVariant.ELEVATED, parent=self)
         left_layout = left.content_layout()
-        left_layout.setContentsMargins(3, 3, 3, 3)
 
-        lbl = M3Label(_("parent.list_title"), theme=phi, style="label_large")
+        lbl = M3Label(_("parent.list_title"), theme=phi, style="title_small")
         left_layout.addWidget(lbl)
 
         self._parent_table = M3TableWidget(theme=phi)
-        self._parent_table.set_headers(
-            [
-                _("parent.table_headers"),
-                _("parent.table_headers_email"),
-                _("parent.table_headers_phone"),
-                _("parent.table_headers_nature"),
-                _("parent.table_headers_city"),
-                _("parent.table_headers_id"),
-            ]
-        )
+        self._parent_table.set_headers([
+            _("parent.table_headers"), _("parent.table_headers_email"),
+            _("parent.table_headers_phone"), _("parent.table_headers_nature"),
+            _("parent.table_headers_city"), _("parent.table_headers_id"),
+        ])
         self._parent_table.setColumnHidden(5, True)
         self._parent_table.horizontalHeader().setStretchLastSection(True)
         self._parent_table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._parent_table.setSelectionBehavior(M3TableWidget.SelectRows)
+        self._parent_table.setShowGrid(True)
         self._parent_table.setAlternatingRowColors(True)
+        hh = self._parent_table.horizontalHeader()
+        hh.setFixedHeight(sp(SpacingToken.LG))
+        self._parent_table.setStyleSheet(
+            f"M3TableWidget {{ background-color: {p.surface}; border: 1px solid {p.outline}; "
+            f"border-radius: 0; gridline-color: {p.outline_variant}; outline: none; "
+            f"font-size: 13px; color: {p.text_strong}; }}"
+            f"M3TableWidget::item {{ padding: {sp(SpacingToken.XS)}px; "
+            f"border-bottom: 1px solid {p.outline_variant}; }}"
+            f"M3TableWidget::item:selected {{ background-color: {p.primary_container}; color: {p.text_strong}; }}"
+            f"QHeaderView::section {{ background-color: {p.surface}; color: {p.text_strong}; "
+            f"padding: {sp(SpacingToken.XS)}px; border: none; "
+            f"border-bottom: 2px solid {p.outline}; font-size: 12px; font-weight: bold; }}"
+        )
         self._parent_table.itemSelectionChanged.connect(self._on_parent_selected)
         left_layout.addWidget(self._parent_table, 1)
         splitter.addWidget(left)
@@ -106,9 +121,8 @@ class ParentManager(QWidget):
         # Right: students linked to selected parent
         right = M3Card(theme=phi, variant=CardVariant.ELEVATED, parent=self)
         right_layout = right.content_layout()
-        right_layout.setContentsMargins(3, 3, 3, 3)
 
-        self._right_header = M3Label(_("parent.select_prompt"), theme=phi, style="label_large")
+        self._right_header = M3Label(_("parent.select_prompt"), theme=phi, style="title_small")
         right_layout.addWidget(self._right_header)
 
         self._foyer_info = M3Label(theme=phi, style="body_small")
@@ -116,50 +130,65 @@ class ParentManager(QWidget):
         self._foyer_info.hide()
         right_layout.addWidget(self._foyer_info)
 
-        # Boutons foyer
         foyer_btn_row = QHBoxLayout()
+        foyer_btn_row.setSpacing(sp(SpacingToken.SM))
         self._edit_foyer_btn = M3Button(_("parent.edit_address"), theme=phi, variant=ButtonVariant.OUTLINED)
         self._edit_foyer_btn.clicked.connect(self._on_edit_foyer)
         self._edit_foyer_btn.hide()
         foyer_btn_row.addWidget(self._edit_foyer_btn)
-
         self._share_foyer_btn = M3Button(_("parent.share_address"), theme=phi, variant=ButtonVariant.OUTLINED)
         self._share_foyer_btn.clicked.connect(self._on_share_foyer)
         self._share_foyer_btn.hide()
         foyer_btn_row.addWidget(self._share_foyer_btn)
-
         right_layout.addLayout(foyer_btn_row)
 
         self._student_table = M3TableWidget(theme=phi)
-        self._student_table.set_headers([_("parent.linked_students"), _("parent.linked_students_class"), _("parent.linked_students_nature")])
+        self._student_table.set_headers([
+            _("parent.linked_students"), _("parent.linked_students_class"),
+            _("parent.linked_students_nature"),
+        ])
         self._student_table.horizontalHeader().setStretchLastSection(True)
         self._student_table.setEditTriggers(M3TableWidget.NoEditTriggers)
         self._student_table.setSelectionBehavior(M3TableWidget.SelectRows)
+        self._student_table.setShowGrid(True)
         self._student_table.setAlternatingRowColors(True)
+        shh = self._student_table.horizontalHeader()
+        shh.setFixedHeight(sp(SpacingToken.LG))
+        self._student_table.setStyleSheet(
+            f"M3TableWidget {{ background-color: {p.surface}; border: 1px solid {p.outline}; "
+            f"border-radius: 0; gridline-color: {p.outline_variant}; outline: none; "
+            f"font-size: 13px; color: {p.text_strong}; }}"
+            f"M3TableWidget::item {{ padding: {sp(SpacingToken.XS)}px; "
+            f"border-bottom: 1px solid {p.outline_variant}; }}"
+            f"M3TableWidget::item:selected {{ background-color: {p.primary_container}; color: {p.text_strong}; }}"
+            f"QHeaderView::section {{ background-color: {p.surface}; color: {p.text_strong}; "
+            f"padding: {sp(SpacingToken.XS)}px; border: none; "
+            f"border-bottom: 2px solid {p.outline}; font-size: 12px; font-weight: bold; }}"
+        )
         right_layout.addWidget(self._student_table, 1)
 
-        # Link/unlink row
         link_row = QHBoxLayout()
+        link_row.setSpacing(sp(SpacingToken.SM))
         self._link_student_combo = M3ComboBox(theme=phi)
-        self._link_student_combo.setMinimumWidth(144)
+        self._link_student_combo.setFixedHeight(_fh)
         link_row.addWidget(M3Label(_("parent.link_to"), theme=phi, style="body_small"))
         link_row.addWidget(self._link_student_combo, 1)
-
         self._nature_combo = M3ComboBox([""] + _("parent.nature_items").split(","), theme=phi)
+        self._nature_combo.setFixedHeight(_fh)
         link_row.addWidget(M3Label(_("parent.nature_label"), theme=phi, style="body_small"))
         link_row.addWidget(self._nature_combo)
-
         self._link_btn = M3Button(_("parent.link_button"), theme=phi, variant=ButtonVariant.FILLED)
+        self._link_btn.setMinimumHeight(_fh)
         self._link_btn.clicked.connect(self._on_link)
         link_row.addWidget(self._link_btn)
-
         self._unlink_btn = M3Button(_("parent.unlink_button"), theme=phi, variant=ButtonVariant.TONAL)
+        self._unlink_btn.setMinimumHeight(_fh)
         self._unlink_btn.clicked.connect(self._on_unlink)
         link_row.addWidget(self._unlink_btn)
         right_layout.addLayout(link_row)
 
         splitter.addWidget(right)
-        splitter.setSizes([400, 400])
+        splitter.setSizes([sp(SpacingToken.XXXL) + sp(SpacingToken.XXL), sp(SpacingToken.XXXL) + sp(SpacingToken.XXL)])
         layout.addWidget(splitter, 1)
 
     def _load_data(self):
@@ -550,9 +579,10 @@ class ParentEditDialog(QDialog):
         super().__init__(parent)
         self._parent_id = parent_id
         self._existing_data: dict | None = None
+        _sp = theme_manager.phi_theme.spacing.spacing
 
         self.setWindowTitle(_("parent.edit_dialog_title") if parent_id else _("parent.add_dialog_title"))
-        self.setMinimumWidth(610)
+        self.setMinimumWidth(_sp(SpacingToken.HUGE) * 2 + _sp(SpacingToken.XXXL))
         self._init_ui()
 
         if parent_id:
@@ -560,69 +590,114 @@ class ParentEditDialog(QDialog):
 
     def _init_ui(self):
         """Construit le formulaire."""
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
+        sp = phi.spacing.spacing
         p = theme_manager.palette
+        _fh = sp(SpacingToken.LG)
         layout = QVBoxLayout(self)
-        layout.setSpacing(8)
+        layout.setSpacing(sp(SpacingToken.MD))
+        layout.setContentsMargins(sp(SpacingToken.MD), sp(SpacingToken.MD),
+                                  sp(SpacingToken.MD), sp(SpacingToken.MD))
 
         # Titre
         title = M3Label(
             _("parent.edit_title") if self._parent_id else _("parent.add_title"),
-            theme=phi,
-            style="title_medium",
+            theme=phi, style="title_medium",
         )
         layout.addWidget(title)
 
-        # ── Section Identité ──
-        id_group = M3GroupBox(_("parent.identity_group"))
-        id_group.setStyleSheet(
-            f"M3GroupBox {{ font-weight: bold; font-size: 10px; "
-            f"border: 1px solid {p.border}; border-radius: {theme_manager.design.radius}px; "
-            f"margin-top: 8px; padding-top: 13px; }}"
-            f"M3GroupBox::title {{ subcontrol-origin: margin; left: 8px; }}"
-        )
-        form = QFormLayout(id_group)
-        form.setSpacing(3)
+        # ── Carte Identité ──
+        id_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        id_cl = id_card.content_layout()
+        id_cl.setSpacing(sp(SpacingToken.SM))
+        id_cl.addWidget(M3Label(_("parent.identity_group"), theme=phi, style="title_small"))
 
+        id_grid = QGridLayout()
+        id_grid.setSpacing(sp(SpacingToken.SM))
+        id_grid.setColumnStretch(0, 1)
+        id_grid.setColumnStretch(1, 1)
+        r = 0
+        id_grid.addWidget(M3Label(_("parent.last_name_label"), theme=phi, style="body_medium"), r, 0)
+        id_grid.addWidget(M3Label(_("parent.first_name_label"), theme=phi, style="body_medium"), r, 1)
+        r += 1
         self._dlg_nom = M3TextField(placeholder=_("parent.last_name_placeholder"), theme=phi)
-        form.addRow(_("parent.last_name_label"), self._dlg_nom)
-
+        self._dlg_nom.setFixedHeight(_fh)
+        id_grid.addWidget(self._dlg_nom, r, 0)
         self._dlg_prenom = M3TextField(placeholder=_("parent.first_name_placeholder"), theme=phi)
-        form.addRow(_("parent.first_name_label"), self._dlg_prenom)
-
+        self._dlg_prenom.setFixedHeight(_fh)
+        id_grid.addWidget(self._dlg_prenom, r, 1)
+        r += 1
+        id_grid.addWidget(M3Label(_("parent.email_label"), theme=phi, style="body_medium"), r, 0)
+        id_grid.addWidget(M3Label(_("parent.phone_label"), theme=phi, style="body_medium"), r, 1)
+        r += 1
         self._dlg_email = M3TextField(placeholder=_("parent.email_placeholder"), theme=phi)
-        form.addRow(_("parent.email_label"), self._dlg_email)
-
+        self._dlg_email.setFixedHeight(_fh)
+        id_grid.addWidget(self._dlg_email, r, 0)
         self._dlg_tel = M3TextField(placeholder=_("parent.phone_placeholder"), theme=phi)
-        form.addRow(_("parent.phone_label"), self._dlg_tel)
-
+        self._dlg_tel.setFixedHeight(_fh)
+        id_grid.addWidget(self._dlg_tel, r, 1)
+        r += 1
+        id_grid.addWidget(M3Label(_("parent.nature_label_form"), theme=phi, style="body_medium"), r, 0)
+        r += 1
         self._dlg_nature = M3ComboBox(_("parent.nature_items").split(","), theme=phi)
-        form.addRow(_("parent.nature_label_form"), self._dlg_nature)
+        self._dlg_nature.setFixedHeight(_fh)
+        id_grid.addWidget(self._dlg_nature, r, 0, 1, 2)
 
-        layout.addWidget(id_group)
+        id_cl.addLayout(id_grid)
+        layout.addWidget(id_card)
 
-        # ── Section Adresse (Foyer) ──
-        addr_group = M3GroupBox(_("parent.address_group"))
-        addr_group.setStyleSheet(id_group.styleSheet())
-        addr_form = QFormLayout(addr_group)
-        addr_form.setSpacing(3)
+        # ── Carte Adresse (Foyer) ──
+        addr_card = M3Card(theme=phi, variant=CardVariant.ELEVATED)
+        addr_cl = addr_card.content_layout()
+        addr_cl.setSpacing(sp(SpacingToken.SM))
+        addr_cl.addWidget(M3Label(_("parent.address_group"), theme=phi, style="title_small"))
 
+        addr_grid = QGridLayout()
+        addr_grid.setSpacing(sp(SpacingToken.SM))
+        addr_grid.setColumnStretch(0, 1)
+        addr_grid.setColumnStretch(1, 1)
+        r = 0
+        addr_grid.addWidget(M3Label(_("parent.street_label"), theme=phi, style="body_medium"), r, 0)
+        addr_grid.addWidget(M3Label(_("parent.complement_label"), theme=phi, style="body_medium"), r, 1)
+        r += 1
         self._dlg_addr1 = M3TextField(placeholder=_("parent.street_placeholder"), theme=phi)
-        addr_form.addRow(_("parent.street_label"), self._dlg_addr1)
-
+        self._dlg_addr1.setFixedHeight(_fh)
+        addr_grid.addWidget(self._dlg_addr1, r, 0)
         self._dlg_addr2 = M3TextField(placeholder=_("parent.complement_placeholder"), theme=phi)
-        addr_form.addRow(_("parent.complement_label"), self._dlg_addr2)
-
+        self._dlg_addr2.setFixedHeight(_fh)
+        addr_grid.addWidget(self._dlg_addr2, r, 1)
+        r += 1
+        addr_grid.addWidget(M3Label(_("parent.zip_label"), theme=phi, style="body_medium"), r, 0)
+        addr_grid.addWidget(M3Label(_("parent.city_label"), theme=phi, style="body_medium"), r, 1)
+        r += 1
         self._dlg_cp = M3TextField(placeholder=_("parent.zip_placeholder"), theme=phi)
-        addr_form.addRow(_("parent.zip_label"), self._dlg_cp)
-
+        self._dlg_cp.setFixedHeight(_fh)
+        addr_grid.addWidget(self._dlg_cp, r, 0)
         self._dlg_ville = M3TextField(placeholder=_("parent.city_placeholder"), theme=phi)
-        addr_form.addRow(_("parent.city_label"), self._dlg_ville)
-
+        self._dlg_ville.setFixedHeight(_fh)
+        addr_grid.addWidget(self._dlg_ville, r, 1)
+        r += 1
+        addr_grid.addWidget(M3Label(_("parent.country_label"), theme=phi, style="body_medium"), r, 0)
+        r += 1
         self._dlg_pays = M3TextField(_("parent.default_country"), theme=phi)
-        addr_form.addRow(_("parent.country_label"), self._dlg_pays)
+        self._dlg_pays.setFixedHeight(_fh)
+        addr_grid.addWidget(self._dlg_pays, r, 0, 1, 2)
 
-        layout.addWidget(addr_group)
+        addr_cl.addLayout(addr_grid)
+        layout.addWidget(addr_card)
+
+        # ── Flat border-radius sur les champs ──
+        _flat = (
+            f"background: transparent; border: 1px solid {p.outline}; "
+            f"border-radius: {sp(SpacingToken.XXS)}px; color: {p.text_strong}; "
+            f"padding: {sp(SpacingToken.MD)}px;"
+        )
+        for w in (self._dlg_nom, self._dlg_prenom, self._dlg_email, self._dlg_tel,
+                  self._dlg_addr1, self._dlg_addr2, self._dlg_cp, self._dlg_ville, self._dlg_pays):
+            w.setStyleSheet(_flat)
+        self._dlg_nature.setStyleSheet(f"border-radius: {sp(SpacingToken.XXS)}px;")
+
+        layout.addStretch()
 
         # ── Boutons ──
         buttons = M3DialogButtonBox(M3DialogButtonBox.Ok | M3DialogButtonBox.Cancel)

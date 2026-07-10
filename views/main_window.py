@@ -6,6 +6,7 @@ from LarcSecretaire.common.network import NetworkMode, detect_network
 from LarcSecretaire.common.session import session
 from LarcSecretaire.common.theme import QssHelper, theme_manager
 from larccommon.icons import icon as md3_icon
+from phibuilder.phi.scale import SpacingToken
 from LarcSecretaire.views.parent_manager import ParentManager
 from LarcSecretaire.views.student_form import StudentForm
 from LarcSecretaire.views.supervisor_panel import SupervisorPanel
@@ -40,12 +41,14 @@ from PySide6.QtWidgets import (
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self._sp = theme_manager.phi_theme.spacing.spacing
         self._students: list[dict] = []
         self._classes: list[tuple] = []
         self._stats: dict = {}
 
         self.setWindowTitle(_("sec_main.title").format(name=session.full_name))
         self.setMinimumSize(987, 610)
+        self.setObjectName("root")
 
         # Charger theme_pref depuis DB
         if session.user_id:
@@ -79,6 +82,7 @@ class MainWindow(QWidget):
         d = theme_manager.design
         s = theme_manager.font_size
         return f"""
+            QWidget#root {{ background: {p.background}; }}
             {QssHelper.top_bar(p, d)}
             {QssHelper.panel(p, d)}
             {QssHelper.panel_title(p, s, 14)}
@@ -88,7 +92,10 @@ class MainWindow(QWidget):
             {QssHelper.combobox(p, d)}
             {QssHelper.kpi_common(p, d, s)}
             QPushButton#theme_btn {{
-                background: transparent; border: none; font-size: 18px;
+                background: transparent; border: none; font-size: {s(18)}px;
+            }}
+            QFrame#sidebar {{
+                background: {p.surface}; border-right: 1px solid {p.outline_variant};
             }}
             QPushButton:pressed {{ background: {p.primary}; color: {p.on_primary}; }}
             QLabel#kpi_small_value {{
@@ -121,20 +128,22 @@ class MainWindow(QWidget):
         super().closeEvent(event)
 
     def _setup_ui(self):
+        sp = self._sp
         d = theme_manager.design
-        
-        
+
         self.setStyleSheet(self._style())
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(6, 6, 6, 6)
-        outer.setSpacing(6)
+        outer.setContentsMargins(sp(SpacingToken.SM), sp(SpacingToken.SM),
+                                 sp(SpacingToken.SM), sp(SpacingToken.SM))
+        outer.setSpacing(sp(SpacingToken.SM))
 
         # Top bar
         top = QFrame()
         top.setObjectName("top_bar")
         top_layout = QHBoxLayout(top)
-        top_layout.setContentsMargins(10, 6, 10, 6)
-        top_layout.setSpacing(6)
+        top_layout.setContentsMargins(sp(SpacingToken.SM), sp(SpacingToken.XS),
+                                      sp(SpacingToken.SM), sp(SpacingToken.XS))
+        top_layout.setSpacing(sp(SpacingToken.SM))
 
         self._title = QLabel(_("sec_main.bar_title").format(name=session.full_name))
         self._title.setObjectName("panel_title")
@@ -166,13 +175,14 @@ class MainWindow(QWidget):
         self._profile_btn.setStyleSheet(
             f"QPushButton {{ background: {theme_manager.palette.primary}; "
             f"color: {theme_manager.palette.on_primary}; font-weight: bold; "
-            f"font-size: 13px; border: none; border-radius: 17px; }}"
+            f"font-size: {theme_manager.font_size(13)}px; border: none; "
+            f"border-radius: {sp(SpacingToken.MD)}px; }}"
             f"QPushButton:hover {{ background: {theme_manager.palette.active}; }}"
         )
         self._profile_menu = QMenu(self)
-        current_lang = "EN" if session.fk_language == 1 else "FR"
-        lang_action = self._profile_menu.addAction(f"{current_lang} → {'FR' if current_lang == 'EN' else 'EN'}")
-        lang_action.triggered.connect(self._on_toggle_language)
+        prefs_action = self._profile_menu.addAction(_("sec_main.preferences"))
+        prefs_action.triggered.connect(self._on_preferences)
+        self._profile_menu.addSeparator()
         logout_action = self._profile_menu.addAction(_("sec_main.logout"))
         logout_action.triggered.connect(self._on_logout)
         self._profile_btn.setMenu(self._profile_menu)
@@ -183,16 +193,16 @@ class MainWindow(QWidget):
         # Main layout: sidebar + content
         main_h = QHBoxLayout()
         main_h.setContentsMargins(0, 0, 0, 0)
-        main_h.setSpacing(6)
+        main_h.setSpacing(sp(SpacingToken.SM))
 
         # Sidebar
         self._sidebar = QFrame()
         self._sidebar.setObjectName("sidebar")
-        self._sidebar.setObjectName("sidebar")
-        self._sidebar.setFixedWidth(233)
+        self._sidebar.setFixedWidth(sp(SpacingToken.HUGE) + sp(SpacingToken.SM))
         self._sidebar_layout = QVBoxLayout(self._sidebar)
-        self._sidebar_layout.setContentsMargins(6, 6, 6, 6)
-        self._sidebar_layout.setSpacing(2)
+        self._sidebar_layout.setContentsMargins(sp(SpacingToken.SM), sp(SpacingToken.SM),
+                                                sp(SpacingToken.SM), sp(SpacingToken.SM))
+        self._sidebar_layout.setSpacing(sp(SpacingToken.XXS))
 
         self._build_sidebar()
         main_h.addWidget(self._sidebar)
@@ -480,11 +490,12 @@ class MainWindow(QWidget):
     def _populate_niveau_chart(self, rows: list):
         bar_sets = {}
         categories = []
+        p = theme_manager.palette
         prog_colors = {
-            "PEI": QColor("#4A90D9"),
-            "MYP": QColor("#9B59B6"),
-            "DPFr": QColor("#E74C3C"),
-            "DPEn": QColor("#1ABC9C"),
+            "PEI": QColor(p.primary),
+            "MYP": QColor(p.accent),
+            "DPFr": QColor(p.error),
+            "DPEn": QColor(p.success),
         }
         prog_labels = {"PEI": "PEI", "MYP": "MYP", "DPFr": "DP", "DPEn": "DPEn"}
         by_cat = {}
@@ -743,26 +754,15 @@ class MainWindow(QWidget):
             elif item.layout():
                 self._clear_layout(item.layout())
 
-    def _on_toggle_language(self):
-        new_lang = 1 if session.fk_language == 2 else 2
-        session.fk_language = new_lang
-        lang_str = "en" if new_lang == 1 else "fr"
+    def _on_preferences(self):
+        from larccommon.preferences_dialog import PreferencesDialog
         from larccommon.l10n import Translator
-        Translator.instance(lang_str).reload(Translator.l10n_dir())
-        if session.user_id:
-            try:
-                cur = db.server_conn.cursor()
-                cur.execute(
-                    "INSERT INTO larcauth_config (key, value) VALUES (%s, %s) "
-                    "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-                    (f"user_{session.user_id}_fk_language", str(new_lang)),
-                )
-                db.server_conn.commit()
-            except Exception:
-                pass
-        QMessageBox.information(
-            self, _("sec_main.title"),
-            _("sec_main.restart_needed"))
+        dlg = PreferencesDialog(self)
+        if dlg.exec():
+            self._restyle_all()
+            QMessageBox.information(
+                self, _("sec_main.title"),
+                _("sec_main.restart_needed"))
 
     def _on_logout(self):
         from larccommon.database import db as _larc_db
@@ -774,6 +774,7 @@ class MainWindow(QWidget):
         p = theme_manager.palette
         s = theme_manager.font_size
         d = theme_manager.design
+        sp = self._sp
 
         # Main window
         self.setStyleSheet(self._style())
@@ -783,7 +784,8 @@ class MainWindow(QWidget):
         self._network_label.setStyleSheet(f"font-size: {s(12)}px; font-weight: bold;")
         self._profile_btn.setStyleSheet(
             f"QPushButton {{ background: {p.primary}; color: {p.on_primary}; "
-            f"font-weight: bold; font-size: 13px; border: none; border-radius: 17px; }}"
+            f"font-weight: bold; font-size: {s(13)}px; border: none; "
+            f"border-radius: {sp(SpacingToken.MD)}px; }}"
             f"QPushButton:hover {{ background: {p.active}; }}"
         )
 

@@ -109,40 +109,41 @@ class LoginWindow(QWidget):
         p = theme_manager.palette
         d = theme_manager.design
         s = theme_manager.font_size
+        d = theme_manager.design
         return f"""
             QWidget#root {{ background: {p.background}; }}
-            QLabel {{ font-size: 13px; color: {p.text_strong}; }}
+            QLabel {{ font-size: {s(13)}px; color: {p.text_strong}; }}
             QTabWidget::pane {{
                 border: 1px solid {p.outline_variant}; background: {p.surface};
-                border-radius: 8px;
+                border-radius: {d.radius}px;
             }}
-            QTabBar::tab {{ padding: 6px 16px; font-size: 13px; }}
+            QTabBar::tab {{ padding: {d.btn_sm_pad_v}px {d.btn_sm_pad_h}px; font-size: {s(13)}px; }}
             QTabBar::tab:selected {{
                 background: {p.surface}; border-bottom: 2px solid {p.primary};
                 color: {p.text_strong}; font-weight: bold;
             }}
             QTabBar::tab:!selected {{ background: {p.surface_variant}; color: {p.text_soft}; }}
             QLineEdit {{
-                padding: 7px 10px; border: 1px solid {p.outline_variant};
-                border-radius: 8px; font-size: 13px; background: {p.surface};
+                padding: {d.field_pad_v}px {d.field_pad_h}px; border: 1px solid {p.outline_variant};
+                border-radius: {d.radius}px; font-size: {s(13)}px; background: {p.surface};
                 color: {p.text_strong};
             }}
             QLineEdit:focus {{ border-color: {p.primary}; }}
             QPushButton {{
-                padding: 9px 20px; border: none; border-radius: 8px;
-                font-size: 13px; font-weight: bold; color: white;
+                padding: {d.btn_pad_v}px {d.btn_pad_h}px; border: none; border-radius: {d.radius}px;
+                font-size: {s(13)}px; font-weight: bold; color: white;
             }}
             QPushButton#btnIntra {{ background: {p.primary}; }}
             QPushButton#btnIntra:hover {{ background: {p.active}; }}
             QPushButton#btnIntra:disabled {{ background: {p.inactive}; }}
-            QPushButton#btnGoogle {{ background: #DB4437; }}
-            QPushButton#btnGoogle:hover {{ background: #C53929; }}
+            QPushButton#btnGoogle {{ background: {p.error}; }}
+            QPushButton#btnGoogle:hover {{ background: {p.button_danger}; }}
             QPushButton#btnGoogle:disabled {{ background: {p.inactive}; }}
-            QLabel#errLabel {{ color: {p.error}; font-size: 13px; }}
-            QLabel#hdrTitle {{ color: {p.text_strong}; font-size: 21px; font-weight: bold; }}
-            QLabel#hdrSub {{ color: {p.text_soft}; font-size: 13px; }}
-            QLabel#infoLbl {{ color: {p.text_soft}; font-size: 13px; }}
-            QLabel#formLbl {{ color: {p.text_strong}; font-size: 13px; }}
+            QLabel#errLabel {{ color: {p.error}; font-size: {s(13)}px; }}
+            QLabel#hdrTitle {{ color: {p.text_strong}; font-size: {s(22)}px; font-weight: bold; }}
+            QLabel#hdrSub {{ color: {p.text_soft}; font-size: {s(13)}px; }}
+            QLabel#infoLbl {{ color: {p.text_soft}; font-size: {s(13)}px; }}
+            QLabel#formLbl {{ color: {p.text_strong}; font-size: {s(13)}px; }}
         """
 
     def _init_ui(self):
@@ -183,7 +184,7 @@ class LoginWindow(QWidget):
 
         self._net_label = QLabel()
         self._net_label.setAlignment(Qt.AlignCenter)
-        self._net_label.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {p.text_soft};")
+        self._net_label.setStyleSheet(f"font-size: {theme_manager.font_size(13)}px; font-weight: bold; color: {p.text_soft};")
         outer.addWidget(self._net_label)
         outer.addSpacing(21)
 
@@ -213,14 +214,14 @@ class LoginWindow(QWidget):
         outer.addWidget(self._tabs, 1)
 
         self._err_label = QLabel()
-        self._err_label.setStyleSheet(f"color: {p.error}; font-size: 13px;")
+        self._err_label.setStyleSheet(f"color: {p.error}; font-size: {theme_manager.font_size(13)}px;")
         self._err_label.setAlignment(Qt.AlignCenter)
         self._err_label.setWordWrap(True)
         outer.addWidget(self._err_label)
         outer.addSpacing(8)
 
         self._status_label = QLabel()
-        self._status_label.setStyleSheet(f"font-size: 13px; color: {p.text_soft};")
+        self._status_label.setStyleSheet(f"font-size: {theme_manager.font_size(13)}px; color: {p.text_soft};")
         outer.addWidget(self._status_label)
 
         self.setLayout(outer)
@@ -432,7 +433,7 @@ class LoginWindow(QWidget):
                 f"   <span style='color:{cloud_color}'>{_('sec_login.status.cloud')}</span>"
             )
             self._net_label.setTextFormat(Qt.RichText)
-            self._net_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+            self._net_label.setStyleSheet(f"font-weight: bold; font-size: {theme_manager.font_size(13)}px;")
             return
 
         if intra_ok:
@@ -441,7 +442,7 @@ class LoginWindow(QWidget):
             self._tabs.setCurrentIndex(0)
             self._err_label.setText("")
             self._net_label.setText(_("sec_login.status.intranet"))
-            self._net_label.setStyleSheet(f"color: {p.success}; font-weight: bold; font-size: 13px;")
+            self._net_label.setStyleSheet(f"color: {p.success}; font-weight: bold; font-size: {theme_manager.font_size(13)}px;")
 
         elif internet_ok:
             self._tabs.setTabVisible(0, False)
@@ -449,14 +450,14 @@ class LoginWindow(QWidget):
             self._tabs.setCurrentIndex(1)
             self._err_label.setText("")
             self._net_label.setText(_("sec_login.status.cloud"))
-            self._net_label.setStyleSheet(f"color: {p.primary}; font-weight: bold; font-size: 13px;")
+            self._net_label.setStyleSheet(f"color: {p.primary}; font-weight: bold; font-size: {theme_manager.font_size(13)}px;")
 
         else:
             self._tabs.setTabVisible(0, False)
             self._tabs.setTabVisible(1, False)
             self._err_label.setText(_("sec_login.status.error_title"))
             self._net_label.setText(_("sec_login.status.offline"))
-            self._net_label.setStyleSheet(f"color: {p.text_disabled}; font-weight: bold; font-size: 13px;")
+            self._net_label.setStyleSheet(f"color: {p.text_disabled}; font-weight: bold; font-size: {theme_manager.font_size(13)}px;")
 
     def _update_network_status(self):
         self._net_status = detect_network()

@@ -44,14 +44,15 @@ EVENT_TYPES = [
     ("late", _("event_label.late")),
     ("justified", _("event_label.justified")),
 ]
+_p = theme_manager.palette
 EVENT_COLORS = {
-    "arrival": "#27ae60",
-    "departure": "#2980b9",
-    "exit": "#e67e22",
-    "return": "#2ecc71",
-    "absence": "#e74c3c",
-    "justified": "#95a5a6",
-    "late": "#f1c40f",
+    "arrival": _p.success,
+    "departure": _p.primary,
+    "exit": _p.tertiary,
+    "return": _p.success,
+    "absence": _p.error,
+    "justified": _p.inactive,
+    "late": _p.accent,
 }
 
 
@@ -73,26 +74,17 @@ def _event_icon(event_type: str) -> str:
 
 def _event_color(event_type: str) -> str:
     """Retourne la couleur pour un type d'événement (legacy ou hiérarchique)."""
-    legacy = {
-        "arrival": "#27ae60",
-        "departure": "#2980b9",
-        "exit": "#e67e22",
-        "return": "#2ecc71",
-        "absence": "#e74c3c",
-        "justified": "#95a5a6",
-        "late": "#f1c40f",
-    }
-    if event_type in legacy:
-        return legacy[event_type]
+    if event_type in EVENT_COLORS:
+        return EVENT_COLORS[event_type]
     if event_type.startswith("Bureau BI"):
-        return "#d32f2f"
+        return _p.error
     if event_type.startswith("Médical"):
-        return "#1976d2"
+        return _p.primary
     if event_type.startswith("Sortie"):
-        return "#e65100"
+        return _p.tertiary
     if event_type.startswith("Suivi"):
-        return "#f9a825"
-    return "#555"
+        return _p.accent
+    return _p.text_soft
 
 
 def _event_label(event_type: str) -> str:
@@ -127,7 +119,7 @@ class EventDialog(QDialog):
         self._init_ui()
 
     def _init_ui(self):
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
         p = theme_manager.palette
         d = theme_manager.design
         layout = QVBoxLayout(self)
@@ -269,32 +261,34 @@ class SupervisorPanel(QWidget):
         self._init_ui()
 
     def _init_ui(self):
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
         p = theme_manager.palette
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Header avec titre + boutons liste / +
+        # Header avec titre + boutons liste / tailles / +
         hdr_row = QHBoxLayout()
         hdr_row.setContentsMargins(0, 3, 0, 3)
+        sp = phi.spacing.spacing
+        from phibuilder.phi.scale import SpacingToken
         self._header = M3Label(_("supervisor.select_class"), theme=phi, style="title_small")
         self._header.setStyleSheet("padding: 8px;")
         hdr_row.addWidget(self._header, 1)
 
-        hdr_row.addSpacing(8)
+        hdr_row.addSpacing(sp(SpacingToken.SM))
         self._list_btn = M3Button(_("supervisor.list_button"), theme=phi, variant=ButtonVariant.TONAL)
+        self._list_btn.setFixedSize(sp(SpacingToken.XL), sp(SpacingToken.XL))
         self._list_btn.clicked.connect(self._on_class_list)
         self._list_btn.hide()
         hdr_row.addWidget(self._list_btn)
 
-        hdr_row.addSpacing(5)
-        # Boutons taille vignettes
+        hdr_row.addSpacing(sp(SpacingToken.SM))
+
         from larccommon.icons import icon as md3_icon
         from larccommon.widgets.card_config import PHI_COMPACT, PHI_LARGE, PHI_MEDIUM
 
         self._card_sizes = {"compact": PHI_COMPACT, "medium": PHI_MEDIUM, "large": PHI_LARGE}
-        # Charger depuis la DB
         saved = getattr(session, "card_theme", "medium")
         if session.user_id:
             try:
@@ -310,18 +304,18 @@ class SupervisorPanel(QWidget):
                 pass
         self._card_size = saved
         for key, icon_name in [("compact", "view_comfy"), ("medium", "view_module"), ("large", "dashboard")]:
-            btn = QPushButton("")
-            btn.setFixedSize(28, 28)
+            btn = M3Button(theme=phi, variant=ButtonVariant.TONAL)
+            btn.setFixedSize(sp(SpacingToken.XL), sp(SpacingToken.XL))
+            btn.setIcon(md3_icon(icon_name, color=phi.colors.on_secondary_container, size=22))
             btn.setCheckable(True)
-            btn.setIcon(md3_icon(icon_name, color=theme_manager.palette.text_strong, size=16))
             btn.setToolTip(key.capitalize())
             btn.clicked.connect(lambda checked, k=key: self._on_card_size(k))
             if key == self._card_size:
                 btn.setChecked(True)
             hdr_row.addWidget(btn)
-        hdr_row.addSpacing(5)
+        hdr_row.addSpacing(sp(SpacingToken.SM))
         self._add_btn = M3Button("+", theme=phi, variant=ButtonVariant.FILLED)
-        self._add_btn.setFixedSize(34, 34)
+        self._add_btn.setFixedSize(sp(SpacingToken.XL), sp(SpacingToken.XL))
         self._add_btn.clicked.connect(self._on_add_student)
         self._add_btn.hide()
         hdr_row.addWidget(self._add_btn)
@@ -346,7 +340,7 @@ class SupervisorPanel(QWidget):
         layout.addWidget(self._stack, 1)
 
     def _build_detail(self) -> QWidget:
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
         p = theme_manager.palette
         w = QWidget()
         layout = QVBoxLayout(w)
@@ -516,13 +510,13 @@ class SupervisorPanel(QWidget):
             for card in self._cards:
                 st = pmap.get(card._sid, "UNKNOWN")
                 if st == "PRESENT":
-                    card.set_status(_("supervisor.status_present"), "#27ae60")
+                    card.set_status(_("supervisor.status_present"), _p.success)
                     card.set_absent(False)
                 elif st == "ABSENT":
-                    card.set_status(_("supervisor.status_absent"), "#e74c3c")
+                    card.set_status(_("supervisor.status_absent"), _p.error)
                     card.set_absent(True)
                 else:
-                    card.set_status(_("supervisor.status_unknown"), "#95a5a6")
+                    card.set_status(_("supervisor.status_unknown"), _p.inactive)
                     card.set_absent(False)
         except Exception as e:
             log(f"SupervisorPanel._load_presence: {e}")
@@ -698,7 +692,7 @@ class ClassListDialog(QDialog):
         self._load()
 
     def _init_ui(self):
-        phi = theme_manager.phibuilder.theme if theme_manager.phibuilder else None
+        phi = theme_manager.phi_theme
         p = theme_manager.palette
         layout = QVBoxLayout(self)
         layout.setSpacing(theme_manager.design.spacing)
